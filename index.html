@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>강사관리 시스템 — Teach for Future</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #f5f5f3;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --text: #1a1a1a;
+    --text-sub: #666;
+    --text-hint: #999;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --blue-dark: #0C447C;
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --amber: #854F0B;
+    --amber-light: #FAEEDA;
+    --teal: #0F6E56;
+    --teal-light: #E1F5EE;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .app { min-height: 100vh; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── Login ── */
+  #loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1.5rem;
+    background: linear-gradient(160deg, #f0f7ff 0%, #f5f5f3 60%);
+    position: relative;
+  }
+
+  .login-wrap { width: 100%; max-width: 420px; }
+
+  .login-logo {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .login-logo .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: var(--blue);
+    margin-bottom: 12px;
+  }
+
+  .login-logo .brand-mark svg { width: 30px; height: 30px; fill: white; }
+
+  .login-logo h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--blue);
+    letter-spacing: -0.5px;
+    line-height: 1.3;
+  }
+
+  .login-logo .sub {
+    font-size: 12px;
+    color: var(--text-hint);
+    margin-top: 4px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+
+  /* 탭 숨김 — 새 레이아웃에서 사용 안 함 */
+  .tab-row { display: none; }
+  .tab { display: none; }
+
+  .form-group { margin-bottom: 1rem; }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-sub);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(24,95,165,0.1);
+  }
+
+  .form-group textarea { resize: vertical; }
+
+  /* Multi-input rows (학력, 경력, 자격증) */
+  .multi-input-group { margin-bottom: 1rem; }
+  .multi-input-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-sub);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  .multi-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+
+  .multi-row span {
+    font-size: 12px;
+    color: var(--text-hint);
+    min-width: 18px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .multi-row input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .multi-row input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(24,95,165,0.08);
+  }
+
+  /* 요일 체크 */
+  .day-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(2, 1fr);
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .day-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-sub);
+    padding: 4px 0;
+    text-align: center;
+  }
+
+  .day-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .day-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+  }
+
+  .day-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--blue);
+  }
+
+  .info-box {
+    background: var(--blue-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--blue-dark);
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: var(--bg); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn.primary:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  .btn.danger { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn.danger:hover { background: #791F1F; }
+  .btn.green { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn.green:hover { background: #27500A; }
+  .btn.full { width: 100%; margin-top: 4px; padding: 10px; }
+  .btn.sm { padding: 4px 10px; font-size: 12px; }
+
+  /* 관리자 로그인 — 우하단 고정 소형 패널 */
+  #ltAdmin {
+    position: fixed !important;
+    bottom: 20px;
+    right: 20px;
+    width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    z-index: 100;
+  }
+  #ltAdmin .admin-login-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+  #ltAdmin .admin-login-toggle span {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-sub);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  #ltAdmin .admin-login-toggle .toggle-icon {
+    font-size: 12px;
+    color: var(--text-hint);
+    transition: transform 0.2s;
+  }
+  #ltAdmin .admin-login-body {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease;
+  }
+  #ltAdmin.expanded .admin-login-body { max-height: 220px; }
+  #ltAdmin.expanded .toggle-icon { transform: rotate(180deg); }
+  #ltAdmin .admin-login-body .form-group { margin-bottom: 8px; margin-top: 10px; }
+  #ltAdmin .admin-login-body .form-group label { font-size: 10px; }
+  #ltAdmin .admin-login-body .form-group input { font-size: 12px; padding: 7px 9px; }
+  #ltAdmin .admin-login-body .btn.full { font-size: 12px; padding: 7px; margin-top: 2px; }
+
+  .err-msg { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+
+  /* ── Topbar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 54px;
+    background: var(--blue);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar .title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.3;
+  }
+
+  .topbar .title small {
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.7;
+    display: block;
+    letter-spacing: 0;
+  }
+
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  .user-chip {
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.15);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  .topbar .btn.sm {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+    color: #fff;
+  }
+
+  .topbar .btn.sm:hover { background: rgba(255,255,255,0.25); }
+
+  /* ── Nav ── */
+  .nav {
+    display: flex;
+    gap: 2px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .nav-btn {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    color: var(--text-sub);
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .nav-btn:hover { background: var(--bg); color: var(--text); }
+  .nav-btn.active { background: var(--blue-light); color: var(--blue); }
+
+  /* ── Content ── */
+  .content { padding: 20px; max-width: 900px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .section-title { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .badge.pending { background: var(--amber-light); color: var(--amber); }
+  .badge.approved { background: var(--green-light); color: var(--green); }
+  .badge.rejected { background: var(--red-light); color: var(--red); }
+  .badge.admin { background: var(--blue-light); color: var(--blue); }
+  .badge.day { background: var(--teal-light); color: var(--teal); }
+
+  /* ── Row items ── */
+  .row-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+
+  .row-item:last-child { border-bottom: none; }
+
+  .profile-row {
+    display: flex;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    gap: 12px;
+  }
+
+  .profile-row:last-child { border-bottom: none; }
+  .profile-row .lbl { color: var(--text-sub); flex-shrink: 0; min-width: 80px; font-weight: 500; font-size: 12px; }
+  .profile-row .val { color: var(--text); }
+
+  .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--blue-light);
+    color: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .inst-info { flex: 1; min-width: 0; }
+  .inst-name { font-size: 14px; font-weight: 500; }
+  .inst-sub { font-size: 12px; color: var(--text-sub); margin-top: 1px; }
+
+  /* ── Calendar ── */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cal-nav { display: flex; align-items: center; gap: 8px; }
+  .cal-nav button {
+    width: 30px; height: 30px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--surface);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text);
+  }
+
+  .cal-nav button:hover { background: var(--bg); }
+  .cal-month { font-size: 15px; font-weight: 700; min-width: 110px; text-align: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-day-hdr { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-sub); padding: 4px 0 8px; letter-spacing: 0.5px; }
+  .cal-day { min-height: 64px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 6px; background: var(--surface); cursor: pointer; transition: all 0.12s; }
+  .cal-day:hover { border-color: var(--blue); background: var(--blue-light); }
+  .cal-day.other-month { background: var(--bg); opacity: 0.5; pointer-events: none; }
+  .cal-day.today { border-color: var(--blue); border-width: 2px; }
+  .cal-day .day-num { font-size: 11px; color: var(--text-sub); font-weight: 500; margin-bottom: 3px; }
+  .cal-day.today .day-num { color: var(--blue); font-weight: 700; }
+  .ev-dot { font-size: 10px; background: var(--blue-light); color: var(--blue); border-radius: 3px; padding: 1px 4px; margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+
+  /* ── Events ── */
+  .ev-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .ev-item:last-child { border-bottom: none; }
+  .ev-title { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+  .ev-meta { font-size: 12px; color: var(--text-sub); }
+  .ev-desc { font-size: 12px; color: var(--text-hint); margin-top: 3px; }
+
+  /* ── Search ── */
+  .search-panel {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+  }
+
+  .search-panel .search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .search-panel .search-row:last-child { margin-bottom: 0; }
+
+  .search-panel input, .search-panel select {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .search-panel input:focus, .search-panel select:focus {
+    border-color: var(--blue);
+  }
+
+  .day-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .day-filter-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text-sub);
+    font-weight: 500;
+    transition: all 0.12s;
+  }
+
+  .day-filter-btn.active-am { background: var(--blue-light); color: var(--blue); border-color: var(--blue); }
+  .day-filter-btn.active-pm { background: var(--teal-light); color: var(--teal); border-color: var(--teal); }
+
+  /* ── Modal ── */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 1rem;
+    backdrop-filter: blur(2px);
+  }
+
+  .modal-bg.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    width: 100%;
+    max-width: 480px;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  }
+
+  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 1.25rem; letter-spacing: -0.3px; }
+  .modal-footer { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
+
+  .app-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .app-row:last-child { border-bottom: none; }
+  .btn-grp { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+
+  .admin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .admin-row:last-child { border-bottom: none; }
+
+  .empty-msg { font-size: 13px; color: var(--text-sub); padding: 8px 0; }
+  .success-chip { font-size: 12px; color: var(--green); display: none; margin-left: 10px; }
+
+  /* ── Profile section headers in modal ── */
+  .profile-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-hint);
+    margin: 14px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-section-title:first-child { margin-top: 0; }
+
+  /* ── Footer credit ── */
+  .footer-credit {
+    text-align: center;
+    padding: 16px;
+    font-size: 11px;
+    color: var(--text-hint);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    margin-top: 20px;
+  }
+
+  .login-credit {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-hint);
+    margin-top: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .content { padding: 12px; }
+    .card { padding: 1rem; }
+    .modal { padding: 1.25rem; }
+    .topbar { padding: 0 14px; }
+    .topbar .title { font-size: 13px; }
+    .day-grid { grid-template-columns: 70px repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen" class="screen active" style="display:flex;">
+  <div class="login-wrap">
+    <div class="login-logo">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6L23 9zm0 2.27L19.09 9 12 12.73 4.91 9zm-5 7.09l5 2.72 5-2.72v3.55L12 18.73l-5-2.82z"/>
+        </svg>
+      </div>
+      <h1>강사관리 시스템</h1>
+      <p class="sub">Teach for Future — Instructor Management</p>
+    </div>
+    <div class="login-card">
+      <div class="tab-row">
+        <button class="tab active" onclick="setTab('inst',this)">강사 로그인</button>
+        <button class="tab" onclick="setTab('admin',this)">관리자 로그인</button>
+      </div>
+
+      <div id="ltInst">
+        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:1.2rem;">강사 로그인</p>
+        <div class="form-group"><label>이름</label><input id="iName" type="text" placeholder="홍길동"/></div>
+        <div class="form-group"><label>비밀번호</label><input id="iPw" type="password" placeholder="비밀번호 입력"/></div>
+        <button class="btn primary full" onclick="loginInst()">로그인 / 신규 등록</button>
+        <p style="font-size:11px;color:var(--text-hint);margin-top:10px;text-align:center;">처음 접속 시 자동으로 계정이 생성됩니다.</p>
+      </div>
+
+      <div id="loginErr" class="err-msg"></div>
+    </div>
+    <div class="login-credit">바이브코딩 연구소 제작</div>
+  </div>
+
+  <!-- 관리자 로그인: 우하단 소형 패널 -->
+  <div id="ltAdmin" onclick="event.stopPropagation()">
+    <div class="admin-login-toggle" onclick="toggleAdminPanel()">
+      <span>🔒 관리자 로그인</span>
+      <span class="toggle-icon">▲</span>
+    </div>
+    <div class="admin-login-body">
+      <div class="form-group"><label>관리자 이름</label><input id="aName" type="text" placeholder="관리자 이름 입력"/></div>
+      <div class="form-group"><label>비밀번호</label><input id="aPw" type="password" placeholder="비밀번호 입력"/></div>
+      <button class="btn primary full" onclick="loginAdmin()">로그인</button>
+      <div id="adminLoginErr" class="err-msg" style="font-size:11px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INSTRUCTOR SCREEN ══ -->
+<div id="instScreen" class="screen">
+  <div class="topbar">
+    <div class="title">
+      강사관리 시스템
+      <small>Teach for Future</small>
+    </div>
+    <div class="topbar-right">
+      <span class="user-chip" id="instTopName"></span>
+      <button class="btn sm" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="showIP('Profile',this)">내 프로필</button>
+    <button class="nav-btn" onclick="showIP('Events',this)">공지 / 수업</button>
+  </div>
+  <div class="content">
+
+    <!-- 프로필 -->
+    <div id="ipProfile" class="page active">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">내 프로필</div>
+        </div>
+
+        <div class="form-group"><label>이름</label><input id="pName" type="text"/></div>
+        <div class="form-group"><label>이메일</label><input id="pEmail" type="email" placeholder="example@email.com"/></div>
+        <div class="form-group"><label>연락처</label><input id="pPhone" type="text" placeholder="010-0000-0000"/></div>
+        <div class="form-group"><label>주소</label><input id="pAddr" type="text" placeholder="거주지 주소"/></div>
+        <div class="form-group"><label>전공 / 담당 과목</label><input id="pSubject" type="text" placeholder="수학, 영어 등"/></div>
+
+        <!-- 차량 유무 -->
+        <div class="form-group">
+          <label>차량 유무</label>
+          <div style="display:flex;gap:16px;padding:6px 0;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;">
+              <input type="radio" name="pCar" id="pCarY" value="있음" style="width:16px;height:16px;accent-color:var(--blue);"/> 있음
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;">
+              <input type="radio" name="pCar" id="pCarN" value="없음" style="width:16px;height:16px;accent-color:var(--blue);"/> 없음
+            </label>
+          </div>
+        </div>
+
+        <!-- 어필 -->
+        <div class="form-group">
+          <label>나를 어필해요</label>
+          <textarea id="pAppeal" rows="4" placeholder="내가 잘하는 분야, 강점, 특기사항 등을 자유롭게 적어주세요."></textarea>
+        </div>
+
+        <!-- 학력 3개 -->
+        <div class="multi-input-group">
+          <label>학력 (최대 3개)</label>
+          <div class="multi-row"><span>1</span><input id="pEdu1" type="text" placeholder="○○대학교 ○○학과 졸업"/></div>
+          <div class="multi-row"><span>2</span><input id="pEdu2" type="text" placeholder="추가 학력"/></div>
+          <div class="multi-row"><span>3</span><input id="pEdu3" type="text" placeholder="추가 학력"/></div>
+        </div>
+
+        <!-- 경력 5개 -->
+        <div class="multi-input-group">
+          <label>경력 (최대 5개)</label>
+          <div class="multi-row"><span>1</span><input id="pCar1" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
+          <div class="multi-row"><span>2</span><input id="pCar2" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
+          <div class="multi-row"><span>3</span><input id="pCar3" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
+          <div class="multi-row"><span>4</span><input id="pCar4" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
+          <div class="multi-row"><span>5</span><input id="pCar5" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
+        </div>
+
+        <!-- 자격증 5개 -->
+        <div class="multi-input-group">
+          <label>자격증 (최대 5개)</label>
+          <div class="multi-row"><span>1</span><input id="pCert1" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
+          <div class="multi-row"><span>2</span><input id="pCert2" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
+          <div class="multi-row"><span>3</span><input id="pCert3" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
+          <div class="multi-row"><span>4</span><input id="pCert4" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
+          <div class="multi-row"><span>5</span><input id="pCert5" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
+        </div>
+
+        <!-- 수업 가능 요일 -->
+        <div class="multi-input-group">
+          <label>수업 가능 요일</label>
+          <div class="day-grid">
+            <div class="day-header"></div>
+            <div class="day-header">오전</div>
+            <div class="day-header">오후</div>
+            <div class="day-label">월요일</div>
+            <div class="day-check"><input type="checkbox" id="d_mon_am"/></div>
+            <div class="day-check"><input type="checkbox" id="d_mon_pm"/></div>
+            <div class="day-label">화요일</div>
+            <div class="day-check"><input type="checkbox" id="d_tue_am"/></div>
+            <div class="day-check"><input type="checkbox" id="d_tue_pm"/></div>
+            <div class="day-label">수요일</div>
+            <div class="day-check"><input type="checkbox" id="d_wed_am"/></div>
+            <div class="day-check"><input type="checkbox" id="d_wed_pm"/></div>
+            <div class="day-label">목요일</div>
+            <div class="day-check"><input type="checkbox" id="d_thu_am"/></div>
+            <div class="day-check"><input type="checkbox" id="d_thu_pm"/></div>
+            <div class="day-label">금요일</div>
+            <div class="day-check"><input type="checkbox" id="d_fri_am"/></div>
+            <div class="day-check"><input type="checkbox" id="d_fri_pm"/></div>
+            <div class="day-label">토요일</div>
+            <div class="day-check"><input type="checkbox" id="d_sat_am"/></div>
+            <div class="day-check"><input type="checkbox" id="d_sat_pm"/></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;margin-top:4px;">
+          <button class="btn primary" onclick="saveProfile()">저장</button>
+          <span id="saveMsg" class="success-chip">✓ 저장되었습니다</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공지/수업 -->
+    <div id="ipEvents" class="page">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px;">공지된 수업 / 세미나 / 연수</div>
+        <div id="instEvList"></div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px;">내 신청 현황</div>
+        <div id="myApps"></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-credit">바이브코딩 연구소 제작</div>
+</div>
+
+<!-- ══ ADMIN SCREEN ══ -->
+<div id="adminScreen" class="screen">
+  <div class="topbar">
+    <div class="title">
+      강사관리 시스템
+      <small>Teach for Future</small>
+    </div>
+    <div class="topbar-right">
+      <span class="badge admin" id="adminTopName"></span>
+      <button class="btn sm" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="showAP('Calendar',this)">달력</button>
+    <button class="nav-btn" onclick="showAP('Instructors',this)">강사 목록</button>
+    <button class="nav-btn" onclick="showAP('Search',this)">강사 검색</button>
+    <button class="nav-btn" onclick="showAP('Settings',this)">관리자 설정</button>
+  </div>
+  <div class="content">
+
+    <!-- 달력 -->
+    <div id="apCalendar" class="page active">
+      <div class="card">
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button onclick="chMon(-1)">&#9664;</button>
+            <span class="cal-month" id="calTitle"></span>
+            <button onclick="chMon(1)">&#9654;</button>
+          </div>
+          <button class="btn sm primary" onclick="openModal('addEvModal')">+ 일정 추가</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">이번 달 일정 목록</div>
+          <button class="btn sm green" onclick="exportExcel()">엑셀 내보내기</button>
+        </div>
+        <div id="monthEvList"></div>
+      </div>
+    </div>
+
+    <!-- 강사 목록 -->
+    <div id="apInstructors" class="page">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">전체 강사 목록</div>
+          <button class="btn sm green" onclick="exportInstExcel()">강사 목록 엑셀</button>
+        </div>
+        <div id="instListAdmin"></div>
+      </div>
+    </div>
+
+    <!-- 강사 검색 -->
+    <div id="apSearch" class="page">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px;">강사 검색</div>
+        <div class="search-panel">
+          <div class="search-row">
+            <input id="sName" type="text" placeholder="이름" oninput="searchInst()"/>
+            <input id="sSubject" type="text" placeholder="과목 / 전공" oninput="searchInst()"/>
+          </div>
+          <div class="search-row">
+            <input id="sEdu" type="text" placeholder="학력" oninput="searchInst()"/>
+            <input id="sCert" type="text" placeholder="자격증" oninput="searchInst()"/>
+          </div>
+          <div style="margin-top:8px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">수업 가능 요일 검색</div>
+            <div class="day-filter" id="dayFilterBtns"></div>
+          </div>
+        </div>
+        <div id="searchResults"></div>
+      </div>
+    </div>
+
+    <!-- 관리자 설정 -->
+    <div id="apSettings" class="page">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">관리자 계정 관리</div>
+          <button class="btn sm primary" onclick="openModal('addAdminModal')">+ 관리자 추가</button>
+        </div>
+        <div class="info-box">최대 4명의 관리자를 등록할 수 있습니다. 각 관리자는 이름과 비밀번호로 로그인합니다.</div>
+        <div id="adminList"></div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:14px;">내 비밀번호 변경</div>
+        <div class="form-group"><label>현재 비밀번호</label><input id="curPw" type="password"/></div>
+        <div class="form-group"><label>새 비밀번호</label><input id="newPw" type="password"/></div>
+        <div class="form-group"><label>새 비밀번호 확인</label><input id="newPw2" type="password"/></div>
+        <div style="display:flex;align-items:center;">
+          <button class="btn primary" onclick="changePw()">변경</button>
+          <span id="pwMsg" style="font-size:12px;margin-left:10px;display:none;"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footer-credit">바이브코딩 연구소 제작</div>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- Add Event -->
+<div class="modal-bg" id="addEvModal">
+  <div class="modal">
+    <h3>일정 / 공지 추가</h3>
+    <div class="form-group"><label>유형</label>
+      <select id="evType">
+        <option>과학&amp;코딩 캠프</option>
+        <option>특강수업</option>
+        <option>세미나&amp;연수</option>
+        <option>동아리</option>
+        <option>기타사항</option>
+      </select>
+    </div>
+    <div class="form-group"><label>제목</label><input id="evTitle" type="text" placeholder="수업 제목"/></div>
+    <div class="form-group"><label>날짜</label><input id="evDate" type="date"/></div>
+    <div class="form-group"><label>학교 / 장소</label><input id="evPlace" type="text" placeholder="○○초등학교"/></div>
+    <div class="form-group"><label>내용</label><textarea id="evDesc" rows="3" placeholder="상세 내용을 입력하세요"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="saveEvent()">저장</button>
+      <button class="btn" onclick="closeModal('addEvModal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Detail -->
+<div class="modal-bg" id="evDetailModal">
+  <div class="modal">
+    <h3 id="edTitle"></h3>
+    <div id="edInfo" style="font-size:13px;color:var(--text-sub);margin-bottom:4px;"></div>
+    <div id="edDesc" style="font-size:13px;margin-bottom:1rem;"></div>
+    <div class="section-title" style="font-size:13px;margin-bottom:10px;">지원 강사</div>
+    <div id="edApplicants"></div>
+    <div class="modal-footer">
+      <button class="btn danger" id="delEvBtn">일정 삭제</button>
+      <button class="btn" onclick="closeModal('evDetailModal')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal (Admin View) -->
+<div class="modal-bg" id="profileModal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+      <div class="avatar" style="width:44px;height:44px;font-size:18px;" id="pmAvatar"></div>
+      <div>
+        <h3 style="margin-bottom:2px;" id="pmName"></h3>
+        <div style="font-size:12px;color:var(--text-sub);" id="pmSubject"></div>
+      </div>
+    </div>
+    <div id="pmInfo"></div>
+    <div class="section-title" style="font-size:13px;margin:14px 0 10px;">수업 / 연수 참여 이력</div>
+    <div id="pmHistory"></div>
+    <div class="modal-footer">
+      <button class="btn danger" id="delInstBtn">강사 삭제</button>
+      <button class="btn" onclick="closeModal('profileModal')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Admin -->
+<div class="modal-bg" id="addAdminModal">
+  <div class="modal">
+    <h3>관리자 추가</h3>
+    <div class="form-group"><label>이름</label><input id="newAName" type="text" placeholder="관리자 이름"/></div>
+    <div class="form-group"><label>비밀번호</label><input id="newAPw" type="password" placeholder="비밀번호 설정"/></div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="addAdmin()">추가</button>
+      <button class="btn" onclick="closeModal('addAdminModal')">취소</button>
+    </div>
+    <div id="addAdminErr" class="err-msg"></div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──
+const DB_KEY = 'tff_ims_v1';
+const DAYS = [
+  { key: 'mon', label: '월' },
+  { key: 'tue', label: '화' },
+  { key: 'wed', label: '수' },
+  { key: 'thu', label: '목' },
+  { key: 'fri', label: '금' },
+  { key: 'sat', label: '토' }
+];
+const MON = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+// ── State ──
+let S = {
+  instructors: {},
+  events: [],
+  admins: { admin: 'admin1234' },
+  currentUser: null,
+  isAdmin: false,
+  currentAdminName: null,
+  calYear: new Date().getFullYear(),
+  calMonth: new Date().getMonth(),
+  dayFilter: {} // { mon_am: true, mon_pm: false, ... }
+};
+
+// ── Storage ──
+function loadData() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      S.instructors = d.instructors || {};
+      S.events = d.events || [];
+      S.admins = d.admins || { admin: 'admin1234' };
+    }
+  } catch(e) {}
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify({
+      instructors: S.instructors,
+      events: S.events,
+      admins: S.admins
+    }));
+  } catch(e) {}
+}
+
+// ── Login ──
+function setTab(t, btn) {
+  // 탭 기능은 새 레이아웃에서 사용 안 함 (하위 호환용 유지)
+}
+
+function toggleAdminPanel() {
+  document.getElementById('ltAdmin').classList.toggle('expanded');
+}
+
+function showErr(msg) {
+  const e = document.getElementById('loginErr');
+  e.textContent = msg;
+  e.style.display = 'block';
+}
+
+function showAdminErr(msg) {
+  const e = document.getElementById('adminLoginErr');
+  if (e) { e.textContent = msg; e.style.display = 'block'; }
+}
+
+function loginInst() {
+  const name = document.getElementById('iName').value.trim();
+  const pw = document.getElementById('iPw').value.trim();
+  if (!name || !pw) { showErr('이름과 비밀번호를 입력하세요.'); return; }
+  if (S.instructors[name]) {
+    if (S.instructors[name].pw !== pw) { showErr('비밀번호가 틀렸습니다.'); return; }
+  } else {
+    S.instructors[name] = {
+      pw, name, email:'', phone:'', addr:'', subject:'',
+      edu: ['','',''],
+      career: ['','','','',''],
+      certs: ['','','','',''],
+      days: {},
+      carOwn: '',
+      appeal: ''
+    };
+    saveData();
+  }
+  document.getElementById('loginErr').style.display = 'none';
+  S.currentUser = name; S.isAdmin = false;
+  showScreen('instScreen');
+  loadInstProfile();
+}
+
+function loginAdmin() {
+  const name = document.getElementById('aName').value.trim();
+  const pw = document.getElementById('aPw').value;
+  if (!S.admins[name]) { showAdminErr('관리자 계정이 없습니다.'); return; }
+  if (S.admins[name] !== pw) { showAdminErr('비밀번호가 틀렸습니다.'); return; }
+  const errEl = document.getElementById('adminLoginErr');
+  if (errEl) errEl.style.display = 'none';
+  S.isAdmin = true; S.currentAdminName = name;
+  document.getElementById('adminTopName').textContent = name + ' 관리자';
+  showScreen('adminScreen');
+  renderCal();
+  initDayFilter();
+}
+
+function logout() {
+  S.currentUser = null; S.isAdmin = false; S.currentAdminName = null;
+  showScreen('loginScreen');
+  ['iName','iPw','aName','aPw'].forEach(id => document.getElementById(id).value = '');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.style.display = 'none'; s.classList.remove('active'); });
+  const s = document.getElementById(id);
+  s.style.display = id === 'loginScreen' ? 'flex' : 'block';
+  s.classList.add('active');
+}
+
+// ── Nav ──
+function showIP(id, btn) {
+  document.querySelectorAll('#instScreen .page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#instScreen .nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('ip' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'Events') renderInstEvents();
+}
+
+function showAP(id, btn) {
+  document.querySelectorAll('#adminScreen .page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#adminScreen .nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('ap' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'Calendar') { renderCal(); renderMonthList(); }
+  if (id === 'Instructors') renderInstList();
+  if (id === 'Settings') renderAdminList();
+}
+
+// ── Profile helpers ──
+function getProfile(u) {
+  // migrate old format
+  if (!u.edu) u.edu = ['','',''];
+  if (!u.career) u.career = ['','','','',''];
+  if (!u.certs) u.certs = ['','','','',''];
+  if (!u.days) u.days = {};
+  if (!u.email) u.email = '';
+  if (!u.carOwn) u.carOwn = '';
+  if (!u.appeal) u.appeal = '';
+  return u;
+}
+
+function loadInstProfile() {
+  const u = getProfile(S.instructors[S.currentUser]);
+  document.getElementById('instTopName').textContent = S.currentUser + '님';
+  document.getElementById('pName').value = u.name || S.currentUser;
+  document.getElementById('pEmail').value = u.email || '';
+  document.getElementById('pPhone').value = u.phone || '';
+  document.getElementById('pAddr').value = u.addr || '';
+  document.getElementById('pSubject').value = u.subject || '';
+  for (let i = 0; i < 3; i++) document.getElementById(`pEdu${i+1}`).value = u.edu[i] || '';
+  for (let i = 0; i < 5; i++) document.getElementById(`pCar${i+1}`).value = u.career[i] || '';
+  for (let i = 0; i < 5; i++) document.getElementById(`pCert${i+1}`).value = u.certs[i] || '';
+  document.getElementById('pCarY').checked = u.carOwn === '있음';
+  document.getElementById('pCarN').checked = u.carOwn === '없음';
+  document.getElementById('pAppeal').value = u.appeal || '';
+  DAYS.forEach(d => {
+    document.getElementById(`d_${d.key}_am`).checked = !!(u.days[d.key + '_am']);
+    document.getElementById(`d_${d.key}_pm`).checked = !!(u.days[d.key + '_pm']);
+  });
+}
+
+function saveProfile() {
+  const u = getProfile(S.instructors[S.currentUser]);
+  u.name = document.getElementById('pName').value;
+  u.email = document.getElementById('pEmail').value;
+  u.phone = document.getElementById('pPhone').value;
+  u.addr = document.getElementById('pAddr').value;
+  u.subject = document.getElementById('pSubject').value;
+  u.edu = [1,2,3].map(i => document.getElementById(`pEdu${i}`).value.trim());
+  u.career = [1,2,3,4,5].map(i => document.getElementById(`pCar${i}`).value.trim());
+  u.certs = [1,2,3,4,5].map(i => document.getElementById(`pCert${i}`).value.trim());
+  const carChecked = document.querySelector('input[name="pCar"]:checked');
+  u.carOwn = carChecked ? carChecked.value : '';
+  u.appeal = document.getElementById('pAppeal').value.trim();
+  u.days = {};
+  DAYS.forEach(d => {
+    u.days[d.key + '_am'] = document.getElementById(`d_${d.key}_am`).checked;
+    u.days[d.key + '_pm'] = document.getElementById(`d_${d.key}_pm`).checked;
+  });
+  saveData();
+  const m = document.getElementById('saveMsg');
+  m.style.display = 'inline';
+  setTimeout(() => m.style.display = 'none', 2000);
+}
+
+// ── Instructor events ──
+function renderInstEvents() {
+  const list = document.getElementById('instEvList');
+  const myApp = document.getElementById('myApps');
+  const u = S.instructors[S.currentUser];
+  if (!S.events.length) {
+    list.innerHTML = '<p class="empty-msg">등록된 공지가 없습니다.</p>';
+    myApp.innerHTML = '';
+    return;
+  }
+  list.innerHTML = '';
+  S.events.forEach((ev, i) => {
+    const applied = u.applications && u.applications[i];
+    const d = document.createElement('div');
+    d.className = 'ev-item';
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div>
+        <div class="ev-title">[${ev.type}] ${ev.title}</div>
+        <div class="ev-meta">${ev.date} &middot; ${ev.place}</div>
+        <div class="ev-desc">${ev.desc || ''}</div>
+      </div>
+      <div style="flex-shrink:0;">
+        ${applied
+          ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>`
+          : `<button class="btn sm primary" onclick="applyEv(${i})">신청</button>`}
+      </div>
+    </div>`;
+    list.appendChild(d);
+  });
+  const items = Object.entries(u.applications || {}).filter(([,v]) => v);
+  if (!items.length) {
+    myApp.innerHTML = '<p class="empty-msg">신청한 항목이 없습니다.</p>';
+    return;
+  }
+  myApp.innerHTML = '';
+  items.forEach(([idx, status]) => {
+    const ev = S.events[idx]; if (!ev) return;
+    const d = document.createElement('div'); d.className = 'ev-item';
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
+      <span>[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}</span></span>
+      <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
+    </div>`;
+    myApp.appendChild(d);
+  });
+}
+
+function applyEv(idx) {
+  const u = S.instructors[S.currentUser];
+  if (!u.applications) u.applications = {};
+  u.applications[idx] = 'pending';
+  saveData(); renderInstEvents();
+}
+
+// ── Calendar ──
+function renderCal() {
+  document.getElementById('calTitle').textContent = `${S.calYear}년 ${MON[S.calMonth]}`;
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  ['일','월','화','수','목','금','토'].forEach(d => {
+    const h = document.createElement('div'); h.className = 'cal-day-hdr'; h.textContent = d; grid.appendChild(h);
+  });
+  const first = new Date(S.calYear, S.calMonth, 1).getDay();
+  const days = new Date(S.calYear, S.calMonth + 1, 0).getDate();
+  for (let i = 0; i < first; i++) {
+    const d = document.createElement('div'); d.className = 'cal-day other-month'; grid.appendChild(d);
+  }
+  const today = new Date();
+  for (let d = 1; d <= days; d++) {
+    const cell = document.createElement('div'); cell.className = 'cal-day';
+    if (d === today.getDate() && S.calMonth === today.getMonth() && S.calYear === today.getFullYear()) cell.classList.add('today');
+    cell.innerHTML = `<div class="day-num">${d}</div>`;
+    const ds = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvs = S.events.filter(e => e.date === ds);
+    dayEvs.slice(0, 2).forEach(ev => {
+      const dot = document.createElement('span'); dot.className = 'ev-dot';
+      dot.textContent = `[${ev.type}] ${ev.title}`; cell.appendChild(dot);
+    });
+    if (dayEvs.length > 0) {
+      const idx = S.events.findIndex(e => e.date === ds);
+      cell.onclick = () => openEvDetail(idx);
+    } else {
+      cell.onclick = () => { document.getElementById('evDate').value = ds; openModal('addEvModal'); };
+    }
+    grid.appendChild(cell);
+  }
+  renderMonthList();
+}
+
+function chMon(d) {
+  S.calMonth += d;
+  if (S.calMonth > 11) { S.calMonth = 0; S.calYear++; }
+  if (S.calMonth < 0) { S.calMonth = 11; S.calYear--; }
+  renderCal();
+}
+
+function renderMonthList() {
+  const pfx = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
+  const evs = S.events.filter(e => e.date.startsWith(pfx));
+  const div = document.getElementById('monthEvList');
+  if (!evs.length) { div.innerHTML = '<p class="empty-msg">이번 달 일정이 없습니다.</p>'; return; }
+  div.innerHTML = '';
+  evs.forEach(ev => {
+    const idx = S.events.indexOf(ev);
+    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[idx]);
+    const approved = apps.filter(u => u.applications[idx] === 'approved').length;
+    const d = document.createElement('div'); d.className = 'ev-item';
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div class="ev-title">[${ev.type}] ${ev.title}</div>
+        <div class="ev-meta">${ev.date} &middot; ${ev.place} &middot; 신청 ${apps.length}명 / 승인 ${approved}명</div>
+      </div>
+      <button class="btn sm" onclick="openEvDetail(${idx})">상세</button>
+    </div>`;
+    div.appendChild(d);
+  });
+}
+
+// ── Modals ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function saveEvent() {
+  const title = document.getElementById('evTitle').value.trim();
+  const date = document.getElementById('evDate').value;
+  if (!title || !date) { alert('제목과 날짜를 입력하세요.'); return; }
+  S.events.push({
+    type: document.getElementById('evType').value, title, date,
+    place: document.getElementById('evPlace').value,
+    desc: document.getElementById('evDesc').value
+  });
+  saveData(); closeModal('addEvModal');
+  ['evTitle','evPlace','evDesc'].forEach(id => document.getElementById(id).value = '');
+  renderCal();
+}
+
+function openEvDetail(idx) {
+  const ev = S.events[idx];
+  document.getElementById('edTitle').textContent = `[${ev.type}] ${ev.title}`;
+  document.getElementById('edInfo').textContent = `${ev.date} · ${ev.place}`;
+  document.getElementById('edDesc').textContent = ev.desc || '';
+  const apDiv = document.getElementById('edApplicants');
+  const applicants = [];
+  Object.entries(S.instructors).forEach(([name, u]) => {
+    if (u.applications && u.applications[idx]) applicants.push({ name, status: u.applications[idx] });
+  });
+  document.getElementById('delEvBtn').onclick = () => deleteEvent(idx);
+  if (!applicants.length) {
+    apDiv.innerHTML = '<p class="empty-msg">신청한 강사가 없습니다.</p>';
+  } else {
+    apDiv.innerHTML = '';
+    applicants.forEach(({ name, status }) => {
+      const row = document.createElement('div'); row.className = 'app-row';
+      row.innerHTML = `<span>${name}</span>
+        <div class="btn-grp">
+          <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
+          ${status==='pending'
+            ? `<button class="btn sm primary" onclick="approveApp('${name}',${idx},'approved')">승인</button>
+               <button class="btn sm danger" onclick="approveApp('${name}',${idx},'rejected')">거절</button>`
+            : ''}
+        </div>`;
+      apDiv.appendChild(row);
+    });
+  }
+  openModal('evDetailModal');
+}
+
+function approveApp(name, idx, result) {
+  S.instructors[name].applications[idx] = result;
+  saveData(); openEvDetail(idx);
+}
+
+function deleteEvent(idx) {
+  if (!confirm('이 일정을 삭제하시겠습니까?')) return;
+  Object.values(S.instructors).forEach(u => { if (u.applications) delete u.applications[idx]; });
+  S.events.splice(idx, 1);
+  saveData(); closeModal('evDetailModal'); renderCal();
+}
+
+// ── Instructor List ──
+function renderInstList() {
+  const div = document.getElementById('instListAdmin');
+  const names = Object.keys(S.instructors);
+  if (!names.length) { div.innerHTML = '<p class="empty-msg">등록된 강사가 없습니다.</p>'; return; }
+  div.innerHTML = '';
+  names.forEach(name => {
+    const u = getProfile(S.instructors[name]);
+    const row = document.createElement('div'); row.className = 'row-item';
+    row.innerHTML = `
+      <div class="avatar">${name.slice(0,1)}</div>
+      <div class="inst-info">
+        <div class="inst-name">${name}</div>
+        <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
+      </div>
+      <button class="btn sm" onclick="openProfile('${name}')">프로필</button>`;
+    div.appendChild(row);
+  });
+}
+
+// ── Day Filter ──
+function initDayFilter() {
+  const wrap = document.getElementById('dayFilterBtns');
+  wrap.innerHTML = '';
+  DAYS.forEach(d => {
+    ['오전','오후'].forEach(t => {
+      const key = d.key + (t === '오전' ? '_am' : '_pm');
+      const btn = document.createElement('button');
+      btn.className = 'day-filter-btn';
+      btn.textContent = `${d.label} ${t}`;
+      btn.dataset.key = key;
+      btn.dataset.type = t === '오전' ? 'am' : 'pm';
+      btn.onclick = () => toggleDayFilter(key, btn);
+      wrap.appendChild(btn);
+    });
+  });
+}
+
+function toggleDayFilter(key, btn) {
+  if (S.dayFilter[key]) {
+    delete S.dayFilter[key];
+    btn.className = 'day-filter-btn';
+  } else {
+    S.dayFilter[key] = true;
+    btn.className = 'day-filter-btn active-' + btn.dataset.type;
+  }
+  searchInst();
+}
+
+// ── Search ──
+function searchInst() {
+  const qName = document.getElementById('sName').value.trim().toLowerCase();
+  const qSubj = document.getElementById('sSubject').value.trim().toLowerCase();
+  const qEdu  = document.getElementById('sEdu').value.trim().toLowerCase();
+  const qCert = document.getElementById('sCert').value.trim().toLowerCase();
+  const activeDays = Object.keys(S.dayFilter).filter(k => S.dayFilter[k]);
+
+  const div = document.getElementById('searchResults');
+  const hasQuery = qName || qSubj || qEdu || qCert || activeDays.length;
+  if (!hasQuery) { div.innerHTML = '<p class="empty-msg">검색어를 입력하거나 요일을 선택하세요.</p>'; return; }
+
+  const matches = Object.keys(S.instructors).filter(name => {
+    const u = getProfile(S.instructors[name]);
+    if (qName && !name.toLowerCase().includes(qName)) return false;
+    if (qSubj && !(u.subject||'').toLowerCase().includes(qSubj)) return false;
+    if (qEdu && !u.edu.some(e => e.toLowerCase().includes(qEdu))) return false;
+    if (qCert && !u.certs.some(c => c.toLowerCase().includes(qCert))) return false;
+    if (activeDays.length) {
+      const hasDay = activeDays.every(key => u.days && u.days[key]);
+      if (!hasDay) return false;
+    }
+    return true;
+  });
+
+  if (!matches.length) { div.innerHTML = '<p class="empty-msg">검색 결과가 없습니다.</p>'; return; }
+  div.innerHTML = `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">검색 결과 ${matches.length}명</div>`;
+  matches.forEach(name => {
+    const u = getProfile(S.instructors[name]);
+    const dayTags = DAYS.flatMap(d => {
+      const tags = [];
+      if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin-right:3px;">${d.label} 오전</span>`);
+      if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin-right:3px;">${d.label} 오후</span>`);
+      return tags;
+    }).join('');
+    const row = document.createElement('div'); row.className = 'row-item';
+    row.style.flexWrap = 'wrap';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+        <div class="avatar">${name.slice(0,1)}</div>
+        <div class="inst-info">
+          <div class="inst-name">${name}</div>
+          <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
+          ${dayTags ? `<div style="margin-top:4px;">${dayTags}</div>` : ''}
+        </div>
+      </div>
+      <button class="btn sm" onclick="openProfile('${name}')">프로필</button>`;
+    div.appendChild(row);
+  });
+}
+
+// ── Profile Modal ──
+function formatList(arr) {
+  return (arr || []).filter(v => v.trim()).map(v => `<div style="padding:2px 0;">${v}</div>`).join('') || '-';
+}
+
+function openProfile(name) {
+  const u = getProfile(S.instructors[name]);
+  document.getElementById('pmAvatar').textContent = name.slice(0,1);
+  document.getElementById('pmName').textContent = name;
+  document.getElementById('pmSubject').textContent = u.subject || '과목 미입력';
+
+  const dayStr = DAYS.flatMap(d => {
+    const tags = [];
+    if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin:1px;">${d.label} 오전</span>`);
+    if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin:1px;">${d.label} 오후</span>`);
+    return tags;
+  }).join('') || '<span style="color:var(--text-hint)">미입력</span>';
+
+  document.getElementById('pmInfo').innerHTML = `
+    <div class="profile-section-title">기본 정보</div>
+    <div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email||'-'}</span></div>
+    <div class="profile-row"><span class="lbl">연락처</span><span class="val">${u.phone||'-'}</span></div>
+    <div class="profile-row"><span class="lbl">주소</span><span class="val">${u.addr||'-'}</span></div>
+    <div class="profile-row"><span class="lbl">차량 유무</span><span class="val">${u.carOwn||'-'}</span></div>
+    <div class="profile-section-title">학력</div>
+    <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.edu)}</span></div>
+    <div class="profile-section-title">경력</div>
+    <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.career)}</span></div>
+    <div class="profile-section-title">자격증</div>
+    <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.certs)}</span></div>
+    <div class="profile-section-title">수업 가능 요일</div>
+    <div class="profile-row"><span class="val" style="min-width:0;flex-wrap:wrap;display:flex;gap:2px;">${dayStr}</span></div>
+    <div class="profile-section-title">나를 어필해요</div>
+    <div class="profile-row"><span class="val" style="min-width:0;white-space:pre-wrap;">${u.appeal||'-'}</span></div>`;
+
+  const hist = document.getElementById('pmHistory');
+  const items = Object.entries(u.applications || {}).filter(([,v]) => v);
+  if (!items.length) {
+    hist.innerHTML = '<p class="empty-msg">참여 이력이 없습니다.</p>';
+  } else {
+    hist.innerHTML = '';
+    items.forEach(([idx, status]) => {
+      const ev = S.events[idx]; if (!ev) return;
+      const d = document.createElement('div'); d.className = 'app-row';
+      d.innerHTML = `<span>[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}</span></span>
+        <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>`;
+      hist.appendChild(d);
+    });
+  }
+  document.getElementById('delInstBtn').onclick = () => deleteInst(name);
+  openModal('profileModal');
+}
+
+function deleteInst(name) {
+  if (!confirm(`'${name}' 강사를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  delete S.instructors[name];
+  saveData(); closeModal('profileModal'); renderInstList();
+}
+
+// ── Admin management ──
+function renderAdminList() {
+  const div = document.getElementById('adminList');
+  div.innerHTML = '';
+  Object.keys(S.admins).forEach(name => {
+    const isSelf = name === S.currentAdminName;
+    const row = document.createElement('div'); row.className = 'admin-row';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar" style="width:28px;height:28px;font-size:12px;">${name.slice(0,1)}</div>
+        <span style="font-weight:500;">${name}</span>
+        ${isSelf ? '<span class="badge admin" style="font-size:10px;">나</span>' : ''}
+      </div>
+      <div>
+        ${!isSelf && Object.keys(S.admins).length > 1
+          ? `<button class="btn sm danger" onclick="deleteAdmin('${name}')">삭제</button>`
+          : ''}
+      </div>`;
+    div.appendChild(row);
+  });
+}
+
+function addAdmin() {
+  const name = document.getElementById('newAName').value.trim();
+  const pw = document.getElementById('newAPw').value.trim();
+  const err = document.getElementById('addAdminErr');
+  if (!name || !pw) { err.textContent = '이름과 비밀번호를 입력하세요.'; err.style.display = 'block'; return; }
+  if (Object.keys(S.admins).length >= 4) { err.textContent = '관리자는 최대 4명까지 등록 가능합니다.'; err.style.display = 'block'; return; }
+  if (S.admins[name]) { err.textContent = '이미 존재하는 이름입니다.'; err.style.display = 'block'; return; }
+  S.admins[name] = pw;
+  saveData(); closeModal('addAdminModal');
+  document.getElementById('newAName').value = ''; document.getElementById('newAPw').value = '';
+  err.style.display = 'none';
+  renderAdminList();
+}
+
+function deleteAdmin(name) {
+  if (!confirm(`'${name}' 관리자를 삭제하시겠습니까?`)) return;
+  delete S.admins[name]; saveData(); renderAdminList();
+}
+
+function changePw() {
+  const cur = document.getElementById('curPw').value;
+  const nw = document.getElementById('newPw').value;
+  const nw2 = document.getElementById('newPw2').value;
+  const msg = document.getElementById('pwMsg');
+  if (S.admins[S.currentAdminName] !== cur) {
+    msg.textContent = '현재 비밀번호가 틀렸습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return;
+  }
+  if (!nw) { msg.textContent = '새 비밀번호를 입력하세요.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
+  if (nw !== nw2) { msg.textContent = '새 비밀번호가 일치하지 않습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
+  S.admins[S.currentAdminName] = nw; saveData();
+  msg.textContent = '✓ 비밀번호가 변경되었습니다.'; msg.style.color = 'var(--green)'; msg.style.display = 'inline';
+  ['curPw','newPw','newPw2'].forEach(id => document.getElementById(id).value = '');
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+// ── Excel ──
+function exportExcel() {
+  const pfx = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
+  const evs = S.events.filter(e => e.date.startsWith(pfx));
+  if (!evs.length) { alert('이번 달 일정이 없습니다.'); return; }
+  const rows = [['유형','제목','날짜','장소','내용','신청자수','승인자수','거절자수']];
+  evs.forEach(ev => {
+    const idx = S.events.indexOf(ev);
+    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[idx]);
+    const approved = apps.filter(u => u.applications[idx] === 'approved').length;
+    const rejected = apps.filter(u => u.applications[idx] === 'rejected').length;
+    rows.push([ev.type, ev.title, ev.date, ev.place, ev.desc||'', apps.length, approved, rejected]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:8},{wch:22},{wch:12},{wch:18},{wch:28},{wch:9},{wch:9},{wch:9}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '일정');
+  XLSX.writeFile(wb, `티치포퓨처_일정_${S.calYear}년${MON[S.calMonth]}.xlsx`);
+}
+
+function exportInstExcel() {
+  if (!Object.keys(S.instructors).length) { alert('등록된 강사가 없습니다.'); return; }
+  const dayHeaders = DAYS.flatMap(d => [`${d.label}오전`, `${d.label}오후`]);
+  const rows = [['이름','이메일','연락처','주소','차량유무','학력1','학력2','학력3','경력1','경력2','경력3','경력4','경력5','자격증1','자격증2','자격증3','자격증4','자격증5','전공/과목',...dayHeaders,'어필','승인된 수업수','승인된 세미나수','승인된 연수수','총 신청수']];
+  Object.entries(S.instructors).forEach(([name, rawU]) => {
+    const u = getProfile(rawU);
+    const apps = Object.entries(u.applications || {});
+    const cnt = (type) => apps.filter(([idx, st]) => st === 'approved' && S.events[idx] && S.events[idx].type === type).length;
+    const total = apps.filter(([,st]) => st).length;
+    const dayVals = DAYS.flatMap(d => [
+      u.days[d.key+'_am'] ? 'O' : '',
+      u.days[d.key+'_pm'] ? 'O' : ''
+    ]);
+    rows.push([
+      name, u.email||'', u.phone||'', u.addr||'', u.carOwn||'',
+      ...(u.edu || ['','','']),
+      ...(u.career || ['','','','','']),
+      ...(u.certs || ['','','','','']),
+      u.subject||'',
+      ...dayVals,
+      u.appeal||'',
+      cnt('수업'), cnt('세미나'), cnt('연수'), total
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '강사목록');
+  XLSX.writeFile(wb, `티치포퓨처_강사목록_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── Init ──
+loadData();
+</script>
+</body>
+</html>
