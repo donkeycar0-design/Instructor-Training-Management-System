@@ -1,1647 +1,1337 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>강사관리 시스템 — Teach for Future</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
-
-  :root {
-    --bg: #f5f5f3;
-    --surface: #ffffff;
-    --border: rgba(0,0,0,0.1);
-    --text: #1a1a1a;
-    --text-sub: #666;
-    --text-hint: #999;
-    --blue: #185FA5;
-    --blue-light: #E6F1FB;
-    --blue-dark: #0C447C;
-    --green: #3B6D11;
-    --green-light: #EAF3DE;
-    --red: #A32D2D;
-    --red-light: #FCEBEB;
-    --amber: #854F0B;
-    --amber-light: #FAEEDA;
-    --teal: #0F6E56;
-    --teal-light: #E1F5EE;
-    --radius: 10px;
-    --radius-sm: 6px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Noto Sans KR', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    font-size: 14px;
-    line-height: 1.6;
-  }
-
-  .app { min-height: 100vh; }
-  .screen { display: none; }
-  .screen.active { display: block; }
-
-  /* ── Login ── */
-  #loginScreen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 1.5rem;
-    background: linear-gradient(160deg, #f0f7ff 0%, #f5f5f3 60%);
-    position: relative;
-  }
-
-  .login-wrap { width: 100%; max-width: 420px; }
-
-  .login-logo {
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-
-  .login-logo .brand-mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 56px; height: 56px;
-    border-radius: 14px;
-    background: var(--blue);
-    margin-bottom: 12px;
-  }
-
-  .login-logo .brand-mark svg { width: 30px; height: 30px; fill: white; }
-
-  .login-logo h1 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--blue);
-    letter-spacing: -0.5px;
-    line-height: 1.3;
-  }
-
-  .login-logo .sub {
-    font-size: 12px;
-    color: var(--text-hint);
-    margin-top: 4px;
-  }
-
-  .login-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 2rem;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-  }
-
-  /* 탭 숨김 — 새 레이아웃에서 사용 안 함 */
-  .tab-row { display: none; }
-  .tab { display: none; }
-
-  .form-group { margin-bottom: 1rem; }
-
-  .form-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-sub);
-    margin-bottom: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-  }
-
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--text);
-    font-size: 14px;
-    font-family: inherit;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    outline: none;
-  }
-
-  .form-group input:focus,
-  .form-group select:focus,
-  .form-group textarea:focus {
-    border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(24,95,165,0.1);
-  }
-
-  .form-group textarea { resize: vertical; }
-
-  /* Multi-input rows (학력, 경력, 자격증) */
-  .multi-input-group { margin-bottom: 1rem; }
-  .multi-input-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-sub);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-  }
-
-  .multi-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 5px;
-  }
-
-  .multi-row span {
-    font-size: 12px;
-    color: var(--text-hint);
-    min-width: 18px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  .multi-row input {
-    flex: 1;
-    padding: 7px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--text);
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  .multi-row input:focus {
-    border-color: var(--blue);
-    box-shadow: 0 0 0 2px rgba(24,95,165,0.08);
-  }
-
-  /* 요일 체크 */
-  .day-grid {
-    display: grid;
-    grid-template-columns: 80px repeat(2, 1fr);
-    gap: 4px;
-    margin-top: 4px;
-  }
-
-  .day-header {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-sub);
-    padding: 4px 0;
-    text-align: center;
-  }
-
-  .day-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    padding: 6px 8px;
-    display: flex;
-    align-items: center;
-  }
-
-  .day-check {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-  }
-
-  .day-check input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    accent-color: var(--blue);
-  }
-
-  .info-box {
-    background: var(--blue-light);
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
-    font-size: 12px;
-    color: var(--blue-dark);
-    margin-bottom: 1rem;
-    line-height: 1.7;
-  }
-
-  .btn {
-    padding: 8px 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--text);
-    font-size: 13px;
-    font-family: inherit;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .btn:hover { background: var(--bg); }
-  .btn:active { transform: scale(0.98); }
-  .btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
-  .btn.primary:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
-  .btn.danger { background: var(--red); color: #fff; border-color: var(--red); }
-  .btn.danger:hover { background: #791F1F; }
-  .btn.green { background: var(--green); color: #fff; border-color: var(--green); }
-  .btn.green:hover { background: #27500A; }
-  .btn.full { width: 100%; margin-top: 4px; padding: 10px; }
-  .btn.sm { padding: 4px 10px; font-size: 12px; }
-
-  /* 관리자 로그인 — 우하단 고정 소형 패널 */
-  #ltAdmin {
-    position: fixed !important;
-    bottom: 20px;
-    right: 20px;
-    width: 220px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px 16px 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
-    z-index: 100;
-  }
-  #ltAdmin .admin-login-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    user-select: none;
-  }
-  #ltAdmin .admin-login-toggle span {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-sub);
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-  }
-  #ltAdmin .admin-login-toggle .toggle-icon {
-    font-size: 12px;
-    color: var(--text-hint);
-    transition: transform 0.2s;
-  }
-  #ltAdmin .admin-login-body {
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.25s ease;
-  }
-  #ltAdmin.expanded .admin-login-body { max-height: 220px; }
-  #ltAdmin.expanded .toggle-icon { transform: rotate(180deg); }
-  #ltAdmin .admin-login-body .form-group { margin-bottom: 8px; margin-top: 10px; }
-  #ltAdmin .admin-login-body .form-group label { font-size: 10px; }
-  #ltAdmin .admin-login-body .form-group input { font-size: 12px; padding: 7px 9px; }
-  #ltAdmin .admin-login-body .btn.full { font-size: 12px; padding: 7px; margin-top: 2px; }
-
-  .err-msg { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
-
-  /* ── Topbar ── */
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    height: 54px;
-    background: var(--blue);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  .topbar .title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: -0.3px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    line-height: 1.3;
-  }
-
-  .topbar .title small {
-    font-size: 10px;
-    font-weight: 400;
-    opacity: 0.7;
-    display: block;
-    letter-spacing: 0;
-  }
-
-  .topbar-right { display: flex; align-items: center; gap: 10px; }
-
-  .user-chip {
-    font-size: 12px;
-    color: rgba(255,255,255,0.85);
-    background: rgba(255,255,255,0.15);
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.2);
-  }
-
-  .topbar .btn.sm {
-    background: rgba(255,255,255,0.15);
-    border-color: rgba(255,255,255,0.3);
-    color: #fff;
-  }
-
-  .topbar .btn.sm:hover { background: rgba(255,255,255,0.25); }
-
-  /* ── Nav ── */
-  .nav {
-    display: flex;
-    gap: 2px;
-    padding: 8px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-  }
-
-  .nav-btn {
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-family: inherit;
-    font-weight: 500;
-    cursor: pointer;
-    background: transparent;
-    border: none;
-    color: var(--text-sub);
-    white-space: nowrap;
-    transition: all 0.15s;
-  }
-
-  .nav-btn:hover { background: var(--bg); color: var(--text); }
-  .nav-btn.active { background: var(--blue-light); color: var(--blue); }
-
-  /* ── Content ── */
-  .content { padding: 20px; max-width: 900px; margin: 0 auto; }
-  .page { display: none; }
-  .page.active { display: block; }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow);
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-  }
-
-  .section-title { font-size: 14px; font-weight: 700; color: var(--text); }
-
-  /* ── Badges ── */
-  .badge {
-    display: inline-block;
-    padding: 2px 9px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 500;
-  }
-
-  .badge.pending { background: var(--amber-light); color: var(--amber); }
-  .badge.approved { background: var(--green-light); color: var(--green); }
-  .badge.rejected { background: var(--red-light); color: var(--red); }
-  .badge.admin { background: var(--blue-light); color: var(--blue); }
-  .badge.day { background: var(--teal-light); color: var(--teal); }
-
-  /* ── Row items ── */
-  .row-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    gap: 10px;
-  }
-
-  .row-item:last-child { border-bottom: none; }
-
-  .profile-row {
-    display: flex;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    gap: 12px;
-  }
-
-  .profile-row:last-child { border-bottom: none; }
-  .profile-row .lbl { color: var(--text-sub); flex-shrink: 0; min-width: 80px; font-weight: 500; font-size: 12px; }
-  .profile-row .val { color: var(--text); }
-
-  .avatar {
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    background: var(--blue-light);
-    color: var(--blue);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  .inst-info { flex: 1; min-width: 0; }
-  .inst-name { font-size: 14px; font-weight: 500; }
-  .inst-sub { font-size: 12px; color: var(--text-sub); margin-top: 1px; }
-
-  /* ── Calendar ── */
-  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .cal-nav { display: flex; align-items: center; gap: 8px; }
-  .cal-nav button {
-    width: 30px; height: 30px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    background: var(--surface);
-    font-size: 12px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text);
-  }
-
-  .cal-nav button:hover { background: var(--bg); }
-  .cal-month { font-size: 15px; font-weight: 700; min-width: 110px; text-align: center; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-  .cal-day-hdr { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-sub); padding: 4px 0 8px; letter-spacing: 0.5px; }
-  .cal-day { min-height: 64px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 6px; background: var(--surface); cursor: pointer; transition: all 0.12s; }
-  .cal-day:hover { border-color: var(--blue); background: var(--blue-light); }
-  .cal-day.other-month { background: var(--bg); opacity: 0.5; pointer-events: none; }
-  .cal-day.today { border-color: var(--blue); border-width: 2px; }
-  .cal-day .day-num { font-size: 11px; color: var(--text-sub); font-weight: 500; margin-bottom: 3px; }
-  .cal-day.today .day-num { color: var(--blue); font-weight: 700; }
-  .ev-dot { font-size: 10px; background: var(--blue-light); color: var(--blue); border-radius: 3px; padding: 1px 4px; margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-
-  /* ── Events ── */
-  .ev-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
-  .ev-item:last-child { border-bottom: none; }
-  .ev-title { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
-  .ev-meta { font-size: 12px; color: var(--text-sub); }
-  .ev-desc { font-size: 12px; color: var(--text-hint); margin-top: 3px; }
-
-  /* ── Search ── */
-  .search-panel {
-    background: var(--bg);
-    border-radius: var(--radius-sm);
-    padding: 14px;
-    margin-bottom: 14px;
-    border: 1px solid var(--border);
-  }
-
-  .search-panel .search-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-  }
-
-  .search-panel .search-row:last-child { margin-bottom: 0; }
-
-  .search-panel input, .search-panel select {
-    padding: 7px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-family: inherit;
-    color: var(--text);
-    background: var(--surface);
-    outline: none;
-    flex: 1;
-    min-width: 120px;
-  }
-
-  .search-panel input:focus, .search-panel select:focus {
-    border-color: var(--blue);
-  }
-
-  .day-filter {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
-  }
-
-  .day-filter-btn {
-    padding: 4px 10px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    background: var(--surface);
-    color: var(--text-sub);
-    font-weight: 500;
-    transition: all 0.12s;
-  }
-
-  .day-filter-btn.active-am { background: var(--blue-light); color: var(--blue); border-color: var(--blue); }
-  .day-filter-btn.active-pm { background: var(--teal-light); color: var(--teal); border-color: var(--teal); }
-
-  /* ── Modal ── */
-  .modal-bg {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-    padding: 1rem;
-    backdrop-filter: blur(2px);
-  }
-
-  .modal-bg.open { display: flex; }
-
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.75rem;
-    width: 100%;
-    max-width: 480px;
-    max-height: 88vh;
-    overflow-y: auto;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
-  }
-
-  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 1.25rem; letter-spacing: -0.3px; }
-  .modal-footer { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
-
-  .app-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    gap: 8px;
-  }
-
-  .app-row:last-child { border-bottom: none; }
-  .btn-grp { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-
-  .admin-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-
-  .admin-row:last-child { border-bottom: none; }
-
-  .empty-msg { font-size: 13px; color: var(--text-sub); padding: 8px 0; }
-  .success-chip { font-size: 12px; color: var(--green); display: none; margin-left: 10px; }
-
-  /* ── Profile section headers in modal ── */
-  .profile-section-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--text-hint);
-    margin: 14px 0 6px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .profile-section-title:first-child { margin-top: 0; }
-
-  /* ── Footer credit ── */
-  .footer-credit {
-    text-align: center;
-    padding: 16px;
-    font-size: 11px;
-    color: var(--text-hint);
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    margin-top: 20px;
-  }
-
-  .login-credit {
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-hint);
-    margin-top: 14px;
-  }
-
-  @media (max-width: 600px) {
-    .content { padding: 12px; }
-    .card { padding: 1rem; }
-    .modal { padding: 1.25rem; }
-    .topbar { padding: 0 14px; }
-    .topbar .title { font-size: 13px; }
-    .day-grid { grid-template-columns: 70px repeat(2, 1fr); }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>군위몰입수학 강사포털</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="강사포털">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', sans-serif; background: #F5F6FA; color: #0f172a; -webkit-tap-highlight-color: transparent; overflow: hidden; height: 100dvh; }
+    button { cursor: pointer; border: none; background: none; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+
+    /* ── 레이아웃 ── */
+    .app-shell { display: flex; height: 100dvh; overflow: hidden; }
+    .sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #f1f5f9; display: flex; flex-direction: column; padding: 24px 20px; z-index: 50; transition: transform .3s ease; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; margin-top: 4px; }
+    .logo-icon { width: 44px; height: 44px; background: #0f172a; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fb923c; transform: rotate(-3deg); flex-shrink: 0; }
+    .logo-title { font-size: 15px; font-weight: 900; color: #0f172a; line-height: 1.1; }
+    .logo-sub { font-size: 9px; font-weight: 900; color: #f97316; letter-spacing: .1em; text-transform: uppercase; margin-top: 3px; }
+    .nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .nav-btn { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 16px; font-size: 13px; font-weight: 900; color: #94a3b8; transition: all .2s; width: 100%; text-align: left; }
+    .nav-btn:hover { background: #f8fafc; color: #475569; }
+    .nav-btn.active-orange { background: #f97316; color: #fff; }
+    .nav-btn.active-dark { background: #0f172a; color: #fff; }
+    .nav-btn.active-green { background: #10b981; color: #fff; }
+    .nav-btn.active-purple { background: #8b5cf6; color: #fff; }
+    .nav-btn.active-red { background: #ef4444; color: #fff; }
+    .nav-btn.active-blue { background: #3b82f6; color: #fff; }
+    .sidebar-footer { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .main { flex: 1; overflow-y: auto; padding: 36px 40px; }
+    .main-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+    .header-eyebrow { font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: .15em; margin-bottom: 4px; }
+    .header-title { font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -.03em; }
+    .mobile-menu-btn { display: none; position: fixed; top: 14px; right: 14px; z-index: 60; width: 44px; height: 44px; background: #0f172a; color: #fff; border-radius: 14px; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 40; backdrop-filter: blur(4px); }
+
+    /* ── 카드 ── */
+    .card { background: #fff; border: 1px solid #f1f5f9; border-radius: 24px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+    .card-title { font-size: 14px; font-weight: 900; color: #0f172a; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .stat-card { background: #fff; border: 1px solid #f1f5f9; border-radius: 20px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+    .stat-label { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+    .stat-val { font-size: 32px; font-weight: 900; }
+
+    /* ── 로그인 ── */
+    .login-wrap { height: 100dvh; display: flex; align-items: center; justify-content: center; background: #F5F6FA; padding: 24px; }
+    .login-box { background: #fff; border: 1px solid #f1f5f9; border-radius: 32px; padding: 40px; width: 100%; max-width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+    .login-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 32px; }
+    .login-title { font-size: 22px; font-weight: 900; color: #0f172a; margin-bottom: 6px; }
+    .login-sub { font-size: 13px; font-weight: 700; color: #94a3b8; margin-bottom: 28px; }
+    .login-input { width: 100%; background: #f8fafc; border: 2px solid transparent; border-radius: 16px; padding: 14px 18px; font-size: 14px; font-weight: 700; outline: none; transition: border-color .2s; margin-bottom: 12px; color: #0f172a; }
+    .login-input:focus { border-color: #fb923c; }
+    .login-btn { width: 100%; padding: 16px; font-size: 15px; font-weight: 900; color: #fff; background: #0f172a; border-radius: 16px; margin-top: 8px; transition: background .15s; }
+    .login-btn:hover { background: #1e293b; }
+    .login-err { font-size: 12px; font-weight: 700; color: #ef4444; text-align: center; margin-top: 8px; }
+    .role-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .role-tab { flex: 1; padding: 10px; border-radius: 14px; font-size: 13px; font-weight: 900; background: #f8fafc; color: #94a3b8; transition: all .15s; }
+    .role-tab.active { background: #0f172a; color: #fff; }
+
+    /* ── 폼 요소 ── */
+    .form-input { width: 100%; background: #f8fafc; border: 2px solid transparent; border-radius: 14px; padding: 12px 16px; font-size: 13px; font-weight: 700; outline: none; transition: border-color .2s; color: #0f172a; }
+    .form-input:focus { border-color: #fb923c; }
+    .form-textarea { width: 100%; background: #f8fafc; border: 2px solid transparent; border-radius: 14px; padding: 12px 16px; font-size: 13px; font-weight: 700; outline: none; transition: border-color .2s; color: #0f172a; resize: vertical; min-height: 100px; }
+    .form-textarea:focus { border-color: #fb923c; }
+    .form-select { width: 100%; background: #f8fafc; border: 2px solid transparent; border-radius: 14px; padding: 12px 16px; font-size: 13px; font-weight: 700; outline: none; color: #0f172a; cursor: pointer; }
+    .form-label { font-size: 11px; font-weight: 900; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; }
+
+    /* ── 버튼 ── */
+    .btn-primary { padding: 12px 20px; background: #0f172a; color: #fff; border-radius: 14px; font-size: 13px; font-weight: 900; transition: background .15s; display: flex; align-items: center; gap: 6px; }
+    .btn-primary:hover { background: #1e293b; }
+    .btn-orange { background: #f97316; }
+    .btn-orange:hover { background: #ea6c0a; }
+    .btn-green { background: #10b981; }
+    .btn-green:hover { background: #059669; }
+    .btn-purple { background: #8b5cf6; }
+    .btn-purple:hover { background: #7c3aed; }
+    .btn-red { background: #ef4444; }
+    .btn-red:hover { background: #dc2626; }
+    .btn-blue { background: #3b82f6; }
+    .btn-blue:hover { background: #2563eb; }
+    .btn-sm { padding: 8px 14px; font-size: 12px; border-radius: 10px; }
+
+    /* ── 모달 ── */
+    .modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(15,23,42,.4); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-box { background: #fff; width: 100%; max-width: 440px; border-radius: 32px; padding: 32px; box-shadow: 0 24px 64px rgba(0,0,0,.15); animation: scaleIn .25s cubic-bezier(.34,1.56,.64,1) both; display: flex; flex-direction: column; gap: 12px; }
+    .modal-title { font-size: 20px; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .modal-btns { display: flex; gap: 8px; margin-top: 8px; }
+    .btn-cancel { flex: 1; padding: 14px; font-size: 14px; font-weight: 900; color: #94a3b8; background: #f8fafc; border-radius: 16px; }
+    .btn-confirm { flex: 1; padding: 14px; font-size: 14px; font-weight: 900; color: #fff; background: #0f172a; border-radius: 16px; }
+
+    /* ── 토스트 ── */
+    .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 200; padding: 12px 20px; border-radius: 16px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; animation: scaleIn .25s cubic-bezier(.34,1.56,.64,1) both; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+    .toast-success { background: #0f172a; color: #fff; }
+    .toast-error { background: #ef4444; color: #fff; }
+
+    /* ── 리스트 아이템 ── */
+    .list-item { padding: 16px; border: 1px solid #f1f5f9; border-radius: 16px; background: #fff; display: flex; flex-direction: column; gap: 8px; transition: box-shadow .15s; }
+    .list-item:hover { box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+    .list-meta { font-size: 11px; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 8px; }
+    .list-content { font-size: 13px; font-weight: 700; color: #475569; line-height: 1.6; white-space: pre-wrap; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 10px; font-weight: 900; }
+    .badge-new { background: #fee2e2; color: #dc2626; }
+    .badge-done { background: #d1fae5; color: #059669; }
+    .badge-warn { background: #fef3c7; color: #d97706; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+
+    /* ── 공지 ── */
+    .notice-item { padding: 16px 20px; border-left: 4px solid #f97316; background: #fff7ed; border-radius: 0 14px 14px 0; margin-bottom: 10px; }
+    .notice-title { font-size: 14px; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .notice-body { font-size: 13px; font-weight: 700; color: #64748b; line-height: 1.6; }
+    .notice-date { font-size: 11px; font-weight: 700; color: #94a3b8; margin-top: 6px; }
+
+    /* ── 유저 카드 ── */
+    .user-info-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; flex-shrink: 0; }
+    .user-avatar.admin { background: #f97316; }
+
+    /* ── 로딩/에러 ── */
+    .full-center { height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #f97316; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+    .empty-box { padding: 60px 24px; border: 2px dashed #e2e8f0; border-radius: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #cbd5e1; text-align: center; }
+
+    /* ── 애니메이션 ── */
+    @keyframes scaleIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fade-in { animation: fadeIn .3s ease both; }
+    .spin { animation: spin .8s linear infinite; }
+
+    /* ── 반응형 ── */
+    @media (max-width: 768px) {
+        .sidebar { position: fixed; inset-y: 0; left: 0; transform: translateX(-100%); box-shadow: 4px 0 24px rgba(0,0,0,.08); }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-overlay.open { display: block; }
+        .mobile-menu-btn { display: flex; }
+        .main { padding: 20px 16px; padding-top: 72px; }
+        .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        .header-title { font-size: 22px; }
+    }
+    @media (min-width: 769px) { .modal-overlay { align-items: center; } }
+    </style>
 </head>
 <body>
-<div class="app">
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo } = React;
 
-<!-- ══ LOGIN ══ -->
-<div id="loginScreen" class="screen active" style="display:flex;">
-  <div class="login-wrap">
-    <div class="login-logo">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6L23 9zm0 2.27L19.09 9 12 12.73 4.91 9zm-5 7.09l5 2.72 5-2.72v3.55L12 18.73l-5-2.82z"/>
-        </svg>
-      </div>
-      <h1>강사관리 시스템</h1>
-      <p class="sub">Teach for Future — Instructor Management</p>
-    </div>
-    <div class="login-card">
-      <div class="tab-row">
-        <button class="tab active" onclick="setTab('inst',this)">강사 로그인</button>
-        <button class="tab" onclick="setTab('admin',this)">관리자 로그인</button>
-      </div>
+const SUPER_ADMIN_PW = 'l2387008'; // 슈퍼 관리자 비번 (숨김)
+const TEACHER_INIT_PW = '1234';    // 강사 초기 비번
 
-      <div id="ltInst">
-        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:1.2rem;">강사 로그인</p>
-        <div class="form-group"><label>이름</label><input id="iName" type="text" placeholder="홍길동"/></div>
-        <div class="form-group"><label>비밀번호</label><input id="iPw" type="password" placeholder="비밀번호 입력"/></div>
-        <button class="btn primary full" onclick="loginInst()">로그인 / 신규 등록</button>
-        <p style="font-size:11px;color:var(--text-hint);margin-top:10px;text-align:center;">처음 접속 시 자동으로 계정이 생성됩니다.</p>
-      </div>
-
-      <div id="loginErr" class="err-msg"></div>
-    </div>
-    <div class="login-credit">바이브코딩 연구소 제작</div>
-  </div>
-
-  <!-- 관리자 로그인: 우하단 소형 패널 -->
-  <div id="ltAdmin" onclick="event.stopPropagation()">
-    <div class="admin-login-toggle" onclick="toggleAdminPanel()">
-      <span>🔒 관리자 로그인</span>
-      <span class="toggle-icon">▲</span>
-    </div>
-    <div class="admin-login-body">
-      <div class="form-group"><label>관리자 이름</label><input id="aName" type="text" placeholder="관리자 이름 입력"/></div>
-      <div class="form-group"><label>비밀번호</label><input id="aPw" type="password" placeholder="비밀번호 입력"/></div>
-      <button class="btn primary full" onclick="loginAdmin()">로그인</button>
-      <div id="adminLoginErr" class="err-msg" style="font-size:11px;"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ INSTRUCTOR SCREEN ══ -->
-<div id="instScreen" class="screen">
-  <div class="topbar">
-    <div class="title">
-      강사관리 시스템
-      <small>Teach for Future</small>
-    </div>
-    <div class="topbar-right">
-      <span class="user-chip" id="instTopName"></span>
-      <button class="btn sm" onclick="logout()">로그아웃</button>
-    </div>
-  </div>
-  <div class="nav">
-    <button class="nav-btn active" onclick="showIP('Profile',this)">내 프로필</button>
-    <button class="nav-btn" onclick="showIP('Events',this)">공지 / 수업</button>
-  </div>
-  <div class="content">
-
-    <!-- 프로필 -->
-    <div id="ipProfile" class="page active">
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">내 프로필</div>
-        </div>
-
-        <div class="form-group"><label>이름</label><input id="pName" type="text"/></div>
-        <div class="form-group"><label>이메일</label><input id="pEmail" type="email" placeholder="example@email.com"/></div>
-        <div class="form-group"><label>연락처</label><input id="pPhone" type="text" placeholder="010-0000-0000"/></div>
-        <div class="form-group"><label>주소</label><input id="pAddr" type="text" placeholder="거주지 주소"/></div>
-        <div class="form-group"><label>전공 / 담당 과목</label><input id="pSubject" type="text" placeholder="수학, 영어 등"/></div>
-
-        <!-- 차량 유무 -->
-        <div class="form-group">
-          <label>차량 유무</label>
-          <div style="display:flex;gap:16px;padding:6px 0;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;">
-              <input type="radio" name="pCar" id="pCarY" value="있음" style="width:16px;height:16px;accent-color:var(--blue);"/> 있음
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;">
-              <input type="radio" name="pCar" id="pCarN" value="없음" style="width:16px;height:16px;accent-color:var(--blue);"/> 없음
-            </label>
-          </div>
-        </div>
-
-        <!-- 어필 -->
-        <div class="form-group">
-          <label>나를 어필해요</label>
-          <textarea id="pAppeal" rows="4" placeholder="내가 잘하는 분야, 강점, 특기사항 등을 자유롭게 적어주세요."></textarea>
-        </div>
-
-        <!-- 학력 3개 -->
-        <div class="multi-input-group">
-          <label>학력 (최대 3개)</label>
-          <div class="multi-row"><span>1</span><input id="pEdu1" type="text" placeholder="○○대학교 ○○학과 졸업"/></div>
-          <div class="multi-row"><span>2</span><input id="pEdu2" type="text" placeholder="추가 학력"/></div>
-          <div class="multi-row"><span>3</span><input id="pEdu3" type="text" placeholder="추가 학력"/></div>
-        </div>
-
-        <!-- 경력 5개 -->
-        <div class="multi-input-group">
-          <label>경력 (최대 5개)</label>
-          <div class="multi-row"><span>1</span><input id="pCar1" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
-          <div class="multi-row"><span>2</span><input id="pCar2" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
-          <div class="multi-row"><span>3</span><input id="pCar3" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
-          <div class="multi-row"><span>4</span><input id="pCar4" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
-          <div class="multi-row"><span>5</span><input id="pCar5" type="text" placeholder="근무처 / 담당 업무 / 기간"/></div>
-        </div>
-
-        <!-- 자격증 5개 -->
-        <div class="multi-input-group">
-          <label>자격증 (최대 5개)</label>
-          <div class="multi-row"><span>1</span><input id="pCert1" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
-          <div class="multi-row"><span>2</span><input id="pCert2" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
-          <div class="multi-row"><span>3</span><input id="pCert3" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
-          <div class="multi-row"><span>4</span><input id="pCert4" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
-          <div class="multi-row"><span>5</span><input id="pCert5" type="text" placeholder="자격증명 / 발급기관 / 취득연도"/></div>
-        </div>
-
-        <!-- 수업 가능 요일 -->
-        <div class="multi-input-group">
-          <label>수업 가능 요일</label>
-          <div class="day-grid">
-            <div class="day-header"></div>
-            <div class="day-header">오전</div>
-            <div class="day-header">오후</div>
-            <div class="day-label">월요일</div>
-            <div class="day-check"><input type="checkbox" id="d_mon_am"/></div>
-            <div class="day-check"><input type="checkbox" id="d_mon_pm"/></div>
-            <div class="day-label">화요일</div>
-            <div class="day-check"><input type="checkbox" id="d_tue_am"/></div>
-            <div class="day-check"><input type="checkbox" id="d_tue_pm"/></div>
-            <div class="day-label">수요일</div>
-            <div class="day-check"><input type="checkbox" id="d_wed_am"/></div>
-            <div class="day-check"><input type="checkbox" id="d_wed_pm"/></div>
-            <div class="day-label">목요일</div>
-            <div class="day-check"><input type="checkbox" id="d_thu_am"/></div>
-            <div class="day-check"><input type="checkbox" id="d_thu_pm"/></div>
-            <div class="day-label">금요일</div>
-            <div class="day-check"><input type="checkbox" id="d_fri_am"/></div>
-            <div class="day-check"><input type="checkbox" id="d_fri_pm"/></div>
-            <div class="day-label">토요일</div>
-            <div class="day-check"><input type="checkbox" id="d_sat_am"/></div>
-            <div class="day-check"><input type="checkbox" id="d_sat_pm"/></div>
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:center;margin-top:4px;">
-          <button class="btn primary" onclick="saveProfile()">저장</button>
-          <span id="saveMsg" class="success-chip">✓ 저장되었습니다</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 공지/수업 -->
-    <div id="ipEvents" class="page">
-      <div class="card">
-        <div class="section-title" style="margin-bottom:12px;">공지된 수업 / 세미나 / 연수</div>
-        <div id="instEvList"></div>
-      </div>
-      <div class="card">
-        <div class="section-title" style="margin-bottom:12px;">내 신청 현황</div>
-        <div id="myApps"></div>
-      </div>
-    </div>
-  </div>
-  <div class="footer-credit">바이브코딩 연구소 제작</div>
-</div>
-
-<!-- ══ ADMIN SCREEN ══ -->
-<div id="adminScreen" class="screen">
-  <div class="topbar">
-    <div class="title">
-      강사관리 시스템
-      <small>Teach for Future</small>
-    </div>
-    <div class="topbar-right">
-      <span class="badge admin" id="adminTopName"></span>
-      <button class="btn sm" onclick="logout()">로그아웃</button>
-    </div>
-  </div>
-  <div class="nav">
-    <button class="nav-btn active" onclick="showAP('Calendar',this)">달력</button>
-    <button class="nav-btn" onclick="showAP('Instructors',this)">강사 목록</button>
-    <button class="nav-btn" onclick="showAP('Search',this)">강사 검색</button>
-    <button class="nav-btn" onclick="showAP('Settings',this)">관리자 설정</button>
-  </div>
-  <div class="content">
-
-    <!-- 달력 -->
-    <div id="apCalendar" class="page active">
-      <div class="card">
-        <div class="cal-header">
-          <div class="cal-nav">
-            <button onclick="chMon(-1)">&#9664;</button>
-            <span class="cal-month" id="calTitle"></span>
-            <button onclick="chMon(1)">&#9654;</button>
-          </div>
-          <button class="btn sm primary" onclick="openModal('addEvModal')">+ 일정 추가</button>
-        </div>
-        <div class="cal-grid" id="calGrid"></div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">이번 달 일정 목록</div>
-          <button class="btn sm green" onclick="exportExcel()">엑셀 내보내기</button>
-        </div>
-        <div id="monthEvList"></div>
-      </div>
-    </div>
-
-    <!-- 강사 목록 -->
-    <div id="apInstructors" class="page">
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">전체 강사 목록</div>
-          <button class="btn sm green" onclick="exportInstExcel()">강사 목록 엑셀</button>
-        </div>
-        <div id="instListAdmin"></div>
-      </div>
-    </div>
-
-    <!-- 강사 검색 -->
-    <div id="apSearch" class="page">
-      <div class="card">
-        <div class="section-title" style="margin-bottom:12px;">강사 검색</div>
-        <div class="search-panel">
-          <div class="search-row">
-            <input id="sName" type="text" placeholder="이름" oninput="searchInst()"/>
-            <input id="sSubject" type="text" placeholder="과목 / 전공" oninput="searchInst()"/>
-          </div>
-          <div class="search-row">
-            <input id="sEdu" type="text" placeholder="학력" oninput="searchInst()"/>
-            <input id="sCert" type="text" placeholder="자격증" oninput="searchInst()"/>
-          </div>
-          <div style="margin-top:8px;">
-            <div style="font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">수업 가능 요일 검색</div>
-            <div class="day-filter" id="dayFilterBtns"></div>
-          </div>
-        </div>
-        <div id="searchResults"></div>
-      </div>
-    </div>
-
-    <!-- 관리자 설정 -->
-    <div id="apSettings" class="page">
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">관리자 계정 관리</div>
-          <button class="btn sm primary" onclick="openModal('addAdminModal')">+ 관리자 추가</button>
-        </div>
-        <div class="info-box">최대 4명의 관리자를 등록할 수 있습니다. 각 관리자는 이름과 비밀번호로 로그인합니다.</div>
-        <div id="adminList"></div>
-      </div>
-      <div class="card">
-        <div class="section-title" style="margin-bottom:14px;">내 비밀번호 변경</div>
-        <div class="form-group"><label>현재 비밀번호</label><input id="curPw" type="password"/></div>
-        <div class="form-group"><label>새 비밀번호</label><input id="newPw" type="password"/></div>
-        <div class="form-group"><label>새 비밀번호 확인</label><input id="newPw2" type="password"/></div>
-        <div style="display:flex;align-items:center;">
-          <button class="btn primary" onclick="changePw()">변경</button>
-          <span id="pwMsg" style="font-size:12px;margin-left:10px;display:none;"></span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-  <div class="footer-credit">바이브코딩 연구소 제작</div>
-</div>
-
-<!-- ══ MODALS ══ -->
-
-<!-- Add Event -->
-<div class="modal-bg" id="addEvModal">
-  <div class="modal">
-    <h3>일정 / 공지 추가</h3>
-    <div class="form-group"><label>유형</label>
-      <select id="evType">
-        <option>과학&amp;코딩 캠프</option>
-        <option>특강수업</option>
-        <option>세미나&amp;연수</option>
-        <option>동아리</option>
-        <option>기타사항</option>
-      </select>
-    </div>
-    <div class="form-group"><label>제목</label><input id="evTitle" type="text" placeholder="수업 제목"/></div>
-    <div class="form-group"><label>날짜</label><input id="evDate" type="date"/></div>
-    <div class="form-group"><label>학교 / 장소</label><input id="evPlace" type="text" placeholder="○○초등학교"/></div>
-    <div class="form-group"><label>내용</label><textarea id="evDesc" rows="3" placeholder="상세 내용을 입력하세요"></textarea></div>
-    <div class="modal-footer">
-      <button class="btn primary" onclick="saveEvent()">저장</button>
-      <button class="btn" onclick="closeModal('addEvModal')">취소</button>
-    </div>
-  </div>
-</div>
-
-<!-- Event Detail -->
-<div class="modal-bg" id="evDetailModal">
-  <div class="modal">
-    <h3 id="edTitle"></h3>
-    <div id="edInfo" style="font-size:13px;color:var(--text-sub);margin-bottom:4px;"></div>
-    <div id="edDesc" style="font-size:13px;margin-bottom:1rem;"></div>
-    <div class="section-title" style="font-size:13px;margin-bottom:10px;">지원 강사</div>
-    <div id="edApplicants"></div>
-    <div class="modal-footer">
-      <button class="btn danger" id="delEvBtn">일정 삭제</button>
-      <button class="btn" onclick="closeModal('evDetailModal')">닫기</button>
-    </div>
-  </div>
-</div>
-
-<!-- Profile Modal (Admin View) -->
-<div class="modal-bg" id="profileModal">
-  <div class="modal">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
-      <div class="avatar" style="width:44px;height:44px;font-size:18px;" id="pmAvatar"></div>
-      <div>
-        <h3 style="margin-bottom:2px;" id="pmName"></h3>
-        <div style="font-size:12px;color:var(--text-sub);" id="pmSubject"></div>
-      </div>
-    </div>
-    <div id="pmInfo"></div>
-    <div class="section-title" style="font-size:13px;margin:14px 0 10px;">수업 / 연수 참여 이력</div>
-    <div id="pmHistory"></div>
-    <div class="modal-footer">
-      <button class="btn danger" id="delInstBtn">강사 삭제</button>
-      <button class="btn" onclick="closeModal('profileModal')">닫기</button>
-    </div>
-  </div>
-</div>
-
-<!-- Add Admin -->
-<div class="modal-bg" id="addAdminModal">
-  <div class="modal">
-    <h3>관리자 추가</h3>
-    <div class="form-group"><label>이름</label><input id="newAName" type="text" placeholder="관리자 이름"/></div>
-    <div class="form-group"><label>비밀번호</label><input id="newAPw" type="password" placeholder="비밀번호 설정"/></div>
-    <div class="modal-footer">
-      <button class="btn primary" onclick="addAdmin()">추가</button>
-      <button class="btn" onclick="closeModal('addAdminModal')">취소</button>
-    </div>
-    <div id="addAdminErr" class="err-msg"></div>
-  </div>
-</div>
-
-<script>
-// ── Constants ──
-const DB_KEY = 'tff_ims_v1';
-const DAYS = [
-  { key: 'mon', label: '월' },
-  { key: 'tue', label: '화' },
-  { key: 'wed', label: '수' },
-  { key: 'thu', label: '목' },
-  { key: 'fri', label: '금' },
-  { key: 'sat', label: '토' }
+// 일반 관리자 4명 (이름 + 초기비번 1234, 첫 로그인 후 변경)
+const ADMIN_ACCOUNTS = [
+    {name:'김남탁',  password:'1234', isFirst:true},
+    {name:'김유식',  password:'1234', isFirst:true},
+    {name:'사공은영',password:'1234', isFirst:true},
+    {name:'김윤희',  password:'1234', isFirst:true},
 ];
-const MON = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const getKSTDate = (d = new Date()) => new Date(d.getTime() + 9*3600*1000).toISOString().split('T')[0];
+const TODAY = getKSTDate();
 
-// ── State ──
-let S = {
-  instructors: {},
-  events: [],
-  admins: { admin: 'admin1234' },
-  currentUser: null,
-  isAdmin: false,
-  currentAdminName: null,
-  calYear: new Date().getFullYear(),
-  calMonth: new Date().getMonth(),
-  dayFilter: {} // { mon_am: true, mon_pm: false, ... }
+// ── 전체 분반 목록 ──
+const ALL_CLASSES = (() => {
+    const out = [];
+    [1,2,3,4,5,6].forEach(g => {
+        out.push(
+            {id:`e${g}-mw-s`, label:`초등 ${g}학년 월목 수반`},
+            {id:`e${g}-mw-h`, label:`초등 ${g}학년 월목 학반`},
+            {id:`e${g}-hg-s`, label:`초등 ${g}학년 화금 수반`},
+            {id:`e${g}-hg-h`, label:`초등 ${g}학년 화금 학반`},
+        );
+    });
+    return out;
+})();
+
+const GRADE_GROUPS = [1,2,3,4,5,6].map(g => ({
+    grade: `${g}학년`,
+    classes: ALL_CLASSES.filter(c => c.id.startsWith(`e${g}-`)),
+}));
+
+// 강사의 담당반 ID 배열 → 라벨 배열
+const getClassLabels = (classStr) => {
+    if (!classStr) return [];
+    return classStr.split(',').map(id => ALL_CLASSES.find(c=>c.id===id.trim())?.label).filter(Boolean);
 };
 
-// ── Storage ──
-function loadData() {
-  try {
-    const raw = localStorage.getItem(DB_KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      S.instructors = d.instructors || {};
-      S.events = d.events || [];
-      S.admins = d.admins || { admin: 'admin1234' };
-    }
-  } catch(e) {}
-}
+// ── 더미 데이터 ──
+const DUMMY = {
+    admins: [
+        {name:'김남탁',  password:'1234', isFirst:true},
+        {name:'김유식',  password:'1234', isFirst:true},
+        {name:'사공은영',password:'1234', isFirst:true},
+        {name:'김윤희',  password:'1234', isFirst:true},
+    ],
+    teachers: [
+        {ID:'t1', Name:'김선생', Password:'1234', Classes:'e1-mw-s,e1-mw-h,e2-mw-s,e3-mw-h'},
+        {ID:'t2', Name:'이선생', Password:'5678', Classes:'e3-hg-s,e4-mw-s,e4-hg-h'},
+        {ID:'t3', Name:'박선생', Password:'9999', Classes:'e5-hg-s,e5-mw-h,e6-mw-s,e6-hg-h'},
+    ],
+    notices: [
+        {ID:'n1', Title:'5월 연휴 휴원 안내', Content:'5월 3일(토) ~ 5월 6일(화)은 어린이날 연휴로 휴원합니다.\n수업 일정에 참고해 주세요.', CreatedAt: new Date().toISOString()},
+        {ID:'n2', Title:'4월 학부모 상담 주간 일정', Content:'4월 28일(월) ~ 5월 2일(금) 학부모 상담 주간입니다.\n담당 강사별 일정 확인 후 상담 기록 남겨 주세요.', CreatedAt: new Date(Date.now()-86400000).toISOString()},
+        {ID:'n3', Title:'3월 우수 학생 시상 결과', Content:'3월 우수 학생: 1학년 김민솔, 3학년 이현준, 5학년 박다빛\n수고하셨습니다!', CreatedAt: new Date(Date.now()-7*86400000).toISOString()},
+        {ID:'n4', Title:'수업 교재 변경 안내', Content:'5월부터 3~6학년 심화반 교재가 변경됩니다. 새 교재는 4월 마지막 주에 배부 예정입니다.', CreatedAt: new Date(Date.now()-10*86400000).toISOString()},
+    ],
+    journals: [
+        {ID:'j1', Date:TODAY, TeacherName:'김선생', Content:'1학년 수반 수업 진도 양호. 김민솔 학생 집중력이 많이 향상됨. 3학년 학반 일부 학생 숙제 미제출 — 주의 필요.', CreatedAt: new Date().toISOString()},
+        {ID:'j2', Date:TODAY, TeacherName:'박선생', Content:'6학년 수반 오늘 심화 문제 풀이 진행. 전반적으로 이해도 높음. 내일 단원 마무리 예정.', CreatedAt: new Date().toISOString()},
+        {ID:'j3', Date:new Date(Date.now()-2*86400000).toISOString().split('T')[0], TeacherName:'김선생', Content:'2학년 화금반 수업. 분수 개념 추가 설명 필요한 학생 3명 파악. 다음 수업 때 별도 지도 예정.', CreatedAt: new Date(Date.now()-2*86400000).toISOString()},
+        {ID:'j4', Date:new Date(Date.now()-2*86400000).toISOString().split('T')[0], TeacherName:'이선생', Content:'4학년 수반 오늘 수업 전반적으로 잘 따라옴. 이현준 학생 수학 올림피아드 관심 — 부모님 상담 예정.', CreatedAt: new Date(Date.now()-2*86400000).toISOString()},
+        {ID:'j5', Date:new Date(Date.now()-4*86400000).toISOString().split('T')[0], TeacherName:'박선생', Content:'5학년 학반 선행 학습 진도 점검. 정하윤 학생 심화반 전환 검토 중. 학부모 상담 필요.', CreatedAt: new Date(Date.now()-4*86400000).toISOString()},
+        {ID:'j6', Date:new Date(Date.now()-7*86400000).toISOString().split('T')[0], TeacherName:'이선생', Content:'3학년 화금 수반 단원평가 실시. 평균 85점. 최서준 학생 기초 보충 필요. 개별 지도 시작 예정.', CreatedAt: new Date(Date.now()-7*86400000).toISOString()},
+    ],
+    absences: [
+        {ID:'a1', Date:TODAY, StudentName:'김민솔', ClassName:'초등 1학년 월목 수반', Reason:'감기로 인한 병결. 어머니 전화 연락.', TeacherName:'김선생'},
+        {ID:'a2', Date:TODAY, StudentName:'이현준', ClassName:'초등 3학년 월목 학반', Reason:'가족 행사로 인한 결석. 사전 연락 있었음.', TeacherName:'이선생'},
+        {ID:'a3', Date:new Date(Date.now()-2*86400000).toISOString().split('T')[0], StudentName:'박다빛', ClassName:'초등 5학년 화금 수반', Reason:'병원 진료로 인한 조기 결석.', TeacherName:'박선생'},
+        {ID:'a4', Date:new Date(Date.now()-4*86400000).toISOString().split('T')[0], StudentName:'최서준', ClassName:'초등 3학년 화금 수반', Reason:'무단 결석. 부모님 연락 시도했으나 미응답. 다음날 재연락 예정.', TeacherName:'이선생'},
+        {ID:'a5', Date:new Date(Date.now()-7*86400000).toISOString().split('T')[0], StudentName:'김민솔', ClassName:'초등 1학년 월목 수반', Reason:'발열로 인한 병결. 완쾌 후 등원 예정.', TeacherName:'김선생'},
+        {ID:'a6', Date:new Date(Date.now()-10*86400000).toISOString().split('T')[0], StudentName:'정하윤', ClassName:'초등 5학년 월목 학반', Reason:'학교 행사 참여로 인한 결석. 사전 공지됨.', TeacherName:'박선생'},
+    ],
+    counsels: [
+        {ID:'c1', Date:TODAY, StudentName:'이현준', ParentName:'이OO', Content:'학생이 수학 올림피아드에 관심을 보임. 어머니와 통화, 준비 방향 안내드림. 다음달부터 심화 과정 추가 검토 예정.', TeacherName:'이선생'},
+        {ID:'c2', Date:new Date(Date.now()-3*86400000).toISOString().split('T')[0], StudentName:'김민솔', ParentName:'김OO', Content:'학생 집중력 향상 관련 상담. 최근 수업 태도 많이 개선됨을 전달. 학부모 만족하심. 꾸준히 격려해달라고 부탁드림.', TeacherName:'김선생'},
+        {ID:'c3', Date:new Date(Date.now()-7*86400000).toISOString().split('T')[0], StudentName:'박다빛', ParentName:'박OO', Content:'5학년 심화 과정 진도 관련 상담. 현재 진도 적절하며 다음 달 선행 학습 시작 예정 안내.', TeacherName:'박선생'},
+        {ID:'c4', Date:new Date(Date.now()-14*86400000).toISOString().split('T')[0], StudentName:'이현준', ParentName:'이OO', Content:'지난달 수학 시험 결과 관련 상담. 전반적으로 향상됨. 분수 영역 보충 필요. 주 1회 추가 지도 합의.', TeacherName:'이선생'},
+        {ID:'c5', Date:new Date(Date.now()-21*86400000).toISOString().split('T')[0], StudentName:'최서준', ParentName:'최OO', Content:'학생 태도 문제로 학부모 연락. 수업 중 산만한 행동 지속. 부모님께 가정에서도 지도 요청드림.', TeacherName:'김선생'},
+        {ID:'c6', Date:new Date(Date.now()-30*86400000).toISOString().split('T')[0], StudentName:'김민솔', ParentName:'김OO', Content:'3월 초 첫 상담. 학생 성격 파악 및 수업 방향 논의. 수학에 흥미 있으나 집중력이 짧음. 단계적 접근 방식 설명드림.', TeacherName:'김선생'},
+        {ID:'c7', Date:new Date(Date.now()-45*86400000).toISOString().split('T')[0], StudentName:'정하윤', ParentName:'정OO', Content:'학부모 요청으로 심화반 전환 상담. 현재 실력 평가 후 다음달 심화반 이동 결정하기로 함.', TeacherName:'박선생'},
+    ],
+};
 
-function saveData() {
-  try {
-    localStorage.setItem(DB_KEY, JSON.stringify({
-      instructors: S.instructors,
-      events: S.events,
-      admins: S.admins
-    }));
-  } catch(e) {}
-}
+// ── API (더미 모드) ──
+const api = {
+    get: action => new Promise(resolve => setTimeout(() => {
+        const map = {
+            getTeachers: DUMMY.teachers,
+            getAdmins:   DUMMY.admins,
+            getNotices:  DUMMY.notices,
+            getJournals: DUMMY.journals,
+            getAbsences: DUMMY.absences,
+            getCounsels: DUMMY.counsels,
+        };
+        resolve(map[action] || []);
+    }, 300)),
+    post: body => new Promise(resolve => setTimeout(() => {
+        if (body.action === 'resetTeacherPw') {
+            const t = DUMMY.teachers.find(t=>t.Name===body.name);
+            if (t) { t.Password='1234'; t.IsFirst=true; }
+        }
+        if (body.action === 'resetAdminPw') {
+            const a = DUMMY.admins.find(a=>a.name===body.name);
+            if (a) { a.password='1234'; a.isFirst=true; }
+        }
+        if (body.action === 'updateAdminPw') {
+            const a = DUMMY.admins.find(a=>a.name===body.name);
+            if (a) { a.password=body.newPw; a.isFirst=false; }
+        }
+        if (body.action === 'registerTeacher') {
+            const exists = DUMMY.teachers.find(t=>t.Name===body.name);
+            if (exists) { resolve({error:'이미 등록된 이름입니다'}); return; }
+            DUMMY.teachers.push({ID:'t'+Date.now(), Name:body.name, Password:'1234', Classes:'', IsFirst:true});
+        }
+        if (body.action === 'updateTeacherPw') {
+            const t = DUMMY.teachers.find(t=>t.Name===body.name);
+            if (t) { t.Password=body.newPw; t.IsFirst=false; }
+        }
+        if (body.action === 'updateTeacherClasses') {
+            const t = DUMMY.teachers.find(t=>t.Name===body.name);
+            if (t) t.Classes = body.classes;
+        }
+        if (body.action === 'deleteTeacher') { const i=DUMMY.teachers.findIndex(t=>t.ID===body.id); if(i>=0) DUMMY.teachers.splice(i,1); }
+        if (body.action === 'addNotice')   DUMMY.notices.unshift({ID:'n'+Date.now(), Title:body.title, Content:body.content, CreatedAt:new Date().toISOString()});
+        if (body.action === 'deleteNotice') { const i=DUMMY.notices.findIndex(n=>n.ID===body.id); if(i>=0) DUMMY.notices.splice(i,1); }
+        if (body.action === 'addJournal')  DUMMY.journals.unshift({ID:'j'+Date.now(), Date:body.date, TeacherName:body.teacherName, Content:body.content, CreatedAt:new Date().toISOString()});
+        if (body.action === 'addAbsence')  DUMMY.absences.unshift({ID:'a'+Date.now(), Date:body.date, StudentName:body.studentName, ClassName:body.className||'', Reason:body.reason, TeacherName:body.teacherName});
+        if (body.action === 'addCounsel')  DUMMY.counsels.unshift({ID:'c'+Date.now(), Date:body.date, StudentName:body.studentName, ParentName:body.parentName||'', Content:body.content, TeacherName:body.teacherName});
+        resolve({ success: true });
+    }, 400)),
+};
 
-// ── Login ──
-function setTab(t, btn) {
-  // 탭 기능은 새 레이아웃에서 사용 안 함 (하위 호환용 유지)
-}
+const PATHS = {
+    sparkles: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z",
+    menu:     "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
+    x:        "M6 18L18 6M6 6l12 12",
+    bell:     "M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0",
+    pencil:   "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10",
+    users:    "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
+    chat:     "M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155",
+    logout:   "M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75",
+    alert:    "M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z",
+    check:    "M4.5 12.75l6 6 9-13.5",
+    plus:     "M12 4.5v15m7.5-7.5h-15",
+    trash:    "M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0",
+    eye:      "M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+};
 
-function toggleAdminPanel() {
-  document.getElementById('ltAdmin').classList.toggle('expanded');
-}
+const Icon = ({ name, size=20, cls='', style:s={} }) => {
+    const d = PATHS[name]; if (!d) return null;
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cls} style={s}><path d={d}/></svg>;
+};
 
-function showErr(msg) {
-  const e = document.getElementById('loginErr');
-  e.textContent = msg;
-  e.style.display = 'block';
-}
+const Toast = ({ message, type='success', onDone }) => {
+    useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t); }, []);
+    return <div className={`toast toast-${type}`}><Icon name={type==='success'?'check':'alert'} size={14}/>{message}</div>;
+};
 
-function showAdminErr(msg) {
-  const e = document.getElementById('adminLoginErr');
-  if (e) { e.textContent = msg; e.style.display = 'block'; }
-}
+// ━━━ 로그인 화면 ━━━
+const LoginScreen = ({ onLogin }) => {
+    const [name,    setName]    = useState('');
+    const [pw,      setPw]      = useState('');
+    const [err,     setErr]     = useState('');
+    const [loading, setLoading] = useState(false);
 
-function loginInst() {
-  const name = document.getElementById('iName').value.trim();
-  const pw = document.getElementById('iPw').value.trim();
-  if (!name || !pw) { showErr('이름과 비밀번호를 입력하세요.'); return; }
-  if (S.instructors[name]) {
-    if (S.instructors[name].pw !== pw) { showErr('비밀번호가 틀렸습니다.'); return; }
-  } else {
-    S.instructors[name] = {
-      pw, name, email:'', phone:'', addr:'', subject:'',
-      edu: ['','',''],
-      career: ['','','','',''],
-      certs: ['','','','',''],
-      days: {},
-      carOwn: '',
-      appeal: ''
+    const handleLogin = async () => {
+        setErr(''); setLoading(true);
+        try {
+            const trimName = name.trim();
+
+            // 1. 슈퍼 관리자 — 이름 없이 비번만
+            if (!trimName && pw === SUPER_ADMIN_PW) {
+                onLogin({ role:'admin', name:'관리자', isSuper:true });
+                return;
+            }
+
+            // 2. 일반 관리자 — 이름 + 비번
+            const admins = await api.get('getAdmins');
+            const foundAdmin = Array.isArray(admins) ? admins.find(a=>a.name===trimName) : null;
+            if (foundAdmin) {
+                if (foundAdmin.password !== pw) { setErr('비밀번호가 틀렸습니다'); return; }
+                onLogin({ role:'admin', name:foundAdmin.name, isFirst:foundAdmin.isFirst, isSuper:false });
+                return;
+            }
+
+            // 3. 강사 — 이름 + 비번
+            if (!trimName) { setErr('이름을 입력해 주세요'); return; }
+            const teachers = await api.get('getTeachers');
+            const foundTeacher = Array.isArray(teachers) ? teachers.find(t=>t.Name===trimName) : null;
+
+            if (!foundTeacher) {
+                // 첫 방문 강사
+                if (pw !== TEACHER_INIT_PW) { setErr('처음 로그인은 초기 비번을 사용해 주세요'); return; }
+                const res = await api.post({ action:'registerTeacher', name:trimName });
+                if (res.error) { setErr(res.error); return; }
+                onLogin({ role:'teacher', name:trimName, isFirst:true });
+            } else {
+                if (foundTeacher.Password !== pw) { setErr('비밀번호가 틀렸습니다'); return; }
+                onLogin({ role:'teacher', name:foundTeacher.Name, isFirst:foundTeacher.IsFirst||false, classes:foundTeacher.Classes||'' });
+            }
+        } catch(e) { setErr('연결 오류: '+e.message); }
+        finally { setLoading(false); }
     };
-    saveData();
-  }
-  document.getElementById('loginErr').style.display = 'none';
-  S.currentUser = name; S.isAdmin = false;
-  showScreen('instScreen');
-  loadInstProfile();
-}
 
-function loginAdmin() {
-  const name = document.getElementById('aName').value.trim();
-  const pw = document.getElementById('aPw').value;
-  if (!S.admins[name]) { showAdminErr('관리자 계정이 없습니다.'); return; }
-  if (S.admins[name] !== pw) { showAdminErr('비밀번호가 틀렸습니다.'); return; }
-  const errEl = document.getElementById('adminLoginErr');
-  if (errEl) errEl.style.display = 'none';
-  S.isAdmin = true; S.currentAdminName = name;
-  document.getElementById('adminTopName').textContent = name + ' 관리자';
-  showScreen('adminScreen');
-  renderCal();
-  initDayFilter();
-}
-
-function logout() {
-  S.currentUser = null; S.isAdmin = false; S.currentAdminName = null;
-  showScreen('loginScreen');
-  ['iName','iPw','aName','aPw'].forEach(id => document.getElementById(id).value = '');
-}
-
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => { s.style.display = 'none'; s.classList.remove('active'); });
-  const s = document.getElementById(id);
-  s.style.display = id === 'loginScreen' ? 'flex' : 'block';
-  s.classList.add('active');
-}
-
-// ── Nav ──
-function showIP(id, btn) {
-  document.querySelectorAll('#instScreen .page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('#instScreen .nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('ip' + id).classList.add('active');
-  btn.classList.add('active');
-  if (id === 'Events') renderInstEvents();
-}
-
-function showAP(id, btn) {
-  document.querySelectorAll('#adminScreen .page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('#adminScreen .nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('ap' + id).classList.add('active');
-  btn.classList.add('active');
-  if (id === 'Calendar') { renderCal(); renderMonthList(); }
-  if (id === 'Instructors') renderInstList();
-  if (id === 'Settings') renderAdminList();
-}
-
-// ── Profile helpers ──
-function getProfile(u) {
-  // migrate old format
-  if (!u.edu) u.edu = ['','',''];
-  if (!u.career) u.career = ['','','','',''];
-  if (!u.certs) u.certs = ['','','','',''];
-  if (!u.days) u.days = {};
-  if (!u.email) u.email = '';
-  if (!u.carOwn) u.carOwn = '';
-  if (!u.appeal) u.appeal = '';
-  return u;
-}
-
-function loadInstProfile() {
-  const u = getProfile(S.instructors[S.currentUser]);
-  document.getElementById('instTopName').textContent = S.currentUser + '님';
-  document.getElementById('pName').value = u.name || S.currentUser;
-  document.getElementById('pEmail').value = u.email || '';
-  document.getElementById('pPhone').value = u.phone || '';
-  document.getElementById('pAddr').value = u.addr || '';
-  document.getElementById('pSubject').value = u.subject || '';
-  for (let i = 0; i < 3; i++) document.getElementById(`pEdu${i+1}`).value = u.edu[i] || '';
-  for (let i = 0; i < 5; i++) document.getElementById(`pCar${i+1}`).value = u.career[i] || '';
-  for (let i = 0; i < 5; i++) document.getElementById(`pCert${i+1}`).value = u.certs[i] || '';
-  document.getElementById('pCarY').checked = u.carOwn === '있음';
-  document.getElementById('pCarN').checked = u.carOwn === '없음';
-  document.getElementById('pAppeal').value = u.appeal || '';
-  DAYS.forEach(d => {
-    document.getElementById(`d_${d.key}_am`).checked = !!(u.days[d.key + '_am']);
-    document.getElementById(`d_${d.key}_pm`).checked = !!(u.days[d.key + '_pm']);
-  });
-}
-
-function saveProfile() {
-  const u = getProfile(S.instructors[S.currentUser]);
-  u.name = document.getElementById('pName').value;
-  u.email = document.getElementById('pEmail').value;
-  u.phone = document.getElementById('pPhone').value;
-  u.addr = document.getElementById('pAddr').value;
-  u.subject = document.getElementById('pSubject').value;
-  u.edu = [1,2,3].map(i => document.getElementById(`pEdu${i}`).value.trim());
-  u.career = [1,2,3,4,5].map(i => document.getElementById(`pCar${i}`).value.trim());
-  u.certs = [1,2,3,4,5].map(i => document.getElementById(`pCert${i}`).value.trim());
-  const carChecked = document.querySelector('input[name="pCar"]:checked');
-  u.carOwn = carChecked ? carChecked.value : '';
-  u.appeal = document.getElementById('pAppeal').value.trim();
-  u.days = {};
-  DAYS.forEach(d => {
-    u.days[d.key + '_am'] = document.getElementById(`d_${d.key}_am`).checked;
-    u.days[d.key + '_pm'] = document.getElementById(`d_${d.key}_pm`).checked;
-  });
-  saveData();
-  const m = document.getElementById('saveMsg');
-  m.style.display = 'inline';
-  setTimeout(() => m.style.display = 'none', 2000);
-}
-
-// ── Instructor events ──
-function renderInstEvents() {
-  const list = document.getElementById('instEvList');
-  const myApp = document.getElementById('myApps');
-  const u = S.instructors[S.currentUser];
-  if (!S.events.length) {
-    list.innerHTML = '<p class="empty-msg">등록된 공지가 없습니다.</p>';
-    myApp.innerHTML = '';
-    return;
-  }
-  list.innerHTML = '';
-  S.events.forEach((ev, i) => {
-    const applied = u.applications && u.applications[i];
-    const d = document.createElement('div');
-    d.className = 'ev-item';
-    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-      <div>
-        <div class="ev-title">[${ev.type}] ${ev.title}</div>
-        <div class="ev-meta">${ev.date} &middot; ${ev.place}</div>
-        <div class="ev-desc">${ev.desc || ''}</div>
-      </div>
-      <div style="flex-shrink:0;">
-        ${applied
-          ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>`
-          : `<button class="btn sm primary" onclick="applyEv(${i})">신청</button>`}
-      </div>
-    </div>`;
-    list.appendChild(d);
-  });
-  const items = Object.entries(u.applications || {}).filter(([,v]) => v);
-  if (!items.length) {
-    myApp.innerHTML = '<p class="empty-msg">신청한 항목이 없습니다.</p>';
-    return;
-  }
-  myApp.innerHTML = '';
-  items.forEach(([idx, status]) => {
-    const ev = S.events[idx]; if (!ev) return;
-    const d = document.createElement('div'); d.className = 'ev-item';
-    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
-      <span>[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}</span></span>
-      <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
-    </div>`;
-    myApp.appendChild(d);
-  });
-}
-
-function applyEv(idx) {
-  const u = S.instructors[S.currentUser];
-  if (!u.applications) u.applications = {};
-  u.applications[idx] = 'pending';
-  saveData(); renderInstEvents();
-}
-
-// ── Calendar ──
-function renderCal() {
-  document.getElementById('calTitle').textContent = `${S.calYear}년 ${MON[S.calMonth]}`;
-  const grid = document.getElementById('calGrid');
-  grid.innerHTML = '';
-  ['일','월','화','수','목','금','토'].forEach(d => {
-    const h = document.createElement('div'); h.className = 'cal-day-hdr'; h.textContent = d; grid.appendChild(h);
-  });
-  const first = new Date(S.calYear, S.calMonth, 1).getDay();
-  const days = new Date(S.calYear, S.calMonth + 1, 0).getDate();
-  for (let i = 0; i < first; i++) {
-    const d = document.createElement('div'); d.className = 'cal-day other-month'; grid.appendChild(d);
-  }
-  const today = new Date();
-  for (let d = 1; d <= days; d++) {
-    const cell = document.createElement('div'); cell.className = 'cal-day';
-    if (d === today.getDate() && S.calMonth === today.getMonth() && S.calYear === today.getFullYear()) cell.classList.add('today');
-    cell.innerHTML = `<div class="day-num">${d}</div>`;
-    const ds = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayEvs = S.events.filter(e => e.date === ds);
-    dayEvs.slice(0, 2).forEach(ev => {
-      const dot = document.createElement('span'); dot.className = 'ev-dot';
-      dot.textContent = `[${ev.type}] ${ev.title}`; cell.appendChild(dot);
-    });
-    if (dayEvs.length > 0) {
-      const idx = S.events.findIndex(e => e.date === ds);
-      cell.onclick = () => openEvDetail(idx);
-    } else {
-      cell.onclick = () => { document.getElementById('evDate').value = ds; openModal('addEvModal'); };
-    }
-    grid.appendChild(cell);
-  }
-  renderMonthList();
-}
-
-function chMon(d) {
-  S.calMonth += d;
-  if (S.calMonth > 11) { S.calMonth = 0; S.calYear++; }
-  if (S.calMonth < 0) { S.calMonth = 11; S.calYear--; }
-  renderCal();
-}
-
-function renderMonthList() {
-  const pfx = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
-  const evs = S.events.filter(e => e.date.startsWith(pfx));
-  const div = document.getElementById('monthEvList');
-  if (!evs.length) { div.innerHTML = '<p class="empty-msg">이번 달 일정이 없습니다.</p>'; return; }
-  div.innerHTML = '';
-  evs.forEach(ev => {
-    const idx = S.events.indexOf(ev);
-    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[idx]);
-    const approved = apps.filter(u => u.applications[idx] === 'approved').length;
-    const d = document.createElement('div'); d.className = 'ev-item';
-    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div class="ev-title">[${ev.type}] ${ev.title}</div>
-        <div class="ev-meta">${ev.date} &middot; ${ev.place} &middot; 신청 ${apps.length}명 / 승인 ${approved}명</div>
-      </div>
-      <button class="btn sm" onclick="openEvDetail(${idx})">상세</button>
-    </div>`;
-    div.appendChild(d);
-  });
-}
-
-// ── Modals ──
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-function saveEvent() {
-  const title = document.getElementById('evTitle').value.trim();
-  const date = document.getElementById('evDate').value;
-  if (!title || !date) { alert('제목과 날짜를 입력하세요.'); return; }
-  S.events.push({
-    type: document.getElementById('evType').value, title, date,
-    place: document.getElementById('evPlace').value,
-    desc: document.getElementById('evDesc').value
-  });
-  saveData(); closeModal('addEvModal');
-  ['evTitle','evPlace','evDesc'].forEach(id => document.getElementById(id).value = '');
-  renderCal();
-}
-
-function openEvDetail(idx) {
-  const ev = S.events[idx];
-  document.getElementById('edTitle').textContent = `[${ev.type}] ${ev.title}`;
-  document.getElementById('edInfo').textContent = `${ev.date} · ${ev.place}`;
-  document.getElementById('edDesc').textContent = ev.desc || '';
-  const apDiv = document.getElementById('edApplicants');
-  const applicants = [];
-  Object.entries(S.instructors).forEach(([name, u]) => {
-    if (u.applications && u.applications[idx]) applicants.push({ name, status: u.applications[idx] });
-  });
-  document.getElementById('delEvBtn').onclick = () => deleteEvent(idx);
-  if (!applicants.length) {
-    apDiv.innerHTML = '<p class="empty-msg">신청한 강사가 없습니다.</p>';
-  } else {
-    apDiv.innerHTML = '';
-    applicants.forEach(({ name, status }) => {
-      const row = document.createElement('div'); row.className = 'app-row';
-      row.innerHTML = `<span>${name}</span>
-        <div class="btn-grp">
-          <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
-          ${status==='pending'
-            ? `<button class="btn sm primary" onclick="approveApp('${name}',${idx},'approved')">승인</button>
-               <button class="btn sm danger" onclick="approveApp('${name}',${idx},'rejected')">거절</button>`
-            : ''}
-        </div>`;
-      apDiv.appendChild(row);
-    });
-  }
-  openModal('evDetailModal');
-}
-
-function approveApp(name, idx, result) {
-  S.instructors[name].applications[idx] = result;
-  saveData(); openEvDetail(idx);
-}
-
-function deleteEvent(idx) {
-  if (!confirm('이 일정을 삭제하시겠습니까?')) return;
-  Object.values(S.instructors).forEach(u => { if (u.applications) delete u.applications[idx]; });
-  S.events.splice(idx, 1);
-  saveData(); closeModal('evDetailModal'); renderCal();
-}
-
-// ── Instructor List ──
-function renderInstList() {
-  const div = document.getElementById('instListAdmin');
-  const names = Object.keys(S.instructors);
-  if (!names.length) { div.innerHTML = '<p class="empty-msg">등록된 강사가 없습니다.</p>'; return; }
-  div.innerHTML = '';
-  names.forEach(name => {
-    const u = getProfile(S.instructors[name]);
-    const row = document.createElement('div'); row.className = 'row-item';
-    row.innerHTML = `
-      <div class="avatar">${name.slice(0,1)}</div>
-      <div class="inst-info">
-        <div class="inst-name">${name}</div>
-        <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
-      </div>
-      <button class="btn sm" onclick="openProfile('${name}')">프로필</button>`;
-    div.appendChild(row);
-  });
-}
-
-// ── Day Filter ──
-function initDayFilter() {
-  const wrap = document.getElementById('dayFilterBtns');
-  wrap.innerHTML = '';
-  DAYS.forEach(d => {
-    ['오전','오후'].forEach(t => {
-      const key = d.key + (t === '오전' ? '_am' : '_pm');
-      const btn = document.createElement('button');
-      btn.className = 'day-filter-btn';
-      btn.textContent = `${d.label} ${t}`;
-      btn.dataset.key = key;
-      btn.dataset.type = t === '오전' ? 'am' : 'pm';
-      btn.onclick = () => toggleDayFilter(key, btn);
-      wrap.appendChild(btn);
-    });
-  });
-}
-
-function toggleDayFilter(key, btn) {
-  if (S.dayFilter[key]) {
-    delete S.dayFilter[key];
-    btn.className = 'day-filter-btn';
-  } else {
-    S.dayFilter[key] = true;
-    btn.className = 'day-filter-btn active-' + btn.dataset.type;
-  }
-  searchInst();
-}
-
-// ── Search ──
-function searchInst() {
-  const qName = document.getElementById('sName').value.trim().toLowerCase();
-  const qSubj = document.getElementById('sSubject').value.trim().toLowerCase();
-  const qEdu  = document.getElementById('sEdu').value.trim().toLowerCase();
-  const qCert = document.getElementById('sCert').value.trim().toLowerCase();
-  const activeDays = Object.keys(S.dayFilter).filter(k => S.dayFilter[k]);
-
-  const div = document.getElementById('searchResults');
-  const hasQuery = qName || qSubj || qEdu || qCert || activeDays.length;
-  if (!hasQuery) { div.innerHTML = '<p class="empty-msg">검색어를 입력하거나 요일을 선택하세요.</p>'; return; }
-
-  const matches = Object.keys(S.instructors).filter(name => {
-    const u = getProfile(S.instructors[name]);
-    if (qName && !name.toLowerCase().includes(qName)) return false;
-    if (qSubj && !(u.subject||'').toLowerCase().includes(qSubj)) return false;
-    if (qEdu && !u.edu.some(e => e.toLowerCase().includes(qEdu))) return false;
-    if (qCert && !u.certs.some(c => c.toLowerCase().includes(qCert))) return false;
-    if (activeDays.length) {
-      const hasDay = activeDays.every(key => u.days && u.days[key]);
-      if (!hasDay) return false;
-    }
-    return true;
-  });
-
-  if (!matches.length) { div.innerHTML = '<p class="empty-msg">검색 결과가 없습니다.</p>'; return; }
-  div.innerHTML = `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">검색 결과 ${matches.length}명</div>`;
-  matches.forEach(name => {
-    const u = getProfile(S.instructors[name]);
-    const dayTags = DAYS.flatMap(d => {
-      const tags = [];
-      if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin-right:3px;">${d.label} 오전</span>`);
-      if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin-right:3px;">${d.label} 오후</span>`);
-      return tags;
-    }).join('');
-    const row = document.createElement('div'); row.className = 'row-item';
-    row.style.flexWrap = 'wrap';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-        <div class="avatar">${name.slice(0,1)}</div>
-        <div class="inst-info">
-          <div class="inst-name">${name}</div>
-          <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
-          ${dayTags ? `<div style="margin-top:4px;">${dayTags}</div>` : ''}
+    return (
+        <div className="login-wrap">
+            <div className="login-box">
+                <div className="login-logo">
+                    <div className="logo-icon"><Icon name="sparkles" size={22}/></div>
+                    <div><div className="logo-title">군위몰입수학</div><div className="logo-sub">Staff Portal</div></div>
+                </div>
+                <div style={{marginBottom:20,fontSize:13,fontWeight:700,color:'#94a3b8',textAlign:'center'}}>
+                    이름과 비밀번호를 입력해 주세요
+                </div>
+                <input className="login-input" placeholder="이름" value={name}
+                    onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+                <input className="login-input" type="password" placeholder="비밀번호"
+                    value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+                <button className="login-btn" onClick={handleLogin} disabled={loading}>
+                    {loading?'확인 중...':'로그인'}
+                </button>
+                {err && <div className="login-err">{err}</div>}
+                <div style={{marginTop:16,padding:'12px 16px',background:'#fff7ed',borderRadius:14,fontSize:12,fontWeight:700,color:'#92400e',lineHeight:1.8}}>
+                    <div style={{fontWeight:900,marginBottom:6}}>첫 로그인 안내</div>
+                    <div>강사 · 관리자: <span style={{color:'#f97316',fontWeight:900}}>이름 / 1234</span></div>
+                    <div>슈퍼관리자: <span style={{color:'#0f172a',fontWeight:900}}>비번만 입력</span></div>
+                    <div style={{color:'#a16207',marginTop:4,fontSize:11}}>로그인 후 비번 변경 필수</div>
+                </div>
+            </div>
         </div>
-      </div>
-      <button class="btn sm" onclick="openProfile('${name}')">프로필</button>`;
-    div.appendChild(row);
-  });
-}
+    );
+};
 
-// ── Profile Modal ──
-function formatList(arr) {
-  return (arr || []).filter(v => v.trim()).map(v => `<div style="padding:2px 0;">${v}</div>`).join('') || '-';
-}
+// ━━━ 관리자 첫 로그인 셋업 (비번 변경만) ━━━
+const AdminSetupScreen = ({ user, onDone }) => {
+    const [newPw,     setNewPw]     = useState('');
+    const [confirmPw, setConfirmPw] = useState('');
+    const [err,       setErr]       = useState('');
+    const [saving,    setSaving]    = useState(false);
 
-function openProfile(name) {
-  const u = getProfile(S.instructors[name]);
-  document.getElementById('pmAvatar').textContent = name.slice(0,1);
-  document.getElementById('pmName').textContent = name;
-  document.getElementById('pmSubject').textContent = u.subject || '과목 미입력';
+    const handleFinish = async () => {
+        if (newPw.length < 4) { setErr('비번은 4자리 이상 입력해 주세요'); return; }
+        if (newPw !== confirmPw) { setErr('비번이 일치하지 않습니다'); return; }
+        setSaving(true);
+        try {
+            await api.post({ action:'updateAdminPw', name:user.name, newPw });
+            onDone({ ...user, isFirst:false });
+        } catch(e) { setErr('저장 실패'); }
+        finally { setSaving(false); }
+    };
 
-  const dayStr = DAYS.flatMap(d => {
-    const tags = [];
-    if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin:1px;">${d.label} 오전</span>`);
-    if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin:1px;">${d.label} 오후</span>`);
-    return tags;
-  }).join('') || '<span style="color:var(--text-hint)">미입력</span>';
+    return (
+        <div className="login-wrap" style={{background:'#F5F6FA'}}>
+            <div className="login-box">
+                <div className="login-logo">
+                    <div className="logo-icon"><Icon name="sparkles" size={22}/></div>
+                    <div><div className="logo-title">군위몰입수학</div><div className="logo-sub">관리자 첫 로그인</div></div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:'#64748b',marginBottom:20,textAlign:'center'}}>
+                    <span style={{fontWeight:900,color:'#0f172a'}}>{user.name}</span> 관리자님<br/>
+                    새 비밀번호를 설정해 주세요
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:16}}>
+                    <input className="login-input" type="password" placeholder="새 비밀번호 (4자리 이상)"
+                        value={newPw} onChange={e=>setNewPw(e.target.value)} style={{marginBottom:0}}/>
+                    <input className="login-input" type="password" placeholder="비밀번호 확인"
+                        value={confirmPw} onChange={e=>setConfirmPw(e.target.value)}
+                        onKeyDown={e=>e.key==='Enter'&&handleFinish()} style={{marginBottom:0}}/>
+                </div>
+                {err && <div className="login-err" style={{marginBottom:10}}>{err}</div>}
+                <button className="login-btn" onClick={handleFinish} disabled={saving}>
+                    {saving?'저장 중...':'설정 완료 →'}
+                </button>
+            </div>
+        </div>
+    );
+};
 
-  document.getElementById('pmInfo').innerHTML = `
-    <div class="profile-section-title">기본 정보</div>
-    <div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email||'-'}</span></div>
-    <div class="profile-row"><span class="lbl">연락처</span><span class="val">${u.phone||'-'}</span></div>
-    <div class="profile-row"><span class="lbl">주소</span><span class="val">${u.addr||'-'}</span></div>
-    <div class="profile-row"><span class="lbl">차량 유무</span><span class="val">${u.carOwn||'-'}</span></div>
-    <div class="profile-section-title">학력</div>
-    <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.edu)}</span></div>
-    <div class="profile-section-title">경력</div>
-    <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.career)}</span></div>
-    <div class="profile-section-title">자격증</div>
-    <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.certs)}</span></div>
-    <div class="profile-section-title">수업 가능 요일</div>
-    <div class="profile-row"><span class="val" style="min-width:0;flex-wrap:wrap;display:flex;gap:2px;">${dayStr}</span></div>
-    <div class="profile-section-title">나를 어필해요</div>
-    <div class="profile-row"><span class="val" style="min-width:0;white-space:pre-wrap;">${u.appeal||'-'}</span></div>`;
+// ━━━ 첫 로그인 셋업 화면 (강사 — 비번변경 + 담당반 선택) ━━━
+const SetupScreen = ({ user, onDone }) => {
+    const [step,      setStep]      = useState(1); // 1:비번변경 2:담당반선택
+    const [newPw,     setNewPw]     = useState('');
+    const [confirmPw, setConfirmPw] = useState('');
+    const [classes,   setClasses]   = useState([]);
+    const [err,       setErr]       = useState('');
+    const [saving,    setSaving]    = useState(false);
 
-  const hist = document.getElementById('pmHistory');
-  const items = Object.entries(u.applications || {}).filter(([,v]) => v);
-  if (!items.length) {
-    hist.innerHTML = '<p class="empty-msg">참여 이력이 없습니다.</p>';
-  } else {
-    hist.innerHTML = '';
-    items.forEach(([idx, status]) => {
-      const ev = S.events[idx]; if (!ev) return;
-      const d = document.createElement('div'); d.className = 'app-row';
-      d.innerHTML = `<span>[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}</span></span>
-        <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>`;
-      hist.appendChild(d);
-    });
-  }
-  document.getElementById('delInstBtn').onclick = () => deleteInst(name);
-  openModal('profileModal');
-}
+    const toggleClass = id =>
+        setClasses(prev => prev.includes(id) ? prev.filter(c=>c!==id) : [...prev, id]);
 
-function deleteInst(name) {
-  if (!confirm(`'${name}' 강사를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-  delete S.instructors[name];
-  saveData(); closeModal('profileModal'); renderInstList();
-}
+    const handlePwNext = () => {
+        if (newPw.length < 4) { setErr('비번은 4자리 이상 입력해 주세요'); return; }
+        if (newPw !== confirmPw) { setErr('비번이 일치하지 않습니다'); return; }
+        setErr(''); setStep(2);
+    };
 
-// ── Admin management ──
-function renderAdminList() {
-  const div = document.getElementById('adminList');
-  div.innerHTML = '';
-  Object.keys(S.admins).forEach(name => {
-    const isSelf = name === S.currentAdminName;
-    const row = document.createElement('div'); row.className = 'admin-row';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="avatar" style="width:28px;height:28px;font-size:12px;">${name.slice(0,1)}</div>
-        <span style="font-weight:500;">${name}</span>
-        ${isSelf ? '<span class="badge admin" style="font-size:10px;">나</span>' : ''}
-      </div>
-      <div>
-        ${!isSelf && Object.keys(S.admins).length > 1
-          ? `<button class="btn sm danger" onclick="deleteAdmin('${name}')">삭제</button>`
-          : ''}
-      </div>`;
-    div.appendChild(row);
-  });
-}
+    const handleFinish = async () => {
+        setSaving(true);
+        try {
+            await api.post({ action:'updateTeacherPw', name:user.name, newPw });
+            await api.post({ action:'updateTeacherClasses', name:user.name, classes:classes.join(',') });
+            onDone({ ...user, isFirst:false, classes:classes.join(',') });
+        } catch(e) { setErr('저장 실패'); }
+        finally { setSaving(false); }
+    };
 
-function addAdmin() {
-  const name = document.getElementById('newAName').value.trim();
-  const pw = document.getElementById('newAPw').value.trim();
-  const err = document.getElementById('addAdminErr');
-  if (!name || !pw) { err.textContent = '이름과 비밀번호를 입력하세요.'; err.style.display = 'block'; return; }
-  if (Object.keys(S.admins).length >= 4) { err.textContent = '관리자는 최대 4명까지 등록 가능합니다.'; err.style.display = 'block'; return; }
-  if (S.admins[name]) { err.textContent = '이미 존재하는 이름입니다.'; err.style.display = 'block'; return; }
-  S.admins[name] = pw;
-  saveData(); closeModal('addAdminModal');
-  document.getElementById('newAName').value = ''; document.getElementById('newAPw').value = '';
-  err.style.display = 'none';
-  renderAdminList();
-}
+    return (
+        <div className="login-wrap" style={{background:'#F5F6FA'}}>
+            <div className="login-box" style={{maxWidth:440}}>
+                <div className="login-logo">
+                    <div className="logo-icon"><Icon name="sparkles" size={22}/></div>
+                    <div><div className="logo-title">군위몰입수학</div><div className="logo-sub">첫 로그인 설정</div></div>
+                </div>
 
-function deleteAdmin(name) {
-  if (!confirm(`'${name}' 관리자를 삭제하시겠습니까?`)) return;
-  delete S.admins[name]; saveData(); renderAdminList();
-}
+                {/* 스텝 인디케이터 */}
+                <div style={{display:'flex',gap:8,marginBottom:28}}>
+                    {['비밀번호 변경','담당반 선택'].map((s,i)=>(
+                        <div key={i} style={{flex:1,padding:'8px 12px',borderRadius:12,background:step===i+1?'#0f172a':step>i+1?'#10b981':'#f8fafc',color:step>=i+1?'#fff':'#94a3b8',fontSize:12,fontWeight:900,textAlign:'center',transition:'all .2s'}}>
+                            {step>i+1?'✓ ':''}{s}
+                        </div>
+                    ))}
+                </div>
 
-function changePw() {
-  const cur = document.getElementById('curPw').value;
-  const nw = document.getElementById('newPw').value;
-  const nw2 = document.getElementById('newPw2').value;
-  const msg = document.getElementById('pwMsg');
-  if (S.admins[S.currentAdminName] !== cur) {
-    msg.textContent = '현재 비밀번호가 틀렸습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return;
-  }
-  if (!nw) { msg.textContent = '새 비밀번호를 입력하세요.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
-  if (nw !== nw2) { msg.textContent = '새 비밀번호가 일치하지 않습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
-  S.admins[S.currentAdminName] = nw; saveData();
-  msg.textContent = '✓ 비밀번호가 변경되었습니다.'; msg.style.color = 'var(--green)'; msg.style.display = 'inline';
-  ['curPw','newPw','newPw2'].forEach(id => document.getElementById(id).value = '');
-  setTimeout(() => msg.style.display = 'none', 3000);
-}
+                {step === 1 && (
+                    <>
+                        <div style={{fontSize:13,fontWeight:700,color:'#64748b',marginBottom:20,textAlign:'center'}}>
+                            <span style={{fontWeight:900,color:'#0f172a'}}>{user.name}</span> 강사님, 새 비밀번호를 설정해 주세요
+                        </div>
+                        <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:16}}>
+                            <input className="login-input" type="password" placeholder="새 비밀번호 (4자리 이상)" value={newPw} onChange={e=>setNewPw(e.target.value)} style={{marginBottom:0}}/>
+                            <input className="login-input" type="password" placeholder="비밀번호 확인" value={confirmPw} onChange={e=>setConfirmPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handlePwNext()} style={{marginBottom:0}}/>
+                        </div>
+                        {err && <div className="login-err" style={{marginBottom:10}}>{err}</div>}
+                        <button className="login-btn" onClick={handlePwNext}>다음 →</button>
+                    </>
+                )}
 
-// ── Excel ──
-function exportExcel() {
-  const pfx = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
-  const evs = S.events.filter(e => e.date.startsWith(pfx));
-  if (!evs.length) { alert('이번 달 일정이 없습니다.'); return; }
-  const rows = [['유형','제목','날짜','장소','내용','신청자수','승인자수','거절자수']];
-  evs.forEach(ev => {
-    const idx = S.events.indexOf(ev);
-    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[idx]);
-    const approved = apps.filter(u => u.applications[idx] === 'approved').length;
-    const rejected = apps.filter(u => u.applications[idx] === 'rejected').length;
-    rows.push([ev.type, ev.title, ev.date, ev.place, ev.desc||'', apps.length, approved, rejected]);
-  });
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:8},{wch:22},{wch:12},{wch:18},{wch:28},{wch:9},{wch:9},{wch:9}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '일정');
-  XLSX.writeFile(wb, `티치포퓨처_일정_${S.calYear}년${MON[S.calMonth]}.xlsx`);
-}
+                {step === 2 && (
+                    <>
+                        <div style={{fontSize:13,fontWeight:700,color:'#64748b',marginBottom:16,textAlign:'center'}}>
+                            담당 수업을 선택해 주세요
+                            <span style={{marginLeft:8,color:'#f97316',fontWeight:900}}>{classes.length}개 선택</span>
+                        </div>
+                        <div style={{display:'flex',flexDirection:'column',gap:10,maxHeight:360,overflowY:'auto',marginBottom:16}}>
+                            {GRADE_GROUPS.map(g=>(
+                                <div key={g.grade}>
+                                    <div style={{fontSize:11,fontWeight:900,color:'#64748b',marginBottom:6,padding:'3px 8px',background:'#f1f5f9',borderRadius:8,display:'inline-block'}}>{g.grade}</div>
+                                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:6}}>
+                                        {g.classes.map(c=>{
+                                            const checked = classes.includes(c.id);
+                                            const dayPart  = c.id.includes('-mw-')?'월목':'화금';
+                                            const typePart = c.id.endsWith('-s')?'수반':'학반';
+                                            return (
+                                                <button key={c.id} onClick={()=>toggleClass(c.id)} style={{
+                                                    display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderRadius:12,
+                                                    border:`2px solid ${checked?'#0f172a':'#f1f5f9'}`,
+                                                    background:checked?'#0f172a':'#f8fafc',
+                                                    color:checked?'#fff':'#64748b',
+                                                    fontSize:12,fontWeight:900,transition:'all .15s',
+                                                }}>
+                                                    <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${checked?'#fff':'#cbd5e1'}`,background:checked?'#f97316':'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                                        {checked&&<Icon name="check" size={10} style={{color:'#fff'}}/>}
+                                                    </div>
+                                                    {dayPart} {typePart}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {err && <div className="login-err" style={{marginBottom:10}}>{err}</div>}
+                        <div style={{display:'flex',gap:8}}>
+                            <button onClick={()=>setStep(1)} style={{flex:1,padding:14,borderRadius:14,fontSize:14,fontWeight:900,background:'#f8fafc',color:'#94a3b8'}}>← 이전</button>
+                            <button className="login-btn" style={{flex:2,marginTop:0}} onClick={handleFinish} disabled={saving}>
+                                {saving?'저장 중...':'설정 완료 →'}
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
 
-function exportInstExcel() {
-  if (!Object.keys(S.instructors).length) { alert('등록된 강사가 없습니다.'); return; }
-  const dayHeaders = DAYS.flatMap(d => [`${d.label}오전`, `${d.label}오후`]);
-  const rows = [['이름','이메일','연락처','주소','차량유무','학력1','학력2','학력3','경력1','경력2','경력3','경력4','경력5','자격증1','자격증2','자격증3','자격증4','자격증5','전공/과목',...dayHeaders,'어필','승인된 수업수','승인된 세미나수','승인된 연수수','총 신청수']];
-  Object.entries(S.instructors).forEach(([name, rawU]) => {
-    const u = getProfile(rawU);
-    const apps = Object.entries(u.applications || {});
-    const cnt = (type) => apps.filter(([idx, st]) => st === 'approved' && S.events[idx] && S.events[idx].type === type).length;
-    const total = apps.filter(([,st]) => st).length;
-    const dayVals = DAYS.flatMap(d => [
-      u.days[d.key+'_am'] ? 'O' : '',
-      u.days[d.key+'_pm'] ? 'O' : ''
-    ]);
-    rows.push([
-      name, u.email||'', u.phone||'', u.addr||'', u.carOwn||'',
-      ...(u.edu || ['','','']),
-      ...(u.career || ['','','','','']),
-      ...(u.certs || ['','','','','']),
-      u.subject||'',
-      ...dayVals,
-      u.appeal||'',
-      cnt('수업'), cnt('세미나'), cnt('연수'), total
-    ]);
-  });
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '강사목록');
-  XLSX.writeFile(wb, `티치포퓨처_강사목록_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
+// ━━━ 강사 화면 ━━━
+const TeacherApp = ({ user, onLogout }) => {
+    const [view,       setView]      = useState('notice');
+    const [notices,    setNotices]   = useState([]);
+    const [journals,   setJournals]  = useState([]);
+    const [counsels,   setCounsels]  = useState([]);
+    const [absences,   setAbsences]  = useState([]);
+    const [loading,    setLoading]   = useState(true);
+    const [toast,      setToast]     = useState(null);
+    const [sidebarOpen,setSidebar]   = useState(false);
+    const showToast = (m,t='success') => setToast({message:m,type:t});
 
-// ── Init ──
-loadData();
+    const loadAll = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [n,j,c,a] = await Promise.all([
+                api.get('getNotices'),
+                api.get('getJournals'),
+                api.get('getCounsels'),
+                api.get('getAbsences'),
+            ]);
+            setNotices(Array.isArray(n)?n:[]);
+            setJournals(Array.isArray(j)?j:[]);
+            setCounsels(Array.isArray(c)?c:[]);
+            setAbsences(Array.isArray(a)?a:[]);
+        } catch(e){}
+        finally { setLoading(false); }
+    }, []);
+    useEffect(() => { loadAll(); }, []);
+
+    const today = getKSTDate();
+
+    const navItems = [
+        {id:'notice',  label:'공지사항',   icon:'bell',   active:'active-orange'},
+        {id:'journal', label:'근무 일지',   icon:'pencil', active:'active-green'},
+        {id:'absence', label:'결석 사유',   icon:'alert',  active:'active-red'},
+        {id:'counsel', label:'학부모 상담', icon:'chat',   active:'active-purple'},
+    ];
+
+    return (
+        <div className="app-shell">
+            <div className={`sidebar-overlay ${sidebarOpen?'open':''}`} onClick={()=>setSidebar(false)}/>
+            <button className="mobile-menu-btn" onClick={()=>setSidebar(v=>!v)}>
+                <Icon name={sidebarOpen?'x':'menu'} size={22}/>
+            </button>
+            <aside className={`sidebar ${sidebarOpen?'open':''}`}>
+                <div className="sidebar-logo">
+                    <div className="logo-icon"><Icon name="sparkles" size={22}/></div>
+                    <div><div className="logo-title">군위몰입수학</div><div className="logo-sub">강사 포털</div></div>
+                </div>
+                <nav className="nav">
+                    {navItems.map(btn => (
+                        <button key={btn.id} className={`nav-btn ${view===btn.id?btn.active:''}`}
+                            onClick={()=>{setView(btn.id);setSidebar(false);}}>
+                            <Icon name={btn.icon} size={17}/> {btn.label}
+                        </button>
+                    ))}
+                </nav>
+                <div className="sidebar-footer">
+                    <div className="user-info-card">
+                        <div className="user-avatar">{user.name[0]}</div>
+                        <div>
+                            <div style={{fontSize:13,fontWeight:900,color:'#1e293b'}}>{user.name} 강사</div>
+                            <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>로그인 중</div>
+                        </div>
+                    </div>
+                    <button onClick={onLogout} style={{display:'flex',alignItems:'center',gap:6,padding:'10px 14px',borderRadius:14,fontSize:12,fontWeight:700,color:'#94a3b8',width:'100%'}}>
+                        <Icon name="logout" size={14}/> 로그아웃
+                    </button>
+                </div>
+            </aside>
+            <main className="main">
+                <div className="main-header">
+                    <div>
+                        <div className="header-eyebrow">Teacher Portal</div>
+                        <div className="header-title">
+                            {view==='notice'?'공지사항':view==='journal'?'근무 일지':view==='absence'?'결석 사유':'학부모 상담'}
+                        </div>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:900,color:'#94a3b8'}}>{today}</div>
+                </div>
+                {loading ? <div className="full-center"><div className="spinner"/></div> : (
+                    <>
+                        {view==='notice'  && <NoticeView notices={notices} isAdmin={false}/>}
+                        {view==='journal' && <JournalView journals={journals} user={user} today={today} showToast={showToast} reload={loadAll}/>}
+                        {view==='absence' && <AbsenceView absences={absences} user={user} today={today} showToast={showToast} reload={loadAll}/>}
+                        {view==='counsel' && <CounselView counsels={counsels} user={user} today={today} showToast={showToast} reload={loadAll}/>}
+                    </>
+                )}
+            </main>
+            {toast && <Toast {...toast} onDone={()=>setToast(null)}/>}
+        </div>
+    );
+};
+
+// ━━━ 관리자 화면 ━━━
+const AdminApp = ({ user, onLogout }) => {
+    const [view,      setView]     = useState('dashboard');
+    const [notices,   setNotices]  = useState([]);
+    const [journals,  setJournals] = useState([]);
+    const [counsels,  setCounsels] = useState([]);
+    const [absences,  setAbsences] = useState([]);
+    const [teachers,  setTeachers] = useState([]);
+    const [admins,    setAdmins]   = useState([]);
+    const [loading,   setLoading]  = useState(true);
+    const [toast,     setToast]    = useState(null);
+    const [sidebarOpen,setSidebar] = useState(false);
+    const showToast = (m,t='success') => setToast({message:m,type:t});
+
+    const loadAll = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [n,j,c,a,t] = await Promise.all([
+                api.get('getNotices'),
+                api.get('getJournals'),
+                api.get('getCounsels'),
+                api.get('getAbsences'),
+                api.get('getTeachers'),
+            ]);
+            setNotices(Array.isArray(n)?n:[]);
+            setJournals(Array.isArray(j)?j:[]);
+            setCounsels(Array.isArray(c)?c:[]);
+            setAbsences(Array.isArray(a)?a:[]);
+            setTeachers(Array.isArray(t)?t:[]);
+            // 관리자 목록은 고정 (GAS 저장 안 함)
+            setAdmins([
+                {name:'김남탁',  isFirst:false},
+                {name:'김유식',  isFirst:false},
+                {name:'사공은영',isFirst:false},
+                {name:'김윤희',  isFirst:false},
+            ]);
+        } catch(e){}
+        finally { setLoading(false); }
+    }, []);
+    useEffect(() => { loadAll(); }, []);
+
+    const today = getKSTDate();
+
+    const navItems = [
+        {id:'dashboard', label:'전체 현황',    icon:'sparkles', active:'active-orange'},
+        {id:'teachers',  label:'강사 계정 관리',icon:'users',    active:'active-dark'},
+        {id:'notice',    label:'공지사항 관리', icon:'bell',     active:'active-blue'},
+        {id:'journal',   label:'근무 일지 전체',icon:'pencil',   active:'active-green'},
+        {id:'absence',   label:'결석 사유 전체',icon:'alert',    active:'active-red'},
+        {id:'counsel',   label:'상담 기록 전체',icon:'chat',     active:'active-purple'},
+    ];
+
+    return (
+        <div className="app-shell">
+            <div className={`sidebar-overlay ${sidebarOpen?'open':''}`} onClick={()=>setSidebar(false)}/>
+            <button className="mobile-menu-btn" onClick={()=>setSidebar(v=>!v)}>
+                <Icon name={sidebarOpen?'x':'menu'} size={22}/>
+            </button>
+            <aside className={`sidebar ${sidebarOpen?'open':''}`}>
+                <div className="sidebar-logo">
+                    <div className="logo-icon"><Icon name="sparkles" size={22}/></div>
+                    <div><div className="logo-title">군위몰입수학</div><div className="logo-sub">관리자 포털</div></div>
+                </div>
+                <nav className="nav">
+                    {navItems.map(btn => (
+                        <button key={btn.id} className={`nav-btn ${view===btn.id?btn.active:''}`}
+                            onClick={()=>{setView(btn.id);setSidebar(false);}}>
+                            <Icon name={btn.icon} size={17}/> {btn.label}
+                        </button>
+                    ))}
+                </nav>
+                <div className="sidebar-footer">
+                    <div className="user-info-card">
+                        <div className="user-avatar admin">{user.isSuper ? '관' : user.name[0]}</div>
+                        <div>
+                            <div style={{fontSize:13,fontWeight:900,color:'#1e293b'}}>{user.name} 관리자</div>
+                            <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>{user.isSuper?'최고 관리자':'관리자'}</div>
+                        </div>
+                    </div>
+                    <button onClick={onLogout} style={{display:'flex',alignItems:'center',gap:6,padding:'10px 14px',borderRadius:14,fontSize:12,fontWeight:700,color:'#94a3b8',width:'100%'}}>
+                        <Icon name="logout" size={14}/> 로그아웃
+                    </button>
+                </div>
+            </aside>
+            <main className="main">
+                <div className="main-header">
+                    <div>
+                        <div className="header-eyebrow">Admin Panel</div>
+                        <div className="header-title">
+                            {view==='dashboard'?'전체 현황':view==='teachers'?'강사 계정 관리':view==='notice'?'공지사항 관리':view==='journal'?'근무 일지 전체':view==='absence'?'결석 사유 전체':'상담 기록 전체'}
+                        </div>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:900,color:'#94a3b8'}}>{today}</div>
+                </div>
+                {loading ? <div className="full-center"><div className="spinner"/></div> : (
+                    <>
+                        {view==='dashboard' && <AdminDashboard journals={journals} counsels={counsels} absences={absences} notices={notices} teachers={teachers} today={today}/>}
+                        {view==='teachers'  && <TeacherMgr teachers={teachers} admins={admins} showToast={showToast} reload={loadAll}/>}
+                        {view==='notice'    && <NoticeView notices={notices} isAdmin={true} showToast={showToast} reload={loadAll}/>}
+                        {view==='journal'   && <JournalAllView journals={journals}/>}
+                        {view==='absence'   && <AbsenceAllView absences={absences}/>}
+                        {view==='counsel'   && <CounselAllView counsels={counsels}/>}
+                    </>
+                )}
+            </main>
+            {toast && <Toast {...toast} onDone={()=>setToast(null)}/>}
+        </div>
+    );
+};
+
+// ━━━ 공지사항 뷰 ━━━
+const NoticeView = ({ notices, isAdmin, showToast, reload }) => {
+    const [showModal, setShowModal] = useState(false);
+    const [form, setForm] = useState({ title:'', content:'' });
+    const [saving, setSaving] = useState(false);
+
+    const sorted = [...notices].sort((a,b) => new Date(b.CreatedAt)-new Date(a.CreatedAt));
+
+    const handleSave = async () => {
+        if (!form.title.trim()||!form.content.trim()) return;
+        setSaving(true);
+        try {
+            await api.post({ action:'addNotice', ...form });
+            showToast('공지사항이 등록되었습니다');
+            setForm({title:'',content:''}); setShowModal(false); reload();
+        } catch(e){ showToast('저장 실패','error'); }
+        finally { setSaving(false); }
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm('삭제하시겠습니까?')) return;
+        try { await api.post({action:'deleteNotice',id}); showToast('삭제되었습니다'); reload(); }
+        catch(e){ showToast('삭제 실패','error'); }
+    };
+
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            {isAdmin && (
+                <div style={{display:'flex',justifyContent:'flex-end',marginBottom:4}}>
+                    <button className="btn-primary btn-blue" onClick={()=>setShowModal(true)}>
+                        <Icon name="plus" size={15}/> 공지 작성
+                    </button>
+                </div>
+            )}
+            {sorted.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>공지사항이 없습니다</p></div> :
+                sorted.map(n => (
+                    <div key={n.ID} className="notice-item" style={{position:'relative'}}>
+                        <div className="notice-title">{n.Title}</div>
+                        <div className="notice-body">{n.Content}</div>
+                        <div className="notice-date">{n.CreatedAt ? new Date(n.CreatedAt).toLocaleString('ko-KR') : ''}</div>
+                        {isAdmin && (
+                            <button onClick={()=>handleDelete(n.ID)} style={{position:'absolute',top:12,right:12,color:'#cbd5e1',padding:4}}>
+                                <Icon name="trash" size={14}/>
+                            </button>
+                        )}
+                    </div>
+                ))
+            }
+            {showModal && (
+                <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+                    <div className="modal-box">
+                        <div className="modal-title">공지사항 작성</div>
+                        <div><div className="form-label">제목</div><input className="form-input" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="공지 제목"/></div>
+                        <div><div className="form-label">내용</div><textarea className="form-textarea" value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))} placeholder="공지 내용을 입력해 주세요"/></div>
+                        <div className="modal-btns">
+                            <button className="btn-cancel" onClick={()=>setShowModal(false)}>취소</button>
+                            <button className="btn-confirm btn-blue" style={{background:'#3b82f6'}} onClick={handleSave} disabled={saving}>{saving?'저장 중...':'등록'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ━━━ 근무 일지 (강사) ━━━
+const JournalView = ({ journals, user, today, showToast, reload }) => {
+    const [showModal, setShowModal] = useState(false);
+    const [content, setContent] = useState('');
+    const [selDate, setSelDate] = useState(today);
+    const [saving, setSaving] = useState(false);
+
+    const myJournals = useMemo(() =>
+        journals.filter(j=>j.TeacherName===user.name)
+            .sort((a,b)=>new Date(b.Date)-new Date(a.Date)), [journals, user]);
+
+    const handleSave = async () => {
+        if (!content.trim()) return;
+        setSaving(true);
+        try {
+            await api.post({ action:'addJournal', date:selDate, teacherName:user.name, content:content.trim() });
+            showToast('일지가 저장되었습니다');
+            setContent(''); setShowModal(false); reload();
+        } catch(e){ showToast('저장 실패','error'); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            <div style={{display:'flex',justifyContent:'flex-end'}}>
+                <button className="btn-primary btn-green" onClick={()=>setShowModal(true)}>
+                    <Icon name="pencil" size={15}/> 일지 작성
+                </button>
+            </div>
+            {myJournals.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>작성한 일지가 없습니다</p></div> :
+                myJournals.map(j=>(
+                    <div key={j.ID} className="list-item">
+                        <div className="list-meta">
+                            <span className="badge badge-done">{j.Date}</span>
+                            <span>{j.TeacherName}</span>
+                        </div>
+                        <div className="list-content">{j.Content}</div>
+                    </div>
+                ))
+            }
+            {showModal && (
+                <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+                    <div className="modal-box">
+                        <div className="modal-title">근무 일지 작성</div>
+                        <div><div className="form-label">날짜</div><input className="form-input" type="date" value={selDate} onChange={e=>setSelDate(e.target.value)}/></div>
+                        <div><div className="form-label">내용</div><textarea className="form-textarea" value={content} onChange={e=>setContent(e.target.value)} placeholder="오늘 특이사항, 수업 내용 등을 자유롭게 작성해 주세요" style={{minHeight:140}}/></div>
+                        <div className="modal-btns">
+                            <button className="btn-cancel" onClick={()=>setShowModal(false)}>취소</button>
+                            <button className="btn-confirm" style={{background:'#10b981'}} onClick={handleSave} disabled={saving}>{saving?'저장 중...':'저장'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ━━━ 결석 사유 (강사) ━━━
+const AbsenceView = ({ absences, user, today, showToast, reload }) => {
+    const [showModal, setShowModal] = useState(false);
+    const [form, setForm] = useState({ date:today, studentName:'', className:'', reason:'' });
+    const [saving, setSaving] = useState(false);
+
+    // 이 강사의 담당반 목록
+    const myClasses = useMemo(() => {
+        const teacher = DUMMY.teachers.find(t=>t.Name===user.name);
+        if (!teacher?.Classes) return [];
+        return teacher.Classes.split(',').map(id=>ALL_CLASSES.find(c=>c.id===id.trim())).filter(Boolean);
+    }, [user]);
+
+    const myAbsences = useMemo(() =>
+        absences.filter(a=>a.TeacherName===user.name)
+            .sort((a,b)=>new Date(b.Date)-new Date(a.Date)), [absences, user]);
+
+    const handleSave = async () => {
+        if (!form.studentName.trim()||!form.reason.trim()) return;
+        setSaving(true);
+        try {
+            await api.post({ action:'addAbsence', ...form, teacherName:user.name });
+            showToast('결석 사유가 저장되었습니다');
+            setForm({date:today,studentName:'',className:'',reason:''}); setShowModal(false); reload();
+        } catch(e){ showToast('저장 실패','error'); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            <div style={{display:'flex',justifyContent:'flex-end'}}>
+                <button className="btn-primary btn-red" onClick={()=>setShowModal(true)}>
+                    <Icon name="plus" size={15}/> 결석 사유 입력
+                </button>
+            </div>
+            {myAbsences.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>입력한 결석 사유가 없습니다</p></div> :
+                myAbsences.map(a=>(
+                    <div key={a.ID} className="list-item">
+                        <div className="list-meta">
+                            <span className="badge badge-new">{a.Date}</span>
+                            <span style={{fontWeight:900,color:'#1e293b'}}>{a.StudentName}</span>
+                            {a.ClassName && <span style={{color:'#94a3b8'}}>{a.ClassName}</span>}
+                        </div>
+                        <div className="list-content">{a.Reason}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#cbd5e1'}}>{a.TeacherName}</div>
+                    </div>
+                ))
+            }
+            {showModal && (
+                <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+                    <div className="modal-box">
+                        <div className="modal-title">결석 사유 입력</div>
+                        <div><div className="form-label">날짜</div>
+                            <input className="form-input" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+                        </div>
+                        <div><div className="form-label">담당 반 선택</div>
+                            <select className="form-select" value={form.className} onChange={e=>setForm(f=>({...f,className:e.target.value}))}>
+                                <option value="">반 선택...</option>
+                                {myClasses.map(c=><option key={c.id} value={c.label}>{c.label}</option>)}
+                            </select>
+                        </div>
+                        <div><div className="form-label">학생 이름</div>
+                            <input className="form-input" value={form.studentName} onChange={e=>setForm(f=>({...f,studentName:e.target.value}))} placeholder="학생 이름 입력"/>
+                        </div>
+                        <div><div className="form-label">결석 사유</div>
+                            <textarea className="form-textarea" value={form.reason} onChange={e=>setForm(f=>({...f,reason:e.target.value}))} placeholder="결석 사유를 입력해 주세요"/>
+                        </div>
+                        <div className="modal-btns">
+                            <button className="btn-cancel" onClick={()=>setShowModal(false)}>취소</button>
+                            <button className="btn-confirm" style={{background:'#ef4444'}} onClick={handleSave} disabled={saving}>{saving?'저장 중...':'저장'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ━━━ 학부모 상담 (강사) ━━━
+const CounselView = ({ counsels, user, today, showToast, reload }) => {
+    const [showModal, setShowModal] = useState(false);
+    const [form, setForm] = useState({ date:today, studentName:'', parentName:'', content:'' });
+    const [saving, setSaving] = useState(false);
+
+    const myCounsels = useMemo(() =>
+        counsels.filter(c=>c.TeacherName===user.name)
+            .sort((a,b)=>new Date(b.Date)-new Date(a.Date)), [counsels, user]);
+
+    const handleSave = async () => {
+        if (!form.studentName.trim()||!form.content.trim()) return;
+        setSaving(true);
+        try {
+            await api.post({ action:'addCounsel', ...form, teacherName:user.name });
+            showToast('상담 기록이 저장되었습니다');
+            setForm({date:today,studentName:'',parentName:'',content:''}); setShowModal(false); reload();
+        } catch(e){ showToast('저장 실패','error'); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            <div style={{display:'flex',justifyContent:'flex-end'}}>
+                <button className="btn-primary btn-purple" onClick={()=>setShowModal(true)}>
+                    <Icon name="chat" size={15}/> 상담 기록 추가
+                </button>
+            </div>
+            {myCounsels.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>상담 기록이 없습니다</p></div> :
+                myCounsels.map(c=>(
+                    <div key={c.ID} className="list-item">
+                        <div className="list-meta">
+                            <span className="badge badge-blue">{c.Date}</span>
+                            <span style={{fontWeight:900,color:'#1e293b'}}>{c.StudentName}</span>
+                            {c.ParentName && <span>학부모: {c.ParentName}</span>}
+                        </div>
+                        <div className="list-content">{c.Content}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#cbd5e1'}}>{c.TeacherName}</div>
+                    </div>
+                ))
+            }
+            {showModal && (
+                <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+                    <div className="modal-box">
+                        <div className="modal-title">학부모 상담 기록</div>
+                        <div><div className="form-label">날짜</div><input className="form-input" type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></div>
+                        <div><div className="form-label">학생 이름</div><input className="form-input" value={form.studentName} onChange={e=>setForm(f=>({...f,studentName:e.target.value}))} placeholder="학생 이름"/></div>
+                        <div><div className="form-label">학부모 이름 (선택)</div><input className="form-input" value={form.parentName} onChange={e=>setForm(f=>({...f,parentName:e.target.value}))} placeholder="학부모 성함"/></div>
+                        <div><div className="form-label">상담 내용</div><textarea className="form-textarea" value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))} placeholder="상담 내용을 입력해 주세요" style={{minHeight:140}}/></div>
+                        <div className="modal-btns">
+                            <button className="btn-cancel" onClick={()=>setShowModal(false)}>취소</button>
+                            <button className="btn-confirm" style={{background:'#8b5cf6'}} onClick={handleSave} disabled={saving}>{saving?'저장 중...':'저장'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ━━━ 관리자 대시보드 ━━━
+const AdminDashboard = ({ journals, counsels, absences, notices, teachers, today }) => {
+    const todayJournals = journals.filter(j=>j.Date===today);
+    const todayAbsences = absences.filter(a=>a.Date===today);
+    const thisMonth = today.substring(0,7);
+    const monthCounsels = counsels.filter(c=>c.Date&&c.Date.startsWith(thisMonth));
+
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:20,paddingBottom:40}}>
+            <div className="grid-3">
+                {[
+                    {label:'오늘 일지 작성',  val:`${todayJournals.length}건`,    color:'#10b981'},
+                    {label:'오늘 결석 사유',   val:`${todayAbsences.length}건`,    color:'#ef4444'},
+                    {label:'이번달 상담',      val:`${monthCounsels.length}건`,    color:'#8b5cf6'},
+                ].map(s=>(
+                    <div key={s.label} className="stat-card">
+                        <div className="stat-label">{s.label}</div>
+                        <div className="stat-val" style={{color:s.color}}>{s.val}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="grid-2">
+                <div className="card">
+                    <div className="card-title">오늘 강사별 일지 현황</div>
+                    {teachers.length===0 ? <div style={{fontSize:13,color:'#94a3b8',fontWeight:700}}>등록된 강사가 없습니다</div> :
+                        teachers.map(t=>{
+                            const done = todayJournals.some(j=>j.TeacherName===t.Name);
+                            return (
+                                <div key={t.ID} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #f8fafc'}}>
+                                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                                        <div style={{width:30,height:30,borderRadius:'50%',background:'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:'#475569'}}>{t.Name[0]}</div>
+                                        <span style={{fontSize:13,fontWeight:900,color:'#1e293b'}}>{t.Name}</span>
+                                    </div>
+                                    <span className={`badge ${done?'badge-done':'badge-warn'}`}>{done?'작성 완료':'미작성'}</span>
+                                </div>
+                            );
+                        })
+                    }
+                </div>
+                <div className="card">
+                    <div className="card-title">오늘 결석 사유</div>
+                    {todayAbsences.length===0 ? <div style={{fontSize:13,color:'#94a3b8',fontWeight:700}}>입력된 결석 사유가 없습니다</div> :
+                        todayAbsences.map(a=>(
+                            <div key={a.ID} style={{padding:'10px 0',borderBottom:'1px solid #f8fafc'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                                    <span style={{fontSize:13,fontWeight:900,color:'#1e293b'}}>{a.StudentName}</span>
+                                    {a.ClassName && <span style={{fontSize:11,color:'#94a3b8',fontWeight:700}}>{a.ClassName}</span>}
+                                </div>
+                                <div style={{fontSize:12,color:'#64748b',fontWeight:700}}>{a.Reason}</div>
+                                <div style={{fontSize:11,color:'#cbd5e1',fontWeight:700,marginTop:2}}>{a.TeacherName}</div>
+                            </div>
+                        ))
+                    }
+                </div>
+            </div>
+
+            <div className="card">
+                <div className="card-title">최근 공지사항</div>
+                {notices.slice(0,3).map(n=>(
+                    <div key={n.ID} className="notice-item">
+                        <div className="notice-title">{n.Title}</div>
+                        <div className="notice-body">{n.Content}</div>
+                        <div className="notice-date">{n.CreatedAt?new Date(n.CreatedAt).toLocaleString('ko-KR'):''}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// ━━━ 강사/관리자 계정 관리 ━━━
+const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
+    const [expanded,  setExpanded]  = useState(null);
+    const [tab,       setTab]       = useState('teacher'); // teacher | admin
+
+    const handleResetTeacherPw = async (name) => {
+        if (!confirm(`${name} 강사의 비번을 1234로 초기화할까요?`)) return;
+        try {
+            await api.post({ action:'resetTeacherPw', name });
+            showToast(`${name} 강사 비번이 1234로 초기화됐습니다`);
+            reload();
+        } catch(e){ showToast('초기화 실패','error'); }
+    };
+
+    const handleResetAdminPw = async (name) => {
+        if (!confirm(`${name} 관리자의 비번을 1234로 초기화할까요?`)) return;
+        try {
+            await api.post({ action:'resetAdminPw', name });
+            showToast(`${name} 관리자 비번이 1234로 초기화됐습니다`);
+            reload();
+        } catch(e){ showToast('초기화 실패','error'); }
+    };
+
+    const handleDeleteTeacher = async (id, name) => {
+        if (!confirm(`${name} 강사 계정을 삭제하시겠습니까?`)) return;
+        try { await api.post({action:'deleteTeacher',id}); showToast('삭제되었습니다'); reload(); }
+        catch(e){ showToast('삭제 실패','error'); }
+    };
+
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            {/* 탭 */}
+            <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>setTab('teacher')} style={{flex:1,padding:'10px',borderRadius:14,fontSize:13,fontWeight:900,background:tab==='teacher'?'#0f172a':'#f8fafc',color:tab==='teacher'?'#fff':'#94a3b8',transition:'all .15s'}}>
+                    강사 계정
+                </button>
+                <button onClick={()=>setTab('admin')} style={{flex:1,padding:'10px',borderRadius:14,fontSize:13,fontWeight:900,background:tab==='admin'?'#f97316':'#f8fafc',color:tab==='admin'?'#fff':'#94a3b8',transition:'all .15s'}}>
+                    관리자 계정
+                </button>
+            </div>
+
+            {/* 안내 */}
+            <div style={{padding:'12px 16px',background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:14,fontSize:12,fontWeight:700,color:'#92400e'}}>
+                비번 분실 시 <span style={{fontWeight:900}}>비번 초기화</span> 버튼을 누르면 <span style={{color:'#f97316',fontWeight:900}}>1234</span>로 리셋됩니다.
+                본인이 재로그인 후 새 비번을 설정하면 됩니다.
+            </div>
+
+            {/* 강사 목록 */}
+            {tab === 'teacher' && (
+                <>
+                    {teachers.length===0
+                        ? <div className="empty-box"><p style={{fontWeight:700}}>등록된 강사가 없습니다</p><span style={{fontSize:13}}>강사가 첫 로그인하면 자동으로 표시됩니다</span></div>
+                        : teachers.map(t => {
+                            const labels = getClassLabels(t.Classes);
+                            const isExp  = expanded === t.ID;
+                            const isSetup = t.IsFirst;
+                            return (
+                                <div key={t.ID} className="list-item" style={{gap:12}}>
+                                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                                        <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                            <div style={{width:40,height:40,borderRadius:'50%',background:isSetup?'#94a3b8':'#0f172a',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900}}>{t.Name[0]}</div>
+                                            <div>
+                                                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                                    <span style={{fontSize:14,fontWeight:900,color:'#1e293b'}}>{t.Name} 강사</span>
+                                                    {isSetup && <span className="badge badge-warn">설정 미완료</span>}
+                                                </div>
+                                                <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>담당 {labels.length}개 반</div>
+                                            </div>
+                                        </div>
+                                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                            <button onClick={()=>setExpanded(isExp?null:t.ID)}
+                                                style={{fontSize:11,fontWeight:900,padding:'6px 10px',borderRadius:10,background:isExp?'#f1f5f9':'#f8fafc',color:'#64748b'}}>
+                                                {isExp?'접기':'담당반'}
+                                            </button>
+                                            <button onClick={()=>handleResetTeacherPw(t.Name)}
+                                                style={{fontSize:11,fontWeight:900,padding:'6px 10px',borderRadius:10,background:'#fff7ed',color:'#f97316',border:'1px solid #fed7aa'}}>
+                                                비번 초기화
+                                            </button>
+                                            <button onClick={()=>handleDeleteTeacher(t.ID,t.Name)} style={{color:'#cbd5e1',padding:6}}>
+                                                <Icon name="trash" size={14}/>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {isExp && (
+                                        <div style={{background:'#f8fafc',borderRadius:12,padding:12}}>
+                                            {labels.length===0
+                                                ? <div style={{fontSize:12,color:'#94a3b8',fontWeight:700}}>담당 반 없음 (설정 완료 후 표시)</div>
+                                                : <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                                                    {labels.map((l,i)=>(
+                                                        <span key={i} style={{fontSize:11,fontWeight:900,padding:'4px 10px',borderRadius:10,background:'#0f172a',color:'#fff'}}>{l}</span>
+                                                    ))}
+                                                  </div>
+                                            }
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    }
+                </>
+            )}
+
+            {/* 관리자 목록 */}
+            {tab === 'admin' && (
+                <>
+                    {(!admins||admins.length===0)
+                        ? <div className="empty-box"><p style={{fontWeight:700}}>관리자가 없습니다</p></div>
+                        : admins.map((a,i) => (
+                            <div key={i} className="list-item" style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                    <div style={{width:40,height:40,borderRadius:'50%',background:'#f97316',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900}}>{a.name[0]}</div>
+                                    <div>
+                                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                            <span style={{fontSize:14,fontWeight:900,color:'#1e293b'}}>{a.name} 관리자</span>
+                                            {a.isFirst && <span className="badge badge-warn">비번 미변경</span>}
+                                        </div>
+                                        <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>일반 관리자</div>
+                                    </div>
+                                </div>
+                                <button onClick={()=>handleResetAdminPw(a.name)}
+                                    style={{fontSize:11,fontWeight:900,padding:'8px 12px',borderRadius:10,background:'#fff7ed',color:'#f97316',border:'1px solid #fed7aa'}}>
+                                    비번 초기화
+                                </button>
+                            </div>
+                        ))
+                    }
+                </>
+            )}
+        </div>
+    );
+};
+
+// ━━━ 공통 검색바 컴포넌트 ━━━
+const SearchBar = ({ value, onChange, placeholder='검색어를 입력하세요...', count, total }) => (
+    <div style={{display:'flex',flexDirection:'column',gap:10,background:'#fff',border:'1px solid #f1f5f9',borderRadius:20,padding:16,boxShadow:'0 1px 4px rgba(0,0,0,.04)',marginBottom:4}}>
+        <div style={{position:'relative'}}>
+            <svg style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'#cbd5e1'}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input
+                style={{width:'100%',padding:'11px 40px',background:'#f8fafc',border:'2px solid transparent',borderRadius:14,fontSize:13,fontWeight:700,outline:'none',color:'#1e293b',transition:'border-color .2s'}}
+                onFocus={e=>e.target.style.borderColor='#fb923c'}
+                onBlur={e=>e.target.style.borderColor='transparent'}
+                placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)}/>
+            {value && (
+                <button onClick={()=>onChange('')} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',color:'#cbd5e1',display:'flex'}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            )}
+        </div>
+        <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',borderTop:'1px solid #f8fafc',paddingTop:8}}>
+            {value
+                ? <><span style={{color:'#f97316',fontWeight:900}}>{count}건</span> / 전체 {total}건
+                    {count===0 && <span style={{color:'#ef4444',marginLeft:12}}>검색 결과가 없습니다</span>}</>
+                : <>전체 <span style={{color:'#1e293b',fontWeight:900}}>{total}건</span></>
+            }
+        </div>
+    </div>
+);
+
+// 검색어 하이라이트
+const Highlight = ({ text, keyword }) => {
+    if (!keyword||!text) return <>{text}</>;
+    const parts = String(text).split(new RegExp(`(${keyword})`, 'gi'));
+    return <>{parts.map((p,i) => p.toLowerCase()===keyword.toLowerCase()
+        ? <mark key={i} style={{background:'#fef08a',borderRadius:3,padding:'0 2px'}}>{p}</mark>
+        : p
+    )}</>;
+};
+
+// ━━━ 관리자용 전체 뷰 (검색 포함) ━━━
+const JournalAllView = ({ journals }) => {
+    const [q, setQ] = useState('');
+    const sorted = [...journals].sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+    const filtered = sorted.filter(j => !q || [j.TeacherName,j.Content,j.Date].some(v=>String(v).includes(q)));
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            <SearchBar value={q} onChange={setQ} placeholder="강사명, 내용으로 검색..." count={filtered.length} total={sorted.length}/>
+            {filtered.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>검색 결과가 없습니다</p></div> :
+                filtered.map(j=>(
+                    <div key={j.ID} className="list-item">
+                        <div className="list-meta">
+                            <span className="badge badge-done">{j.Date}</span>
+                            <span style={{fontWeight:900,color:'#1e293b'}}><Highlight text={j.TeacherName} keyword={q}/> 강사</span>
+                        </div>
+                        <div className="list-content"><Highlight text={j.Content} keyword={q}/></div>
+                    </div>
+                ))
+            }
+        </div>
+    );
+};
+
+const AbsenceAllView = ({ absences }) => {
+    const [q, setQ] = useState('');
+    const sorted = [...absences].sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+    const filtered = sorted.filter(a => !q || [a.StudentName,a.ClassName,a.Reason,a.TeacherName,a.Date].some(v=>String(v).includes(q)));
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            <SearchBar value={q} onChange={setQ} placeholder="학생 이름, 사유, 강사명으로 검색..." count={filtered.length} total={sorted.length}/>
+            {filtered.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>검색 결과가 없습니다</p></div> :
+                filtered.map(a=>(
+                    <div key={a.ID} className="list-item">
+                        <div className="list-meta">
+                            <span className="badge badge-new">{a.Date}</span>
+                            <span style={{fontWeight:900,color:'#1e293b'}}><Highlight text={a.StudentName} keyword={q}/></span>
+                            {a.ClassName && <span style={{color:'#94a3b8'}}><Highlight text={a.ClassName} keyword={q}/></span>}
+                            <span style={{marginLeft:'auto',color:'#94a3b8'}}><Highlight text={a.TeacherName} keyword={q}/></span>
+                        </div>
+                        <div className="list-content"><Highlight text={a.Reason} keyword={q}/></div>
+                    </div>
+                ))
+            }
+        </div>
+    );
+};
+
+const CounselAllView = ({ counsels }) => {
+    const [q, setQ] = useState('');
+    const sorted = [...counsels].sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+    const filtered = sorted.filter(c => !q || [c.StudentName,c.ParentName,c.Content,c.TeacherName,c.Date].some(v=>String(v).includes(q)));
+    return (
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
+            <SearchBar value={q} onChange={setQ} placeholder="학생 이름, 학부모 이름, 내용으로 검색..." count={filtered.length} total={sorted.length}/>
+            {filtered.length===0 ? <div className="empty-box"><p style={{fontWeight:700}}>검색 결과가 없습니다</p></div> :
+                filtered.map(c=>(
+                    <div key={c.ID} className="list-item">
+                        <div className="list-meta">
+                            <span className="badge badge-blue">{c.Date}</span>
+                            <span style={{fontWeight:900,color:'#1e293b'}}><Highlight text={c.StudentName} keyword={q}/></span>
+                            {c.ParentName && <span>학부모: <Highlight text={c.ParentName} keyword={q}/></span>}
+                            <span style={{marginLeft:'auto',color:'#94a3b8'}}><Highlight text={c.TeacherName} keyword={q}/></span>
+                        </div>
+                        <div className="list-content"><Highlight text={c.Content} keyword={q}/></div>
+                    </div>
+                ))
+            }
+        </div>
+    );
+};
+
+// ━━━ 메인 앱 ━━━
+const App = () => {
+    const [user, setUser] = useState(null);
+
+    const handleLogin     = (u) => setUser(u);
+    const handleLogout    = () => setUser(null);
+    const handleSetupDone = (u) => setUser(u);
+
+    if (!user) return <LoginScreen onLogin={handleLogin}/>;
+    // 강사 첫 로그인 → 셋업 (비번변경 + 담당반 선택)
+    if (user.role==='teacher' && user.isFirst) return <SetupScreen user={user} onDone={handleSetupDone}/>;
+    // 일반 관리자 첫 로그인 → 비번만 변경 (담당반 없음)
+    if (user.role==='admin' && !user.isSuper && user.isFirst) return <AdminSetupScreen user={user} onDone={handleSetupDone}/>;
+    if (user.role==='admin') return <AdminApp user={user} onLogout={handleLogout}/>;
+    return <TeacherApp user={user} onLogout={handleLogout}/>;
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
