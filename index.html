@@ -191,99 +191,13 @@ const getClassLabels = (classStr) => {
     return classStr.split(',').map(id => ALL_CLASSES.find(c=>c.id===id.trim())?.label).filter(Boolean);
 };
 
-// ── 더미 데이터 ──
-const DUMMY = {
-    admins: [
-        {name:'김남탁',  password:'1234', isFirst:true},
-        {name:'김유식',  password:'1234', isFirst:true},
-        {name:'사공은영',password:'1234', isFirst:true},
-        {name:'김윤희',  password:'1234', isFirst:true},
-    ],
-    teachers: [
-        {ID:'t1', Name:'김선생', Password:'1234', Classes:'e1-mw-s,e1-mw-h,e2-mw-s,e3-mw-h'},
-        {ID:'t2', Name:'이선생', Password:'5678', Classes:'e3-hg-s,e4-mw-s,e4-hg-h'},
-        {ID:'t3', Name:'박선생', Password:'9999', Classes:'e5-hg-s,e5-mw-h,e6-mw-s,e6-hg-h'},
-    ],
-    notices: [
-        {ID:'n1', Title:'5월 연휴 휴원 안내', Content:'5월 3일(토) ~ 5월 6일(화)은 어린이날 연휴로 휴원합니다.\n수업 일정에 참고해 주세요.', CreatedAt: new Date().toISOString()},
-        {ID:'n2', Title:'4월 학부모 상담 주간 일정', Content:'4월 28일(월) ~ 5월 2일(금) 학부모 상담 주간입니다.\n담당 강사별 일정 확인 후 상담 기록 남겨 주세요.', CreatedAt: new Date(Date.now()-86400000).toISOString()},
-        {ID:'n3', Title:'3월 우수 학생 시상 결과', Content:'3월 우수 학생: 1학년 김민솔, 3학년 이현준, 5학년 박다빛\n수고하셨습니다!', CreatedAt: new Date(Date.now()-7*86400000).toISOString()},
-        {ID:'n4', Title:'수업 교재 변경 안내', Content:'5월부터 3~6학년 심화반 교재가 변경됩니다. 새 교재는 4월 마지막 주에 배부 예정입니다.', CreatedAt: new Date(Date.now()-10*86400000).toISOString()},
-    ],
-    journals: [
-        {ID:'j1', Date:TODAY, TeacherName:'김선생', Content:'1학년 수반 수업 진도 양호. 김민솔 학생 집중력이 많이 향상됨. 3학년 학반 일부 학생 숙제 미제출 — 주의 필요.', CreatedAt: new Date().toISOString()},
-        {ID:'j2', Date:TODAY, TeacherName:'박선생', Content:'6학년 수반 오늘 심화 문제 풀이 진행. 전반적으로 이해도 높음. 내일 단원 마무리 예정.', CreatedAt: new Date().toISOString()},
-        {ID:'j3', Date:new Date(Date.now()-2*86400000).toISOString().split('T')[0], TeacherName:'김선생', Content:'2학년 화금반 수업. 분수 개념 추가 설명 필요한 학생 3명 파악. 다음 수업 때 별도 지도 예정.', CreatedAt: new Date(Date.now()-2*86400000).toISOString()},
-        {ID:'j4', Date:new Date(Date.now()-2*86400000).toISOString().split('T')[0], TeacherName:'이선생', Content:'4학년 수반 오늘 수업 전반적으로 잘 따라옴. 이현준 학생 수학 올림피아드 관심 — 부모님 상담 예정.', CreatedAt: new Date(Date.now()-2*86400000).toISOString()},
-        {ID:'j5', Date:new Date(Date.now()-4*86400000).toISOString().split('T')[0], TeacherName:'박선생', Content:'5학년 학반 선행 학습 진도 점검. 정하윤 학생 심화반 전환 검토 중. 학부모 상담 필요.', CreatedAt: new Date(Date.now()-4*86400000).toISOString()},
-        {ID:'j6', Date:new Date(Date.now()-7*86400000).toISOString().split('T')[0], TeacherName:'이선생', Content:'3학년 화금 수반 단원평가 실시. 평균 85점. 최서준 학생 기초 보충 필요. 개별 지도 시작 예정.', CreatedAt: new Date(Date.now()-7*86400000).toISOString()},
-    ],
-    absences: [
-        {ID:'a1', Date:TODAY, StudentName:'김민솔', ClassName:'초등 1학년 월목 수반', Reason:'감기로 인한 병결. 어머니 전화 연락.', TeacherName:'김선생'},
-        {ID:'a2', Date:TODAY, StudentName:'이현준', ClassName:'초등 3학년 월목 학반', Reason:'가족 행사로 인한 결석. 사전 연락 있었음.', TeacherName:'이선생'},
-        {ID:'a3', Date:new Date(Date.now()-2*86400000).toISOString().split('T')[0], StudentName:'박다빛', ClassName:'초등 5학년 화금 수반', Reason:'병원 진료로 인한 조기 결석.', TeacherName:'박선생'},
-        {ID:'a4', Date:new Date(Date.now()-4*86400000).toISOString().split('T')[0], StudentName:'최서준', ClassName:'초등 3학년 화금 수반', Reason:'무단 결석. 부모님 연락 시도했으나 미응답. 다음날 재연락 예정.', TeacherName:'이선생'},
-        {ID:'a5', Date:new Date(Date.now()-7*86400000).toISOString().split('T')[0], StudentName:'김민솔', ClassName:'초등 1학년 월목 수반', Reason:'발열로 인한 병결. 완쾌 후 등원 예정.', TeacherName:'김선생'},
-        {ID:'a6', Date:new Date(Date.now()-10*86400000).toISOString().split('T')[0], StudentName:'정하윤', ClassName:'초등 5학년 월목 학반', Reason:'학교 행사 참여로 인한 결석. 사전 공지됨.', TeacherName:'박선생'},
-    ],
-    counsels: [
-        {ID:'c1', Date:TODAY, StudentName:'이현준', ParentName:'이OO', Content:'학생이 수학 올림피아드에 관심을 보임. 어머니와 통화, 준비 방향 안내드림. 다음달부터 심화 과정 추가 검토 예정.', TeacherName:'이선생'},
-        {ID:'c2', Date:new Date(Date.now()-3*86400000).toISOString().split('T')[0], StudentName:'김민솔', ParentName:'김OO', Content:'학생 집중력 향상 관련 상담. 최근 수업 태도 많이 개선됨을 전달. 학부모 만족하심. 꾸준히 격려해달라고 부탁드림.', TeacherName:'김선생'},
-        {ID:'c3', Date:new Date(Date.now()-7*86400000).toISOString().split('T')[0], StudentName:'박다빛', ParentName:'박OO', Content:'5학년 심화 과정 진도 관련 상담. 현재 진도 적절하며 다음 달 선행 학습 시작 예정 안내.', TeacherName:'박선생'},
-        {ID:'c4', Date:new Date(Date.now()-14*86400000).toISOString().split('T')[0], StudentName:'이현준', ParentName:'이OO', Content:'지난달 수학 시험 결과 관련 상담. 전반적으로 향상됨. 분수 영역 보충 필요. 주 1회 추가 지도 합의.', TeacherName:'이선생'},
-        {ID:'c5', Date:new Date(Date.now()-21*86400000).toISOString().split('T')[0], StudentName:'최서준', ParentName:'최OO', Content:'학생 태도 문제로 학부모 연락. 수업 중 산만한 행동 지속. 부모님께 가정에서도 지도 요청드림.', TeacherName:'김선생'},
-        {ID:'c6', Date:new Date(Date.now()-30*86400000).toISOString().split('T')[0], StudentName:'김민솔', ParentName:'김OO', Content:'3월 초 첫 상담. 학생 성격 파악 및 수업 방향 논의. 수학에 흥미 있으나 집중력이 짧음. 단계적 접근 방식 설명드림.', TeacherName:'김선생'},
-        {ID:'c7', Date:new Date(Date.now()-45*86400000).toISOString().split('T')[0], StudentName:'정하윤', ParentName:'정OO', Content:'학부모 요청으로 심화반 전환 상담. 현재 실력 평가 후 다음달 심화반 이동 결정하기로 함.', TeacherName:'박선생'},
-    ],
-};
+// ━━━ ⚙️ Google Apps Script 배포 URL ━━━
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzu2np9Ews-61awbMHi0OcSt0o9oCvTUFAa3WFrjWoByr3taHf_zML4d2TGr7h72Fe6Vw/exec';
 
-// ── API (더미 모드) ──
+// ── 실제 GAS API ──
 const api = {
-    get: action => new Promise(resolve => setTimeout(() => {
-        const map = {
-            getTeachers: DUMMY.teachers,
-            getAdmins:   DUMMY.admins,
-            getNotices:  DUMMY.notices,
-            getJournals: DUMMY.journals,
-            getAbsences: DUMMY.absences,
-            getCounsels: DUMMY.counsels,
-        };
-        resolve(map[action] || []);
-    }, 300)),
-    post: body => new Promise(resolve => setTimeout(() => {
-        if (body.action === 'resetTeacherPw') {
-            const t = DUMMY.teachers.find(t=>t.Name===body.name);
-            if (t) { t.Password='1234'; t.IsFirst=true; }
-        }
-        if (body.action === 'resetAdminPw') {
-            const a = DUMMY.admins.find(a=>a.name===body.name);
-            if (a) { a.password='1234'; a.isFirst=true; }
-        }
-        if (body.action === 'updateAdminPw') {
-            const a = DUMMY.admins.find(a=>a.name===body.name);
-            if (a) { a.password=body.newPw; a.isFirst=false; }
-        }
-        if (body.action === 'registerTeacher') {
-            const exists = DUMMY.teachers.find(t=>t.Name===body.name);
-            if (exists) { resolve({error:'이미 등록된 이름입니다'}); return; }
-            DUMMY.teachers.push({ID:'t'+Date.now(), Name:body.name, Password:'1234', Classes:'', IsFirst:true});
-        }
-        if (body.action === 'updateTeacherPw') {
-            const t = DUMMY.teachers.find(t=>t.Name===body.name);
-            if (t) { t.Password=body.newPw; t.IsFirst=false; }
-        }
-        if (body.action === 'updateTeacherClasses') {
-            const t = DUMMY.teachers.find(t=>t.Name===body.name);
-            if (t) t.Classes = body.classes;
-        }
-        if (body.action === 'deleteTeacher') { const i=DUMMY.teachers.findIndex(t=>t.ID===body.id); if(i>=0) DUMMY.teachers.splice(i,1); }
-        if (body.action === 'addNotice')   DUMMY.notices.unshift({ID:'n'+Date.now(), Title:body.title, Content:body.content, CreatedAt:new Date().toISOString()});
-        if (body.action === 'deleteNotice') { const i=DUMMY.notices.findIndex(n=>n.ID===body.id); if(i>=0) DUMMY.notices.splice(i,1); }
-        if (body.action === 'addJournal')  DUMMY.journals.unshift({ID:'j'+Date.now(), Date:body.date, TeacherName:body.teacherName, Content:body.content, CreatedAt:new Date().toISOString()});
-        if (body.action === 'addAbsence')  DUMMY.absences.unshift({ID:'a'+Date.now(), Date:body.date, StudentName:body.studentName, ClassName:body.className||'', Reason:body.reason, TeacherName:body.teacherName});
-        if (body.action === 'addCounsel')  DUMMY.counsels.unshift({ID:'c'+Date.now(), Date:body.date, StudentName:body.studentName, ParentName:body.parentName||'', Content:body.content, TeacherName:body.teacherName});
-        resolve({ success: true });
-    }, 400)),
+    get:  action => fetch(`${SCRIPT_URL}?action=${action}`).then(r => r.json()),
+    post: body   => fetch(SCRIPT_URL, { method:'POST', body:JSON.stringify(body) }).then(r => r.json()),
 };
 
 const PATHS = {
@@ -330,12 +244,14 @@ const LoginScreen = ({ onLogin }) => {
                 return;
             }
 
-            // 2. 일반 관리자 — 이름 + 비번
-            const admins = await api.get('getAdmins');
-            const foundAdmin = Array.isArray(admins) ? admins.find(a=>a.name===trimName) : null;
-            if (foundAdmin) {
-                if (foundAdmin.password !== pw) { setErr('비밀번호가 틀렸습니다'); return; }
-                onLogin({ role:'admin', name:foundAdmin.name, isFirst:foundAdmin.isFirst, isSuper:false });
+            // 2. 일반 관리자 — 코드에 고정된 계정 확인
+            const ADMIN_LIST = ['김남탁','김유식','사공은영','김윤희'];
+            if (ADMIN_LIST.includes(trimName)) {
+                // 비번은 로컬스토리지에 저장 (GAS 저장 안 함)
+                const savedPw = localStorage.getItem('admin_pw_' + trimName) || '1234';
+                const isFirst = localStorage.getItem('admin_first_' + trimName) !== 'done';
+                if (savedPw !== pw) { setErr('비밀번호가 틀렸습니다'); return; }
+                onLogin({ role:'admin', name:trimName, isFirst:isFirst, isSuper:false });
                 return;
             }
 
@@ -399,7 +315,9 @@ const AdminSetupScreen = ({ user, onDone }) => {
         if (newPw !== confirmPw) { setErr('비번이 일치하지 않습니다'); return; }
         setSaving(true);
         try {
-            await api.post({ action:'updateAdminPw', name:user.name, newPw });
+            // 관리자 비번은 로컬스토리지에 저장
+            localStorage.setItem('admin_pw_' + user.name, newPw);
+            localStorage.setItem('admin_first_' + user.name, 'done');
             onDone({ ...user, isFirst:false });
         } catch(e) { setErr('저장 실패'); }
         finally { setSaving(false); }
@@ -1092,9 +1010,9 @@ const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
     const handleResetAdminPw = async (name) => {
         if (!confirm(`${name} 관리자의 비번을 1234로 초기화할까요?`)) return;
         try {
-            await api.post({ action:'resetAdminPw', name });
+            localStorage.setItem('admin_pw_' + name, '1234');
+            localStorage.removeItem('admin_first_' + name);
             showToast(`${name} 관리자 비번이 1234로 초기화됐습니다`);
-            reload();
         } catch(e){ showToast('초기화 실패','error'); }
     };
 
