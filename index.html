@@ -566,8 +566,10 @@ const AdminApp = ({ user, onLogout }) => {
     const [sidebarOpen,setSidebar] = useState(false);
     const showToast = (m,t='success') => setToast({message:m,type:t});
 
+    const [apiError, setApiError] = useState(null);
+
     const loadAll = useCallback(async () => {
-        setLoading(true);
+        setLoading(true); setApiError(null);
         try {
             const [n,j,c,a,t] = await Promise.all([
                 api.get('getNotices'),
@@ -581,14 +583,13 @@ const AdminApp = ({ user, onLogout }) => {
             setCounsels(Array.isArray(c)?c:[]);
             setAbsences(Array.isArray(a)?a:[]);
             setTeachers(Array.isArray(t)?t:[]);
-            // 관리자 목록은 고정 (GAS 저장 안 함)
             setAdmins([
-                {name:'김남탁',  isFirst:false},
-                {name:'김유식',  isFirst:false},
-                {name:'사공은영',isFirst:false},
-                {name:'김윤희',  isFirst:false},
+                {name:'김남탁',  isFirst: localStorage.getItem('admin_first_김남탁') !== 'done'},
+                {name:'김유식',  isFirst: localStorage.getItem('admin_first_김유식') !== 'done'},
+                {name:'사공은영',isFirst: localStorage.getItem('admin_first_사공은영') !== 'done'},
+                {name:'김윤희',  isFirst: localStorage.getItem('admin_first_김윤희') !== 'done'},
             ]);
-        } catch(e){}
+        } catch(e){ setApiError(e.message); }
         finally { setLoading(false); }
     }, []);
     useEffect(() => { loadAll(); }, []);
@@ -646,7 +647,13 @@ const AdminApp = ({ user, onLogout }) => {
                     </div>
                     <div style={{fontSize:13,fontWeight:900,color:'#94a3b8'}}>{today}</div>
                 </div>
-                {loading ? <div className="full-center"><div className="spinner"/></div> : (
+                {loading ? <div className="full-center"><div className="spinner"/></div> : apiError ? (
+                    <div style={{padding:40,textAlign:'center'}}>
+                        <div style={{fontSize:14,fontWeight:900,color:'#ef4444',marginBottom:8}}>연결 오류</div>
+                        <div style={{fontSize:12,color:'#94a3b8',marginBottom:16}}>{apiError}</div>
+                        <button onClick={loadAll} className="btn-primary" style={{margin:'0 auto'}}>다시 시도</button>
+                    </div>
+                ) : (
                     <>
                         {view==='dashboard' && <AdminDashboard journals={journals} counsels={counsels} absences={absences} notices={notices} teachers={teachers} today={today}/>}
                         {view==='teachers'  && <TeacherMgr teachers={teachers} admins={admins} showToast={showToast} reload={loadAll}/>}
