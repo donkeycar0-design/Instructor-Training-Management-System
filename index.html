@@ -790,11 +790,10 @@ const AbsenceView = ({ absences, user, today, showToast, reload }) => {
     const [form, setForm] = useState({ date:today, studentName:'', className:'', reason:'' });
     const [saving, setSaving] = useState(false);
 
-    // 이 강사의 담당반 목록
+    // 이 강사의 담당반 목록 (로그인 시 전달받은 classes 사용)
     const myClasses = useMemo(() => {
-        const teacher = DUMMY.teachers.find(t=>t.Name===user.name);
-        if (!teacher?.Classes) return [];
-        return teacher.Classes.split(',').map(id=>ALL_CLASSES.find(c=>c.id===id.trim())).filter(Boolean);
+        if (!user.classes) return [];
+        return user.classes.split(',').map(id=>ALL_CLASSES.find(c=>c.id===id.trim())).filter(Boolean);
     }, [user]);
 
     const myAbsences = useMemo(() =>
@@ -995,8 +994,8 @@ const AdminDashboard = ({ journals, counsels, absences, notices, teachers, today
 
 // ━━━ 강사/관리자 계정 관리 ━━━
 const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
-    const [expanded,  setExpanded]  = useState(null);
-    const [tab,       setTab]       = useState('teacher'); // teacher | admin
+    const [expanded, setExpanded] = useState(null);
+    const [tab,      setTab]      = useState('teacher');
 
     const handleResetTeacherPw = async (name) => {
         if (!confirm(`${name} 강사의 비번을 1234로 초기화할까요?`)) return;
@@ -1007,13 +1006,11 @@ const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
         } catch(e){ showToast('초기화 실패','error'); }
     };
 
-    const handleResetAdminPw = async (name) => {
+    const handleResetAdminPw = (name) => {
         if (!confirm(`${name} 관리자의 비번을 1234로 초기화할까요?`)) return;
-        try {
-            localStorage.setItem('admin_pw_' + name, '1234');
-            localStorage.removeItem('admin_first_' + name);
-            showToast(`${name} 관리자 비번이 1234로 초기화됐습니다`);
-        } catch(e){ showToast('초기화 실패','error'); }
+        localStorage.setItem('admin_pw_' + name, '1234');
+        localStorage.removeItem('admin_first_' + name);
+        showToast(`${name} 관리자 비번이 1234로 초기화됐습니다`);
     };
 
     const handleDeleteTeacher = async (id, name) => {
@@ -1021,6 +1018,19 @@ const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
         try { await api.post({action:'deleteTeacher',id}); showToast('삭제되었습니다'); reload(); }
         catch(e){ showToast('삭제 실패','error'); }
     };
+
+    // GAS에서 오는 필드명 정규화 (대소문자 대응)
+    const safeTeachers = (teachers||[]).map(t => ({
+        ID:       t.ID       || t.id       || '',
+        Name:     t.Name     || t.name     || '',
+        Classes:  t.Classes  || t.classes  || '',
+        IsFirst:  t.IsFirst  || t.isFirst  || false,
+    }));
+
+    const safeAdmins = (admins||[]).map(a => ({
+        name:    a.name    || '',
+        isFirst: a.isFirst || false,
+    }));
 
     return (
         <div className="fade-in" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:40}}>
@@ -1037,27 +1047,25 @@ const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
             {/* 안내 */}
             <div style={{padding:'12px 16px',background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:14,fontSize:12,fontWeight:700,color:'#92400e'}}>
                 비번 분실 시 <span style={{fontWeight:900}}>비번 초기화</span> 버튼을 누르면 <span style={{color:'#f97316',fontWeight:900}}>1234</span>로 리셋됩니다.
-                본인이 재로그인 후 새 비번을 설정하면 됩니다.
             </div>
 
             {/* 강사 목록 */}
             {tab === 'teacher' && (
                 <>
-                    {teachers.length===0
+                    {safeTeachers.length === 0
                         ? <div className="empty-box"><p style={{fontWeight:700}}>등록된 강사가 없습니다</p><span style={{fontSize:13}}>강사가 첫 로그인하면 자동으로 표시됩니다</span></div>
-                        : teachers.map(t => {
+                        : safeTeachers.map(t => {
                             const labels = getClassLabels(t.Classes);
                             const isExp  = expanded === t.ID;
-                            const isSetup = t.IsFirst;
                             return (
                                 <div key={t.ID} className="list-item" style={{gap:12}}>
                                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                                         <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                            <div style={{width:40,height:40,borderRadius:'50%',background:isSetup?'#94a3b8':'#0f172a',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900}}>{t.Name[0]}</div>
+                                            <div style={{width:40,height:40,borderRadius:'50%',background:t.IsFirst?'#94a3b8':'#0f172a',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900}}>{(t.Name||'?')[0]}</div>
                                             <div>
                                                 <div style={{display:'flex',alignItems:'center',gap:6}}>
                                                     <span style={{fontSize:14,fontWeight:900,color:'#1e293b'}}>{t.Name} 강사</span>
-                                                    {isSetup && <span className="badge badge-warn">설정 미완료</span>}
+                                                    {t.IsFirst && <span className="badge badge-warn">설정 미완료</span>}
                                                 </div>
                                                 <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>담당 {labels.length}개 반</div>
                                             </div>
@@ -1079,7 +1087,7 @@ const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
                                     {isExp && (
                                         <div style={{background:'#f8fafc',borderRadius:12,padding:12}}>
                                             {labels.length===0
-                                                ? <div style={{fontSize:12,color:'#94a3b8',fontWeight:700}}>담당 반 없음 (설정 완료 후 표시)</div>
+                                                ? <div style={{fontSize:12,color:'#94a3b8',fontWeight:700}}>담당 반 없음</div>
                                                 : <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                                                     {labels.map((l,i)=>(
                                                         <span key={i} style={{fontSize:11,fontWeight:900,padding:'4px 10px',borderRadius:10,background:'#0f172a',color:'#fff'}}>{l}</span>
@@ -1098,27 +1106,21 @@ const TeacherMgr = ({ teachers, admins, showToast, reload }) => {
             {/* 관리자 목록 */}
             {tab === 'admin' && (
                 <>
-                    {(!admins||admins.length===0)
-                        ? <div className="empty-box"><p style={{fontWeight:700}}>관리자가 없습니다</p></div>
-                        : admins.map((a,i) => (
-                            <div key={i} className="list-item" style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                                <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                    <div style={{width:40,height:40,borderRadius:'50%',background:'#f97316',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900}}>{a.name[0]}</div>
-                                    <div>
-                                        <div style={{display:'flex',alignItems:'center',gap:6}}>
-                                            <span style={{fontSize:14,fontWeight:900,color:'#1e293b'}}>{a.name} 관리자</span>
-                                            {a.isFirst && <span className="badge badge-warn">비번 미변경</span>}
-                                        </div>
-                                        <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>일반 관리자</div>
-                                    </div>
+                    {safeAdmins.map((a,i) => (
+                        <div key={i} className="list-item" style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                <div style={{width:40,height:40,borderRadius:'50%',background:'#f97316',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900}}>{(a.name||'?')[0]}</div>
+                                <div>
+                                    <span style={{fontSize:14,fontWeight:900,color:'#1e293b'}}>{a.name} 관리자</span>
+                                    <div style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>일반 관리자</div>
                                 </div>
-                                <button onClick={()=>handleResetAdminPw(a.name)}
-                                    style={{fontSize:11,fontWeight:900,padding:'8px 12px',borderRadius:10,background:'#fff7ed',color:'#f97316',border:'1px solid #fed7aa'}}>
-                                    비번 초기화
-                                </button>
                             </div>
-                        ))
-                    }
+                            <button onClick={()=>handleResetAdminPw(a.name)}
+                                style={{fontSize:11,fontWeight:900,padding:'8px 12px',borderRadius:10,background:'#fff7ed',color:'#f97316',border:'1px solid #fed7aa'}}>
+                                비번 초기화
+                            </button>
+                        </div>
+                    ))}
                 </>
             )}
         </div>
