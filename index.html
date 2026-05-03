@@ -928,6 +928,7 @@
   <div class="nav">
     <button class="nav-btn active" onclick="showIP('Events',this)">공지 / 수업</button>
     <button class="nav-btn" onclick="showIP('Profile',this)">내 프로필</button>
+    <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
   </div>
   <div class="content">
 
@@ -1037,6 +1038,46 @@
         <div id="myApps"></div>
       </div>
     </div>
+
+    <!-- ⚙️ 설정 (강사) -->
+    <div id="ipSettings" class="page">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:6px;">🔒 비밀번호 변경</div>
+        <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">로그인 비밀번호를 변경합니다. 변경 후 자동으로 로그아웃됩니다.</div>
+        <div class="form-group">
+          <label>현재 비밀번호</label>
+          <input id="instCurPw" type="password" placeholder="현재 사용 중인 비밀번호"/>
+        </div>
+        <div class="form-group">
+          <label>새 비밀번호</label>
+          <input id="instNewPw" type="password" placeholder="6자 이상"/>
+        </div>
+        <div class="form-group">
+          <label>새 비밀번호 확인</label>
+          <input id="instNewPw2" type="password" placeholder="다시 한 번 입력"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="btn primary" onclick="changeInstPw()">변경하기</button>
+          <span id="instPwMsg" style="font-size:12px;display:none;"></span>
+        </div>
+        <div style="margin-top:14px;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm);font-size:12px;color:var(--text-sub);line-height:1.7;">
+          <b>💡 비밀번호를 잊어버리셨나요?</b><br>
+          관리자에게 비밀번호 초기화를 요청하세요. 임시 비밀번호로 로그인 후 새 비밀번호로 변경할 수 있습니다.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-bottom:6px;">📋 계정 정보</div>
+        <div style="margin-top:10px;">
+          <div class="profile-row"><span class="lbl">로그인 ID (이름)</span><span class="val" id="instSettingName">-</span></div>
+          <div class="profile-row"><span class="lbl">이메일</span><span class="val" id="instSettingEmail">-</span></div>
+          <div class="profile-row"><span class="lbl">연락처</span><span class="val" id="instSettingPhone">-</span></div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-hint);">
+          이메일·연락처 등을 변경하려면 <b>"내 프로필"</b> 탭을 사용하세요.
+        </div>
+      </div>
+    </div>
   </div>
   <div class="footer-credit">AI코딩연구소 제작 &middot; Kim Byeong-Du, Hong Sang-Jin</div>
 </div>
@@ -1059,6 +1100,7 @@
     <button class="nav-btn" onclick="showAP('Instructors',this)">강사 목록</button>
     <button class="nav-btn" onclick="showAP('Search',this)">강사 검색</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">관리자 설정</button>
+    <button class="nav-btn" onclick="showAP('Backup',this)">💾 백업/복원</button>
   </div>
   <div class="content">
 
@@ -1166,6 +1208,53 @@
       </div>
     </div>
 
+    <!-- 💾 백업 / 복원 (별도 탭) -->
+    <div id="apBackup" class="page">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:6px;">💾 데이터 백업</div>
+        <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">강사·일정·관리자 모든 데이터를 안전하게 보관하세요.</div>
+        <div class="info-box" id="backupStatus2">
+          마지막 백업: <span id="lastBackupTime2">아직 백업하지 않음</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <button class="btn primary" onclick="downloadBackupJson()">📦 전체 백업 (JSON)</button>
+          <button class="btn green" onclick="downloadBackupExcel()">📊 엑셀 보고서</button>
+        </div>
+        <div style="background:var(--bg);padding:12px 14px;border-radius:var(--radius-sm);font-size:12px;line-height:1.7;color:var(--text-sub);">
+          <div style="font-weight:700;color:var(--text);margin-bottom:6px;">📦 전체 백업 (JSON)</div>
+          <div style="margin-bottom:10px;">강사·일정·관리자 모든 데이터(비밀번호 해시 포함). 나중에 <b>완전 복원 가능</b>합니다.</div>
+          <div style="font-weight:700;color:var(--text);margin-bottom:6px;">📊 엑셀 보고서</div>
+          <div>5개 시트로 정리된 보고서. 사람이 보기 편하고 인쇄·공유에 적합. (복원은 불가)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-bottom:6px;">📥 백업에서 복원</div>
+        <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">이전에 받아둔 JSON 백업 파일에서 데이터를 복원합니다.</div>
+        <div style="background:var(--red-light);color:var(--red);padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;line-height:1.7;margin-bottom:14px;">
+          <b>⚠️ 주의사항</b><br>
+          • 복원 시 현재 Firebase의 <b>모든 데이터가 백업 파일 내용으로 완전히 교체</b>됩니다.<br>
+          • 이 작업은 <b>되돌릴 수 없습니다</b>. 복원 전에 현재 데이터를 먼저 백업해두세요.
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          <input type="file" id="restoreFile2" accept=".json" style="display:none;" onchange="handleRestoreFileSelect(event)"/>
+          <button class="btn primary" onclick="document.getElementById('restoreFile2').click()">백업 파일 선택...</button>
+          <span id="restoreFileName2" style="font-size:12px;color:var(--text-sub);"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-bottom:6px;">💡 백업 권장 사항</div>
+        <div style="font-size:12px;color:var(--text-sub);line-height:1.8;">
+          • <b>주 1회 정기 백업</b>을 권장합니다.<br>
+          • 백업 파일은 <b>외부 저장소</b>(Google Drive, USB, 외장하드 등)에 보관하세요.<br>
+          • JSON 파일에는 비밀번호 해시값이 포함되니 <b>비공개로 관리</b>하세요.<br>
+          • 데이터가 많은 변동(대량 등록, 삭제) 직후엔 별도 백업을 받아두세요.<br>
+          • 7일 이상 백업하지 않으면 상단에 알림이 표시됩니다.
+        </div>
+      </div>
+    </div>
+
   </div>
   <div class="footer-credit">AI코딩연구소 제작 &middot; Kim Byeong-Du, Hong Sang-Jin</div>
 </div>
@@ -1230,6 +1319,7 @@
     <div class="section-title" style="font-size:13px;margin:14px 0 10px;">수업 / 연수 참여 이력</div>
     <div id="pmHistory"></div>
     <div class="modal-footer">
+      <button class="btn" id="resetInstPwBtn">🔑 비밀번호 초기화</button>
       <button class="btn danger" id="delInstBtn">강사 삭제</button>
       <button class="btn" onclick="closeModal('profileModal')">닫기</button>
     </div>
@@ -1697,6 +1787,7 @@ function showIP(id, btn) {
   btn.classList.add('active');
   if (id === 'Events') renderInstEvents();
   if (id === 'Profile') loadInstProfile();
+  if (id === 'Settings') loadInstSettings();
 }
 
 function showAP(id, btn) {
@@ -1707,6 +1798,7 @@ function showAP(id, btn) {
   if (id === 'Calendar') { renderCal(); renderMonthList(); }
   if (id === 'Instructors') renderInstList();
   if (id === 'Settings') { renderAdminList(); refreshLastBackupTime(); }
+  if (id === 'Backup') refreshLastBackupTime();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1772,6 +1864,73 @@ async function saveProfile() {
     setTimeout(() => m.style.display = 'none', 2000);
   } catch(e) {
     toast('저장 실패: ' + e.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 강사 설정 (비밀번호 변경)
+// ══════════════════════════════════════════════════════════════════
+function loadInstSettings() {
+  const u = S.instructors[S.currentUser];
+  if (!u) return;
+  document.getElementById('instSettingName').textContent = S.currentUser;
+  document.getElementById('instSettingEmail').textContent = u.email || '-';
+  document.getElementById('instSettingPhone').textContent = u.phone || '-';
+  // 폼 초기화
+  ['instCurPw', 'instNewPw', 'instNewPw2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('instPwMsg').style.display = 'none';
+}
+
+async function changeInstPw() {
+  const cur = document.getElementById('instCurPw').value;
+  const nw = document.getElementById('instNewPw').value;
+  const nw2 = document.getElementById('instNewPw2').value;
+  const msg = document.getElementById('instPwMsg');
+
+  function showMsg(text, color) {
+    msg.textContent = text;
+    msg.style.color = color;
+    msg.style.display = 'inline';
+  }
+
+  if (!cur) { showMsg('현재 비밀번호를 입력하세요.', 'var(--red)'); return; }
+  if (!nw)  { showMsg('새 비밀번호를 입력하세요.', 'var(--red)'); return; }
+  if (nw.length < 6) { showMsg('새 비밀번호는 6자 이상이어야 합니다.', 'var(--red)'); return; }
+  if (nw !== nw2) { showMsg('새 비밀번호가 일치하지 않습니다.', 'var(--red)'); return; }
+  if (nw === cur) { showMsg('새 비밀번호가 현재 비밀번호와 같습니다.', 'var(--red)'); return; }
+
+  try {
+    showLoading('비밀번호 변경 중...');
+    const u = S.instructors[S.currentUser];
+    if (!u) { hideLoading(); showMsg('사용자 정보 오류', 'var(--red)'); return; }
+
+    // 현재 비밀번호 확인
+    const curHash = await hashPw(cur);
+    if (u.pw !== curHash) {
+      hideLoading();
+      showMsg('현재 비밀번호가 틀렸습니다.', 'var(--red)');
+      return;
+    }
+
+    // 새 비밀번호로 업데이트
+    const newHash = await hashPw(nw);
+    await window.DB.updateInstructor(S.currentUser, { pw: newHash });
+    u.pw = newHash;
+
+    hideLoading();
+    showMsg('✓ 비밀번호가 변경되었습니다. 잠시 후 로그아웃됩니다.', 'var(--green)');
+
+    // 보안: 비밀번호 변경 후 자동 로그아웃 (재로그인 강제)
+    setTimeout(() => {
+      toast('새 비밀번호로 다시 로그인해주세요.', 'success');
+      logout();
+    }, 1800);
+  } catch(e) {
+    hideLoading();
+    showMsg('변경 실패: ' + e.message, 'var(--red)');
   }
 }
 
@@ -2245,6 +2404,7 @@ function openProfile(name) {
     });
   }
   document.getElementById('delInstBtn').onclick = () => deleteInst(name);
+  document.getElementById('resetInstPwBtn').onclick = () => resetInstPassword(name);
   openModal('profileModal');
 }
 
@@ -2258,6 +2418,29 @@ async function deleteInst(name) {
   } catch(e) {
     hideLoading();
     toast('삭제 실패: ' + e.message, 'error');
+  }
+}
+
+// 관리자가 강사 비밀번호를 임시 비밀번호로 초기화
+async function resetInstPassword(name) {
+  // 임시 비밀번호: 강사이름 + 1234 (예: 홍길동1234)
+  const tempPw = name + '1234';
+  const confirmMsg = `'${name}' 강사의 비밀번호를 임시 비밀번호로 초기화하시겠습니까?\n\n` +
+                    `임시 비밀번호: ${tempPw}\n\n` +
+                    `※ 강사에게 임시 비밀번호를 안내하시고, 로그인 후 강사가 직접 변경하도록 안내해주세요.`;
+  if (!confirm(confirmMsg)) return;
+  try {
+    showLoading('비밀번호 초기화 중...');
+    const hashed = await hashPw(tempPw);
+    await window.DB.updateInstructor(name, { pw: hashed });
+    if (S.instructors[name]) S.instructors[name].pw = hashed;
+    hideLoading();
+    // 안내 모달 (alert로 정확히 보여주기)
+    alert(`✓ '${name}' 강사의 비밀번호가 초기화되었습니다.\n\n임시 비밀번호: ${tempPw}\n\n이 정보를 강사에게 안전하게 전달해주세요.`);
+    toast('비밀번호 초기화 완료', 'success');
+  } catch(e) {
+    hideLoading();
+    toast('초기화 실패: ' + e.message, 'error');
   }
 }
 
@@ -2413,24 +2596,22 @@ function _fmtFileStamp(d) {
 }
 
 function refreshLastBackupTime() {
-  const el = document.getElementById('lastBackupTime');
-  if (!el) return;
+  const els = [document.getElementById('lastBackupTime'), document.getElementById('lastBackupTime2')].filter(Boolean);
+  if (!els.length) return;
   const t = localStorage.getItem(LAST_BACKUP_KEY);
   if (!t) {
-    el.textContent = '아직 백업하지 않음';
-    el.style.color = 'var(--red)';
+    els.forEach(el => { el.textContent = '아직 백업하지 않음'; el.style.color = 'var(--red)'; });
     return;
   }
   const dt = new Date(t);
   const days = Math.floor((Date.now() - dt.getTime()) / (1000*60*60*24));
   let warning = '';
+  let color = 'var(--green)';
   if (days >= 7) {
     warning = ` (${days}일 경과 — 백업을 권장합니다)`;
-    el.style.color = 'var(--amber)';
-  } else {
-    el.style.color = 'var(--green)';
+    color = 'var(--amber)';
   }
-  el.textContent = _fmtDateTime(dt) + warning;
+  els.forEach(el => { el.textContent = _fmtDateTime(dt) + warning; el.style.color = color; });
 }
 
 // ── JSON 백업 다운로드 ──
@@ -2579,7 +2760,11 @@ let _pendingRestoreData = null;
 function handleRestoreFileSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
-  document.getElementById('restoreFileName').textContent = file.name;
+  // 두 개의 파일명 표시 영역 모두 업데이트
+  ['restoreFileName', 'restoreFileName2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = file.name;
+  });
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
@@ -2619,8 +2804,14 @@ function handleRestoreFileSelect(event) {
 
 function cancelRestore() {
   _pendingRestoreData = null;
-  document.getElementById('restoreFile').value = '';
-  document.getElementById('restoreFileName').textContent = '';
+  ['restoreFile', 'restoreFile2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['restoreFileName', 'restoreFileName2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
   closeModal('restoreModal');
 }
 
@@ -2667,8 +2858,14 @@ async function executeRestore() {
     }
 
     _pendingRestoreData = null;
-    document.getElementById('restoreFile').value = '';
-    document.getElementById('restoreFileName').textContent = '';
+    ['restoreFile', 'restoreFile2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    ['restoreFileName', 'restoreFileName2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '';
+    });
 
     hideLoading();
     toast(`복원 완료 — 강사 ${Object.keys(data.instructors).length}명, 일정 ${data.events.length}건`, 'success');
