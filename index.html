@@ -1267,6 +1267,7 @@
     <button class="nav-btn" onclick="showAP('Instructors',this)">강사 목록</button>
     <button class="nav-btn" onclick="showAP('Search',this)">강사 검색</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">관리자 설정</button>
+    <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템설정</button>
   </div>
   <div class="content">
 
@@ -1397,22 +1398,13 @@
           <span id="pwMsg" style="font-size:12px;margin-left:10px;display:none;"></span>
         </div>
       </div>
-
-      <!-- 📖 사용설명서 -->
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">📖 사용설명서 — 시스템 작동원리 및 사용방법</div>
-          <button class="btn sm" onclick="toggleManual()" id="manualToggleBtn">펼쳐 보기</button>
-        </div>
-        <div id="manualContent" style="display:none;"></div>
-      </div>
     </div>
 
-    <!-- 💾 백업 / 복원 (별도 탭) -->
-    <div id="apBackup" class="page">
+    <!-- ⚙️ 시스템설정 (백업/복원 + 사용설명서) -->
+    <div id="apSystem" class="page">
       <div class="card">
         <div class="section-title" style="margin-bottom:6px;">💾 데이터 백업</div>
-        <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">강사·일정·관리자 모든 데이터를 안전하게 보관하세요.</div>
+        <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">강사·일정·공지·관리자 모든 데이터를 안전하게 보관하세요.</div>
         <div class="info-box" id="backupStatus2">
           마지막 백업: <span id="lastBackupTime2">아직 백업하지 않음</span>
         </div>
@@ -1422,9 +1414,9 @@
         </div>
         <div style="background:var(--bg);padding:12px 14px;border-radius:var(--radius-sm);font-size:12px;line-height:1.7;color:var(--text-sub);">
           <div style="font-weight:700;color:var(--text);margin-bottom:6px;">📦 전체 백업 (JSON)</div>
-          <div style="margin-bottom:10px;">강사·일정·관리자 모든 데이터(비밀번호 해시 포함). 나중에 <b>완전 복원 가능</b>합니다.</div>
+          <div style="margin-bottom:10px;">강사·일정·공지·관리자 모든 데이터(비밀번호 해시 포함). 나중에 <b>완전 복원 가능</b>합니다.</div>
           <div style="font-weight:700;color:var(--text);margin-bottom:6px;">📊 엑셀 보고서</div>
-          <div>5개 시트로 정리된 보고서. 사람이 보기 편하고 인쇄·공유에 적합. (복원은 불가)</div>
+          <div>6개 시트로 정리된 보고서. 사람이 보기 편하고 인쇄·공유에 적합. (복원은 불가)</div>
         </div>
       </div>
 
@@ -1452,6 +1444,15 @@
           • 데이터가 많은 변동(대량 등록, 삭제) 직후엔 별도 백업을 받아두세요.<br>
           • 7일 이상 백업하지 않으면 상단에 알림이 표시됩니다.
         </div>
+      </div>
+
+      <!-- 📖 사용설명서 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">📖 사용설명서 — 시스템 작동원리 및 사용방법</div>
+          <button class="btn sm" onclick="toggleManual()" id="manualToggleBtn">펼쳐 보기</button>
+        </div>
+        <div id="manualContent" style="display:none;"></div>
       </div>
     </div>
 
@@ -2082,8 +2083,8 @@ function showAP(id, btn) {
   if (id === 'Calendar') { renderCal(); renderMonthList(); }
   if (id === 'Schedule') renderAdminSchedule();
   if (id === 'Instructors') renderInstList();
-  if (id === 'Settings') { renderAdminList(); renderManualIfShown(); }
-  if (id === 'Backup') refreshLastBackupTime();
+  if (id === 'Settings') renderAdminList();
+  if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
   if (id === 'Notices') renderAdminNotices();
 }
 
