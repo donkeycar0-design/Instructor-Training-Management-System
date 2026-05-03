@@ -1266,6 +1266,7 @@
     <button class="nav-btn" onclick="showAP('Schedule',this)">📋 강의/연수일정</button>
     <button class="nav-btn" onclick="showAP('Instructors',this)">강사 목록</button>
     <button class="nav-btn" onclick="showAP('Search',this)">강사 검색</button>
+    <button class="nav-btn" onclick="showAP('Grade',this)">⭐ 강사등급</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">관리자 설정</button>
     <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템설정</button>
   </div>
@@ -1378,6 +1379,18 @@
       </div>
     </div>
 
+    <!-- ⭐ 강사등급 -->
+    <div id="apGrade" class="page">
+      <div class="card" style="min-height:340px;display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;padding:40px 20px;">
+          <div style="font-size:48px;margin-bottom:16px;line-height:1;">⭐</div>
+          <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-0.3px;">강사등급</div>
+          <div style="font-size:14px;color:var(--text-sub);margin-bottom:6px;">시스템 개발 예정</div>
+          <div style="font-size:12px;color:var(--text-hint);">Coming Soon</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 관리자 설정 -->
     <div id="apSettings" class="page">
       <div class="card">
@@ -1385,7 +1398,7 @@
           <div class="section-title">관리자 계정 관리</div>
           <button class="btn sm primary" onclick="openModal('addAdminModal')">+ 관리자 추가</button>
         </div>
-        <div class="info-box">최대 4명의 관리자를 등록할 수 있습니다. 각 관리자는 이름과 비밀번호로 로그인합니다.</div>
+        <div class="info-box">최대 4명의 관리자를 등록할 수 있습니다. 각 관리자는 이름과 비밀번호로 로그인합니다.<br>※ <b>'admin' 계정</b>은 시스템 기본 계정이라 <b>삭제할 수 없습니다</b>.</div>
         <div id="adminList"></div>
       </div>
       <div class="card">
@@ -2865,15 +2878,17 @@ function renderAdminList() {
   div.innerHTML = '';
   Object.keys(S.admins).sort().forEach(name => {
     const isSelf = name === S.currentAdminName;
+    const isProtected = (name === 'admin');  // admin 계정은 시스템 기본 계정이므로 보호
     const row = document.createElement('div'); row.className = 'admin-row';
     row.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="avatar" style="width:28px;height:28px;font-size:12px;">${name.slice(0,1)}</div>
         <span style="font-weight:500;">${name}</span>
         ${isSelf ? '<span class="badge admin" style="font-size:10px;">나</span>' : ''}
+        ${isProtected ? '<span class="badge" style="font-size:10px;background:var(--bg);color:var(--text-sub);border:1px solid var(--border);">🔒 보호됨</span>' : ''}
       </div>
       <div>
-        ${!isSelf && Object.keys(S.admins).length > 1
+        ${!isSelf && !isProtected && Object.keys(S.admins).length > 1
           ? `<button class="btn sm danger" onclick="deleteAdmin('${name.replace(/'/g, "\\'")}')">삭제</button>`
           : ''}
       </div>`;
@@ -2904,6 +2919,11 @@ async function addAdmin() {
 }
 
 async function deleteAdmin(name) {
+  // 시스템 보호: admin 계정은 절대 삭제 불가 (UI에서도 차단되지만 이중 방어)
+  if (name === 'admin') {
+    toast("'admin' 계정은 시스템 기본 계정이므로 삭제할 수 없습니다", 'error');
+    return;
+  }
   if (!confirm(`'${name}' 관리자를 삭제하시겠습니까?`)) return;
   try {
     await window.DB.deleteAdmin(name);
