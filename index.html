@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>티치포퓨처 강사관리시스템</title>
+<title>티치포퓨처 강사/연수 관리시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- ══════════════════════════════════════════════════════════════════
@@ -121,6 +121,31 @@
         snap.forEach(d => { result[d.id] = d.data().pw; });
         callback(result);
       }, (err) => console.error('admins listener error:', err));
+    },
+
+    /* === 공지사항 (notices) === */
+    async getAllNotices() {
+      const snap = await getDocs(collection(fdb, 'notices'));
+      const result = [];
+      snap.forEach(d => { result.push({ _id: d.id, ...d.data() }); });
+      return result;
+    },
+    async addNotice(data) {
+      const ref = await addDoc(collection(fdb, 'notices'), data);
+      return ref.id;
+    },
+    async updateNotice(id, data) {
+      await setDoc(doc(fdb, 'notices', id), data);
+    },
+    async deleteNotice(id) {
+      await deleteDoc(doc(fdb, 'notices', id));
+    },
+    onNoticesChange(callback) {
+      return onSnapshot(collection(fdb, 'notices'), (snap) => {
+        const result = [];
+        snap.forEach(d => { result.push({ _id: d.id, ...d.data() }); });
+        callback(result);
+      }, (err) => console.error('notices listener error:', err));
     },
 
     /* === Connection ===  */
@@ -857,6 +882,134 @@
   .toast.show { opacity: 1; bottom: 36px; }
   .toast.error { background: var(--red); }
   .toast.success { background: var(--green); }
+
+  /* ── Notice priority badges ── */
+  .priority-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .priority-normal  { background: var(--blue-light);  color: var(--blue); }
+  .priority-important { background: var(--amber-light); color: var(--amber); }
+  .priority-urgent  { background: var(--red);         color: white;
+                      animation: urgentPulse 1.8s ease-in-out infinite; }
+  @keyframes urgentPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(163, 45, 45, 0.4); }
+    50%      { box-shadow: 0 0 0 4px rgba(163, 45, 45, 0); }
+  }
+
+  .notice-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .notice-card:hover { border-color: var(--blue); background: #fafafa; }
+  .notice-card.priority-urgent-border  { border-left-color: var(--red); }
+  .notice-card.priority-important-border { border-left-color: var(--amber); }
+  .notice-card.priority-normal-border  { border-left-color: var(--blue); }
+
+  .notice-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .notice-title { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
+  .notice-meta {
+    font-size: 11px;
+    color: var(--text-sub);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .notice-preview {
+    font-size: 12px;
+    color: var(--text-hint);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Notice detail content */
+  .notice-content {
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg);
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+  }
+
+  /* Comments */
+  .comment-list {
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .comment-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .comment-item:last-child { border-bottom: none; }
+  .comment-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 11px;
+    color: var(--text-sub);
+  }
+  .comment-author { font-weight: 700; color: var(--text); font-size: 12px; }
+  .comment-body { white-space: pre-wrap; word-break: break-word; }
+  .comment-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+  .comment-actions button {
+    padding: 1px 6px;
+    font-size: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text-sub);
+  }
+  .comment-actions button:hover { color: var(--red); border-color: var(--red); }
+
+  .comment-form {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .comment-form textarea {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    resize: vertical;
+    min-height: 60px;
+  }
+  .comment-form textarea:focus { border-color: var(--blue); }
 </style>
 </head>
 <body>
@@ -879,7 +1032,7 @@
           <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6L23 9zm0 2.27L19.09 9 12 12.73 4.91 9zm-5 7.09l5 2.72 5-2.72v3.55L12 18.73l-5-2.82z"/>
         </svg>
       </div>
-      <h1>티치포퓨처 강사관리시스템</h1>
+      <h1>티치포퓨처 강사/연수 관리시스템</h1>
       <p class="sub">Teach for Future — Instructor Management</p>
     </div>
     <div class="login-card">
@@ -916,7 +1069,7 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      티치포퓨처 강사관리시스템
+      티치포퓨처 강사/연수 관리시스템
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -926,7 +1079,8 @@
     </div>
   </div>
   <div class="nav">
-    <button class="nav-btn active" onclick="showIP('Events',this)">공지 / 수업</button>
+    <button class="nav-btn active" onclick="showIP('Notices',this)">📢 공지사항</button>
+    <button class="nav-btn" onclick="showIP('Events',this)">강의/연수신청</button>
     <button class="nav-btn" onclick="showIP('Profile',this)">내 프로필</button>
     <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
   </div>
@@ -1027,8 +1181,19 @@
       </div>
     </div>
 
-    <!-- 공지/수업 -->
-    <div id="ipEvents" class="page active">
+    <!-- 📢 공지사항 (강사 보기) -->
+    <div id="ipNotices" class="page active">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">📢 공지사항</div>
+          <span id="instNoticeCount" style="font-size:12px;color:var(--text-sub);"></span>
+        </div>
+        <div id="instNoticeList"></div>
+      </div>
+    </div>
+
+    <!-- 강의/연수신청 -->
+    <div id="ipEvents" class="page">
       <div class="card">
         <div class="section-title" style="margin-bottom:12px;">공지된 수업 / 세미나 / 연수</div>
         <div id="instEvList"></div>
@@ -1086,7 +1251,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      티치포퓨처 강사관리시스템
+      티치포퓨처 강사/연수 관리시스템
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -1097,6 +1262,7 @@
   </div>
   <div class="nav">
     <button class="nav-btn active" onclick="showAP('Calendar',this)">강의/연수일정</button>
+    <button class="nav-btn" onclick="showAP('Notices',this)">📢 공지사항</button>
     <button class="nav-btn" onclick="showAP('Instructors',this)">강사 목록</button>
     <button class="nav-btn" onclick="showAP('Search',this)">강사 검색</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">관리자 설정</button>
@@ -1123,6 +1289,18 @@
           <button class="btn sm green" onclick="exportExcel()">엑셀 내보내기</button>
         </div>
         <div id="monthEvList"></div>
+      </div>
+    </div>
+
+    <!-- 📢 공지사항 (관리자 보기) -->
+    <div id="apNotices" class="page">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">📢 공지사항 관리</div>
+          <button class="btn sm primary" onclick="openNoticeForm()">+ 새 공지 작성</button>
+        </div>
+        <div class="info-box">강사들에게 알릴 공지를 작성하세요. 강사들이 공지사항 탭에서 확인하고 댓글을 달 수 있습니다.</div>
+        <div id="adminNoticeList"></div>
       </div>
     </div>
 
@@ -1356,9 +1534,66 @@
   </div>
 </div>
 
+<!-- 공지 작성/수정 (관리자) -->
+<div class="modal-bg" id="noticeFormModal">
+  <div class="modal">
+    <h3 id="noticeFormTitle">새 공지 작성</h3>
+    <div class="form-group">
+      <label>중요도</label>
+      <select id="noticePriority">
+        <option value="normal">일반</option>
+        <option value="important">중요</option>
+        <option value="urgent">긴급</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>제목</label>
+      <input id="noticeTitle" type="text" placeholder="공지 제목"/>
+    </div>
+    <div class="form-group">
+      <label>내용</label>
+      <textarea id="noticeContent" rows="8" placeholder="공지 내용을 입력하세요. 줄바꿈도 그대로 표시됩니다."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="saveNotice()">저장</button>
+      <button class="btn" onclick="closeNoticeForm()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 상세 + 댓글 -->
+<div class="modal-bg" id="noticeDetailModal">
+  <div class="modal" style="max-width:560px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <span id="ndPriority"></span>
+      <h3 id="ndTitle" style="margin-bottom:0;flex:1;min-width:0;"></h3>
+    </div>
+    <div id="ndMeta" style="font-size:12px;color:var(--text-sub);margin-bottom:12px;"></div>
+    <div class="notice-content" id="ndContent"></div>
+
+    <div class="section-title" style="font-size:13px;margin-bottom:8px;">💬 댓글 <span id="ndCommentCount" style="color:var(--text-sub);font-weight:400;"></span></div>
+    <div class="comment-list" id="ndCommentList"></div>
+
+    <div id="ndCommentFormWrap">
+      <div class="comment-form">
+        <textarea id="ndCommentInput" placeholder="댓글을 입력하세요..."></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+        <button class="btn sm primary" onclick="submitComment()">댓글 등록</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" id="ndEditBtn" style="display:none;" onclick="editCurrentNotice()">수정</button>
+      <button class="btn danger" id="ndDeleteBtn" style="display:none;" onclick="deleteCurrentNotice()">삭제</button>
+      <button class="btn" onclick="closeModal('noticeDetailModal')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════════════
-// 티치포퓨처 강사관리시스템 — Firebase 통합 버전
+// 티치포퓨처 강사/연수 관리시스템 — Firebase 통합 버전
 // 데이터 흐름:
 //   1. 앱 시작 → DB.getAllX()로 초기 로드 → 메모리 상태 S에 저장
 //   2. onXChange 리스너로 실시간 동기화 → 다른 PC에서 변경되면 즉시 반영
@@ -1400,17 +1635,21 @@ let S = {
   instructors: {},           // {name: {pw, name, email, ...}}
   events: [],                // [{_id, type, title, date, ...}, ...]
   admins: { admin: null },   // {name: hashedPw}
+  notices: [],               // [{_id, title, content, priority, author, createdAt, comments:[]}, ...]
   currentUser: null,
   isAdmin: false,
   currentAdminName: null,
+  currentNoticeId: null,     // 현재 보고 있는 공지 ID (모달용)
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
   dayFilter: {},
   editingEventIdx: null,
+  editingNoticeId: null,
   // 리스너 해제용
   unsubInst: null,
   unsubEv: null,
   unsubAdm: null,
+  unsubNotices: null,
   // 초기 로딩 완료 여부
   initialized: false
 };
@@ -1611,6 +1850,7 @@ async function initApp() {
     S.instructors = await window.DB.getAllInstructors();
     S.events = await window.DB.getAllEvents();
     S.admins = await window.DB.getAllAdmins();
+    S.notices = await window.DB.getAllNotices();
 
     // 3. 기본 admin 보장 (admin이 없으면 자동 생성)
     await ensureDefaultAdmin();
@@ -1629,6 +1869,10 @@ async function initApp() {
     S.unsubAdm = window.DB.onAdminsChange((data) => {
       S.admins = (Object.keys(data).length === 0) ? S.admins : data;
       onDataChanged('admins');
+    });
+    S.unsubNotices = window.DB.onNoticesChange((data) => {
+      S.notices = data;
+      onDataChanged('notices');
     });
 
     // 5. 연결 상태 모니터링
@@ -1665,6 +1909,8 @@ function onDataChanged(source) {
     }
     const evPage = document.getElementById('ipEvents');
     if (evPage && evPage.classList.contains('active')) renderInstEvents();
+    const ntPage = document.getElementById('ipNotices');
+    if (ntPage && ntPage.classList.contains('active')) renderInstNotices();
   }
   if (adminActive) {
     const calPage = document.getElementById('apCalendar');
@@ -1675,6 +1921,17 @@ function onDataChanged(source) {
     if (searchPage && searchPage.classList.contains('active')) searchInst();
     const settingsPage = document.getElementById('apSettings');
     if (settingsPage && settingsPage.classList.contains('active')) renderAdminList();
+    const notPage = document.getElementById('apNotices');
+    if (notPage && notPage.classList.contains('active')) renderAdminNotices();
+  }
+
+  // 공지 상세 모달이 열려 있으면 댓글 자동 갱신
+  if (source === 'notices' && S.currentNoticeId) {
+    const modal = document.getElementById('noticeDetailModal');
+    if (modal && modal.classList.contains('open')) {
+      const updated = S.notices.find(n => n._id === S.currentNoticeId);
+      if (updated) renderNoticeDetail(updated);
+    }
   }
 }
 
@@ -1730,7 +1987,8 @@ async function loginInst() {
     hideLoading();
     showScreen('instScreen');
     loadInstProfile();    // 프로필 폼 채우기 (백그라운드에서)
-    renderInstEvents();   // 첫 화면이 공지/수업이므로 이벤트 목록 렌더
+    renderInstNotices(); // 첫 화면이 공지사항이므로 공지 목록 렌더
+    renderInstEvents();  // 다른 탭도 미리 준비
   } catch(e) {
     hideLoading();
     showErr('로그인 실패: ' + e.message);
@@ -1788,6 +2046,7 @@ function showIP(id, btn) {
   if (id === 'Events') renderInstEvents();
   if (id === 'Profile') loadInstProfile();
   if (id === 'Settings') loadInstSettings();
+  if (id === 'Notices') renderInstNotices();
 }
 
 function showAP(id, btn) {
@@ -1799,6 +2058,7 @@ function showAP(id, btn) {
   if (id === 'Instructors') renderInstList();
   if (id === 'Settings') { renderAdminList(); refreshLastBackupTime(); }
   if (id === 'Backup') refreshLastBackupTime();
+  if (id === 'Notices') renderAdminNotices();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2524,6 +2784,316 @@ async function changePw() {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// 📢 공지사항
+// ══════════════════════════════════════════════════════════════════
+
+const PRIORITY_LABEL = { normal: '일반', important: '중요', urgent: '긴급' };
+const PRIORITY_RANK = { urgent: 0, important: 1, normal: 2 };  // 정렬 우선순위
+const PRIORITY_BORDER_CLASS = {
+  urgent: 'priority-urgent-border',
+  important: 'priority-important-border',
+  normal: 'priority-normal-border'
+};
+
+function _priorityBadgeHtml(p) {
+  return `<span class="priority-badge priority-${p}">${PRIORITY_LABEL[p] || '일반'}</span>`;
+}
+
+function _formatNoticeDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return _fmtDateTime(d);
+  } catch(e) { return iso; }
+}
+
+// 공지 정렬: 긴급 > 중요 > 일반, 그 다음 최신순
+function _sortNotices(arr) {
+  return [...arr].sort((a, b) => {
+    const pa = PRIORITY_RANK[a.priority] ?? 9;
+    const pb = PRIORITY_RANK[b.priority] ?? 9;
+    if (pa !== pb) return pa - pb;
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
+  });
+}
+
+// ── 강사 공지 목록 ──
+function renderInstNotices() {
+  const list = document.getElementById('instNoticeList');
+  const count = document.getElementById('instNoticeCount');
+  if (!list) return;
+  const sorted = _sortNotices(S.notices);
+  count.textContent = sorted.length ? `총 ${sorted.length}개` : '';
+  if (!sorted.length) {
+    list.innerHTML = '<p class="empty-msg">등록된 공지사항이 없습니다.</p>';
+    return;
+  }
+  list.innerHTML = '';
+  sorted.forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'notice-card ' + (PRIORITY_BORDER_CLASS[n.priority] || PRIORITY_BORDER_CLASS.normal);
+    const commentCount = (n.comments || []).length;
+    card.innerHTML = `
+      <div class="notice-title-row">
+        ${_priorityBadgeHtml(n.priority || 'normal')}
+        <span class="notice-title">${_escapeHtml(n.title)}</span>
+      </div>
+      <div class="notice-meta">
+        <span>✍️ ${_escapeHtml(n.author || '-')}</span>
+        <span>🕒 ${_formatNoticeDate(n.createdAt)}</span>
+        ${commentCount ? `<span>💬 ${commentCount}</span>` : ''}
+      </div>
+    `;
+    card.onclick = () => openNoticeDetail(n._id);
+    list.appendChild(card);
+  });
+}
+
+// ── 관리자 공지 목록 ──
+function renderAdminNotices() {
+  const list = document.getElementById('adminNoticeList');
+  if (!list) return;
+  const sorted = _sortNotices(S.notices);
+  if (!sorted.length) {
+    list.innerHTML = '<p class="empty-msg">등록된 공지사항이 없습니다. "+ 새 공지 작성" 버튼을 눌러 첫 공지를 작성하세요.</p>';
+    return;
+  }
+  list.innerHTML = '';
+  sorted.forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'notice-card ' + (PRIORITY_BORDER_CLASS[n.priority] || PRIORITY_BORDER_CLASS.normal);
+    const commentCount = (n.comments || []).length;
+    card.innerHTML = `
+      <div class="notice-title-row">
+        ${_priorityBadgeHtml(n.priority || 'normal')}
+        <span class="notice-title">${_escapeHtml(n.title)}</span>
+      </div>
+      <div class="notice-meta">
+        <span>✍️ ${_escapeHtml(n.author || '-')}</span>
+        <span>🕒 ${_formatNoticeDate(n.createdAt)}</span>
+        ${commentCount ? `<span>💬 ${commentCount}개의 댓글</span>` : ''}
+      </div>
+    `;
+    card.onclick = () => openNoticeDetail(n._id);
+    list.appendChild(card);
+  });
+}
+
+// ── 공지 작성/수정 폼 ──
+function openNoticeForm() {
+  S.editingNoticeId = null;
+  document.getElementById('noticeFormTitle').textContent = '새 공지 작성';
+  document.getElementById('noticePriority').value = 'normal';
+  document.getElementById('noticeTitle').value = '';
+  document.getElementById('noticeContent').value = '';
+  openModal('noticeFormModal');
+}
+
+function openNoticeFormForEdit(noticeId) {
+  const n = S.notices.find(x => x._id === noticeId);
+  if (!n) return;
+  S.editingNoticeId = noticeId;
+  document.getElementById('noticeFormTitle').textContent = '공지 수정';
+  document.getElementById('noticePriority').value = n.priority || 'normal';
+  document.getElementById('noticeTitle').value = n.title || '';
+  document.getElementById('noticeContent').value = n.content || '';
+  closeModal('noticeDetailModal');
+  openModal('noticeFormModal');
+}
+
+function closeNoticeForm() {
+  S.editingNoticeId = null;
+  closeModal('noticeFormModal');
+}
+
+async function saveNotice() {
+  const title = document.getElementById('noticeTitle').value.trim();
+  const content = document.getElementById('noticeContent').value.trim();
+  const priority = document.getElementById('noticePriority').value;
+  if (!title) { alert('제목을 입력하세요.'); return; }
+  if (!content) { alert('내용을 입력하세요.'); return; }
+
+  showLoading('저장 중...');
+  try {
+    if (S.editingNoticeId) {
+      // 수정 — 기존 데이터 유지하면서 일부만 갱신
+      const existing = S.notices.find(n => n._id === S.editingNoticeId);
+      const data = {
+        ...(existing || {}),
+        title, content, priority,
+        updatedAt: new Date().toISOString(),
+        updatedBy: S.currentAdminName || ''
+      };
+      delete data._id; // _id는 doc ID로만 사용
+      await window.DB.updateNotice(S.editingNoticeId, data);
+    } else {
+      // 신규
+      const data = {
+        title, content, priority,
+        author: S.currentAdminName || '관리자',
+        createdAt: new Date().toISOString(),
+        comments: []
+      };
+      await window.DB.addNotice(data);
+    }
+    hideLoading();
+    closeNoticeForm();
+    toast(S.editingNoticeId ? '수정되었습니다' : '공지가 등록되었습니다', 'success');
+  } catch(e) {
+    hideLoading();
+    toast('저장 실패: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+// ── 공지 상세 / 댓글 ──
+function openNoticeDetail(noticeId) {
+  const n = S.notices.find(x => x._id === noticeId);
+  if (!n) { toast('공지를 찾을 수 없습니다', 'error'); return; }
+  S.currentNoticeId = noticeId;
+  renderNoticeDetail(n);
+  openModal('noticeDetailModal');
+}
+
+function renderNoticeDetail(n) {
+  document.getElementById('ndPriority').innerHTML = _priorityBadgeHtml(n.priority || 'normal');
+  document.getElementById('ndTitle').textContent = n.title || '';
+  let metaText = `✍️ ${n.author || '-'}  ·  🕒 ${_formatNoticeDate(n.createdAt)}`;
+  if (n.updatedAt && n.updatedAt !== n.createdAt) {
+    metaText += `  ·  ✏️ ${_formatNoticeDate(n.updatedAt)} 수정됨`;
+  }
+  document.getElementById('ndMeta').textContent = metaText;
+  document.getElementById('ndContent').textContent = n.content || '';
+
+  // 댓글 목록
+  const commentList = document.getElementById('ndCommentList');
+  const comments = n.comments || [];
+  document.getElementById('ndCommentCount').textContent = comments.length ? `(${comments.length})` : '';
+  if (!comments.length) {
+    commentList.innerHTML = '<p class="empty-msg" style="font-size:12px;">아직 댓글이 없습니다. 첫 댓글을 작성해보세요.</p>';
+  } else {
+    commentList.innerHTML = '';
+    comments.forEach((c, idx) => {
+      const item = document.createElement('div');
+      item.className = 'comment-item';
+      // 본인 댓글 또는 관리자만 삭제 가능
+      const canDelete = (S.isAdmin) || (S.currentUser && c.author === S.currentUser);
+      item.innerHTML = `
+        <div class="comment-head">
+          <span class="comment-author">${_escapeHtml(c.author || '-')}</span>
+          <span>${_formatNoticeDate(c.createdAt)}</span>
+          <div class="comment-actions">
+            ${canDelete ? `<button onclick="deleteComment(${idx})">삭제</button>` : ''}
+          </div>
+        </div>
+        <div class="comment-body">${_escapeHtml(c.text || '')}</div>
+      `;
+      commentList.appendChild(item);
+    });
+  }
+
+  // 관리자만 수정/삭제 버튼 표시
+  const editBtn = document.getElementById('ndEditBtn');
+  const delBtn  = document.getElementById('ndDeleteBtn');
+  if (S.isAdmin) {
+    editBtn.style.display = '';
+    delBtn.style.display = '';
+  } else {
+    editBtn.style.display = 'none';
+    delBtn.style.display = 'none';
+  }
+
+  // 댓글 입력 — 로그인된 사용자만 (관리자/강사 모두)
+  const formWrap = document.getElementById('ndCommentFormWrap');
+  if (S.isAdmin || S.currentUser) {
+    formWrap.style.display = '';
+    document.getElementById('ndCommentInput').value = '';
+  } else {
+    formWrap.style.display = 'none';
+  }
+}
+
+function editCurrentNotice() {
+  if (!S.currentNoticeId) return;
+  openNoticeFormForEdit(S.currentNoticeId);
+}
+
+async function deleteCurrentNotice() {
+  if (!S.currentNoticeId) return;
+  const n = S.notices.find(x => x._id === S.currentNoticeId);
+  if (!n) return;
+  if (!confirm(`'${n.title}' 공지를 삭제하시겠습니까?\n댓글도 함께 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.`)) return;
+  showLoading('삭제 중...');
+  try {
+    await window.DB.deleteNotice(S.currentNoticeId);
+    S.currentNoticeId = null;
+    hideLoading();
+    closeModal('noticeDetailModal');
+    toast('삭제되었습니다', 'success');
+  } catch(e) {
+    hideLoading();
+    toast('삭제 실패: ' + e.message, 'error');
+  }
+}
+
+// ── 댓글 ──
+async function submitComment() {
+  if (!S.currentNoticeId) return;
+  const input = document.getElementById('ndCommentInput');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+
+  const n = S.notices.find(x => x._id === S.currentNoticeId);
+  if (!n) { toast('공지를 찾을 수 없습니다', 'error'); return; }
+
+  const author = S.isAdmin ? (S.currentAdminName + ' (관리자)') : (S.currentUser || '익명');
+  const newComment = {
+    author,
+    text,
+    createdAt: new Date().toISOString()
+  };
+
+  const updatedComments = [...(n.comments || []), newComment];
+  const data = { ...n, comments: updatedComments };
+  delete data._id;
+
+  try {
+    await window.DB.updateNotice(S.currentNoticeId, data);
+    input.value = '';
+    // 리스너가 자동으로 갱신함
+  } catch(e) {
+    toast('댓글 등록 실패: ' + e.message, 'error');
+  }
+}
+
+async function deleteComment(idx) {
+  if (!S.currentNoticeId) return;
+  if (!confirm('댓글을 삭제하시겠습니까?')) return;
+  const n = S.notices.find(x => x._id === S.currentNoticeId);
+  if (!n) return;
+  const comments = [...(n.comments || [])];
+  comments.splice(idx, 1);
+  const data = { ...n, comments };
+  delete data._id;
+  try {
+    await window.DB.updateNotice(S.currentNoticeId, data);
+  } catch(e) {
+    toast('삭제 실패: ' + e.message, 'error');
+  }
+}
+
+// XSS 방지 (사용자 입력 콘텐츠 출력 시)
+function _escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ══════════════════════════════════════════════════════════════════
 // Excel
 // ══════════════════════════════════════════════════════════════════
 function exportExcel() {
@@ -2619,7 +3189,7 @@ function downloadBackupJson() {
   try {
     const backup = {
       _meta: {
-        app: '티치포퓨처 강사관리시스템',
+        app: '티치포퓨처 강사/연수 관리시스템',
         version: BACKUP_VERSION,
         exportedAt: new Date().toISOString(),
         exportedBy: S.currentAdminName || 'unknown',
@@ -2628,13 +3198,15 @@ function downloadBackupJson() {
         counts: {
           instructors: Object.keys(S.instructors).length,
           events: S.events.length,
-          admins: Object.keys(S.admins).length
+          admins: Object.keys(S.admins).length,
+          notices: S.notices.length
         }
       },
       instructors: S.instructors,
       // events는 _id를 보존해야 복원 가능
       events: S.events.map(ev => ({ ...ev })),
-      admins: S.admins
+      admins: S.admins,
+      notices: S.notices.map(n => ({ ...n }))
     };
 
     const json = JSON.stringify(backup, null, 2);
@@ -2651,7 +3223,7 @@ function downloadBackupJson() {
 
     localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
     refreshLastBackupTime();
-    toast(`백업 완료 — 강사 ${backup._meta.counts.instructors}명, 일정 ${backup._meta.counts.events}건`, 'success');
+    toast(`백업 완료 — 강사 ${backup._meta.counts.instructors}명, 일정 ${backup._meta.counts.events}건, 공지 ${backup._meta.counts.notices}건`, 'success');
   } catch(e) {
     toast('백업 실패: ' + e.message, 'error');
     console.error(e);
@@ -2732,18 +3304,36 @@ function downloadBackupExcel() {
     const ws4 = XLSX.utils.aoa_to_sheet(admRows);
     XLSX.utils.book_append_sheet(wb, ws4, '관리자');
 
-    // 시트 5: 보고서 정보
+    // 시트 5: 공지사항
+    const notRows = [['중요도','제목','작성자','작성일시','수정일시','내용','댓글수']];
+    const sortedNotices = _sortNotices(S.notices);
+    sortedNotices.forEach(n => {
+      notRows.push([
+        PRIORITY_LABEL[n.priority] || '일반',
+        n.title || '',
+        n.author || '',
+        _formatNoticeDate(n.createdAt),
+        n.updatedAt && n.updatedAt !== n.createdAt ? _formatNoticeDate(n.updatedAt) : '',
+        n.content || '',
+        (n.comments || []).length
+      ]);
+    });
+    const ws5 = XLSX.utils.aoa_to_sheet(notRows);
+    XLSX.utils.book_append_sheet(wb, ws5, '공지사항');
+
+    // 시트 6: 보고서 정보
     const infoRows = [
       ['항목','값'],
-      ['앱 이름', '티치포퓨처 강사관리시스템'],
+      ['앱 이름', '티치포퓨처 강사/연수 관리시스템'],
       ['보고서 생성 시각', _fmtDateTime(new Date())],
       ['생성자', S.currentAdminName || ''],
       ['총 강사 수', Object.keys(S.instructors).length],
       ['총 일정 수', S.events.length],
-      ['총 관리자 수', Object.keys(S.admins).length]
+      ['총 관리자 수', Object.keys(S.admins).length],
+      ['총 공지 수', S.notices.length]
     ];
-    const ws5 = XLSX.utils.aoa_to_sheet(infoRows);
-    XLSX.utils.book_append_sheet(wb, ws5, '보고서정보');
+    const ws6 = XLSX.utils.aoa_to_sheet(infoRows);
+    XLSX.utils.book_append_sheet(wb, ws6, '보고서정보');
 
     const stamp = _fmtFileStamp(new Date());
     XLSX.writeFile(wb, `티치포퓨처_보고서_${stamp}.xlsx`);
@@ -2770,10 +3360,12 @@ function handleRestoreFileSelect(event) {
     try {
       const data = JSON.parse(e.target.result);
       // 검증
+      // 검증 — notices는 구버전 백업에는 없을 수 있어 옵션 처리
       if (!data._meta || !data.instructors || !data.events || !data.admins) {
         toast('백업 파일 형식이 올바르지 않습니다', 'error');
         return;
       }
+      if (!data.notices) data.notices = [];  // 구버전 호환
       _pendingRestoreData = data;
       // 미리보기 모달 표시
       const m = data._meta;
@@ -2791,6 +3383,7 @@ function handleRestoreFileSelect(event) {
           <div>강사: <b>${Object.keys(data.instructors).length}명</b></div>
           <div>일정: <b>${data.events.length}건</b></div>
           <div>관리자: <b>${Object.keys(data.admins).length}명</b></div>
+          <div>공지사항: <b>${(data.notices || []).length}건</b></div>
         </div>
       `;
       openModal('restoreModal');
@@ -2831,6 +3424,10 @@ async function executeRestore() {
     for (const ev of S.events) {
       await window.DB.deleteEvent(ev._id);
     }
+    // 공지
+    for (const n of S.notices) {
+      await window.DB.deleteNotice(n._id);
+    }
     // 관리자 (현재 로그인 중인 본인 빼고 일단 삭제 — 안전장치)
     for (const name of Object.keys(S.admins)) {
       if (name !== S.currentAdminName) {
@@ -2852,6 +3449,15 @@ async function executeRestore() {
         await window.DB.addEvent(evData);
       }
     }
+    // 공지 — _id를 보존하여 복원
+    for (const n of (data.notices || [])) {
+      const { _id, ...nData } = n;
+      if (_id) {
+        await window.DB.updateNotice(_id, nData);
+      } else {
+        await window.DB.addNotice(nData);
+      }
+    }
     // 관리자
     for (const [name, hashedPw] of Object.entries(data.admins)) {
       await window.DB.setAdmin(name, hashedPw);
@@ -2868,7 +3474,7 @@ async function executeRestore() {
     });
 
     hideLoading();
-    toast(`복원 완료 — 강사 ${Object.keys(data.instructors).length}명, 일정 ${data.events.length}건`, 'success');
+    toast(`복원 완료 — 강사 ${Object.keys(data.instructors).length}명, 일정 ${data.events.length}건, 공지 ${(data.notices||[]).length}건`, 'success');
 
     // 3초 후 강제 새로고침 (현재 로그인 세션이 복원된 데이터와 안 맞을 수 있음)
     setTimeout(() => {
