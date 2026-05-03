@@ -5,6 +5,136 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>강사관리 시스템 — Teach for Future</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Firebase 초기화 + DB 추상화 계층
+     - 모든 데이터 접근은 window.DB 객체를 통해서만
+     - 나중에 Supabase 등으로 이전할 때 이 블록만 교체하면 됨
+     ══════════════════════════════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc,
+    getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+    onSnapshot, enableIndexedDbPersistence
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCFxDnwNa1MG6UNmtdU373Pxk-uGozXjeI",
+    authDomain: "tff-instructor.firebaseapp.com",
+    projectId: "tff-instructor",
+    storageBucket: "tff-instructor.firebasestorage.app",
+    messagingSenderId: "1029846496919",
+    appId: "1:1029846496919:web:28aee41abdaecfa7e65bd2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const fdb = getFirestore(app);
+
+  // 오프라인 캐시 활성화 (네트워크 끊겨도 캐시된 데이터로 작동)
+  try { enableIndexedDbPersistence(fdb); } catch(e) { /* 다중 탭 등 환경에선 실패 가능, 무시 */ }
+
+  // ── Connection status tracking ──
+  let _online = navigator.onLine;
+  const onlineListeners = [];
+  function setOnline(v) {
+    if (_online === v) return;
+    _online = v;
+    onlineListeners.forEach(fn => { try { fn(v); } catch(e){} });
+  }
+  window.addEventListener('online',  () => setOnline(true));
+  window.addEventListener('offline', () => setOnline(false));
+
+  // ── DB 추상화 객체 ──
+  // 인터페이스는 백엔드 무관하게 유지. Supabase 이전 시 내부 구현만 바꿈.
+  window.DB = {
+    /* === 강사 (instructors) === */
+    async getAllInstructors() {
+      const snap = await getDocs(collection(fdb, 'instructors'));
+      const result = {};
+      snap.forEach(d => { result[d.id] = d.data(); });
+      return result;
+    },
+    async getInstructor(name) {
+      const snap = await getDoc(doc(fdb, 'instructors', name));
+      return snap.exists() ? snap.data() : null;
+    },
+    async saveInstructor(name, data) {
+      await setDoc(doc(fdb, 'instructors', name), data);
+    },
+    async updateInstructor(name, partial) {
+      await updateDoc(doc(fdb, 'instructors', name), partial);
+    },
+    async deleteInstructor(name) {
+      await deleteDoc(doc(fdb, 'instructors', name));
+    },
+    onInstructorsChange(callback) {
+      return onSnapshot(collection(fdb, 'instructors'), (snap) => {
+        const result = {};
+        snap.forEach(d => { result[d.id] = d.data(); });
+        callback(result);
+      }, (err) => console.error('instructors listener error:', err));
+    },
+
+    /* === 일정 (events) === */
+    async getAllEvents() {
+      const snap = await getDocs(collection(fdb, 'events'));
+      const result = [];
+      snap.forEach(d => { result.push({ _id: d.id, ...d.data() }); });
+      return result;
+    },
+    async addEvent(data) {
+      const ref = await addDoc(collection(fdb, 'events'), data);
+      return ref.id;
+    },
+    async updateEvent(id, data) {
+      await setDoc(doc(fdb, 'events', id), data);
+    },
+    async deleteEvent(id) {
+      await deleteDoc(doc(fdb, 'events', id));
+    },
+    onEventsChange(callback) {
+      return onSnapshot(collection(fdb, 'events'), (snap) => {
+        const result = [];
+        snap.forEach(d => { result.push({ _id: d.id, ...d.data() }); });
+        callback(result);
+      }, (err) => console.error('events listener error:', err));
+    },
+
+    /* === 관리자 (admins) === */
+    async getAllAdmins() {
+      const snap = await getDocs(collection(fdb, 'admins'));
+      const result = {};
+      snap.forEach(d => { result[d.id] = d.data().pw; });  // {name: hashedPw}
+      return result;
+    },
+    async setAdmin(name, hashedPw) {
+      await setDoc(doc(fdb, 'admins', name), { pw: hashedPw });
+    },
+    async deleteAdmin(name) {
+      await deleteDoc(doc(fdb, 'admins', name));
+    },
+    onAdminsChange(callback) {
+      return onSnapshot(collection(fdb, 'admins'), (snap) => {
+        const result = {};
+        snap.forEach(d => { result[d.id] = d.data().pw; });
+        callback(result);
+      }, (err) => console.error('admins listener error:', err));
+    },
+
+    /* === Connection ===  */
+    isOnline() { return _online; },
+    onConnectionChange(callback) {
+      onlineListeners.push(callback);
+      callback(_online);  // 즉시 1회 호출
+    }
+  };
+
+  // 비동기 초기화 완료 신호
+  window.dispatchEvent(new Event('db-ready'));
+  window.__dbReady = true;
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
@@ -461,7 +591,28 @@
   .cal-day.today { border-color: var(--blue); border-width: 2px; }
   .cal-day .day-num { font-size: 11px; color: var(--text-sub); font-weight: 500; margin-bottom: 3px; }
   .cal-day.today .day-num { color: var(--blue); font-weight: 700; }
-  .ev-dot { font-size: 10px; background: var(--blue-light); color: var(--blue); border-radius: 3px; padding: 1px 4px; margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .ev-dot { font-size: 10px; background: var(--blue-light); color: var(--blue); border-radius: 3px; padding: 1px 4px; margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; border-left: 3px solid currentColor; }
+
+  /* ── Event type colors ── */
+  .type-camp    { background: #E6F1FB; color: #185FA5; }   /* 과학&코딩 캠프 */
+  .type-special { background: #E1F5EE; color: #0F6E56; }   /* 특강수업 */
+  .type-seminar { background: #FAEEDA; color: #854F0B; }   /* 세미나&연수 */
+  .type-club    { background: #F0E7FA; color: #6B3FA0; }   /* 동아리 */
+  .type-etc     { background: #ECECEC; color: #555;    }   /* 기타사항 */
+
+  .type-stripe {
+    display: inline-block;
+    width: 4px; height: 14px;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 7px;
+    flex-shrink: 0;
+  }
+  .type-stripe.type-camp    { background: #185FA5; }
+  .type-stripe.type-special { background: #0F6E56; }
+  .type-stripe.type-seminar { background: #854F0B; }
+  .type-stripe.type-club    { background: #6B3FA0; }
+  .type-stripe.type-etc     { background: #999;    }
 
   /* ── Events ── */
   .ev-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -625,9 +776,98 @@
     .topbar .title { font-size: 13px; }
     .day-grid { grid-template-columns: 70px repeat(2, 1fr); }
   }
+
+  /* ── Connection status / loading ── */
+  .conn-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .conn-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #ddd;
+    flex-shrink: 0;
+  }
+  .conn-status.online .conn-dot { background: #5BD25B; box-shadow: 0 0 4px #5BD25B; }
+  .conn-status.offline .conn-dot { background: #FF6B6B; }
+  .conn-status.connecting .conn-dot { background: #FFC857; animation: pulse 1.2s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(2px);
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-content {
+    text-align: center;
+    color: var(--text);
+  }
+  .loading-spinner {
+    width: 40px; height: 40px;
+    margin: 0 auto 14px;
+    border: 3px solid var(--blue-light);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    font-size: 13px;
+    color: var(--text-sub);
+    font-weight: 500;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.25s, bottom 0.25s;
+    pointer-events: none;
+    z-index: 10000;
+    max-width: 90%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; bottom: 36px; }
+  .toast.error { background: var(--red); }
+  .toast.success { background: var(--green); }
 </style>
 </head>
 <body>
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-content">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">데이터 불러오는 중...</div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
 <div class="app">
 
 <!-- ══ LOGIN ══ -->
@@ -664,7 +904,11 @@
 
       <div id="loginErr" class="err-msg"></div>
     </div>
-    <div class="login-credit">바이브코딩 연구소 제작</div>
+    <div class="login-credit">
+      바이브코딩 연구소 제작
+      <span style="margin:0 6px;color:var(--border);">|</span>
+      <a href="javascript:void(0);" onclick="resetAllData()" style="color:var(--text-hint);text-decoration:underline;">데이터 초기화</a>
+    </div>
   </div>
 </div>
 
@@ -676,6 +920,7 @@
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
+      <span class="conn-status connecting" id="instConnStatus" title="연결 상태"><span class="conn-dot"></span><span id="instConnText">연결 중</span></span>
       <span class="user-chip" id="instTopName"></span>
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
@@ -804,6 +1049,7 @@
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
+      <span class="conn-status connecting" id="adminConnStatus" title="연결 상태"><span class="conn-dot"></span><span id="adminConnText">연결 중</span></span>
       <span class="badge admin" id="adminTopName"></span>
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
@@ -825,7 +1071,7 @@
             <span class="cal-month" id="calTitle"></span>
             <button onclick="chMon(1)">&#9654;</button>
           </div>
-          <button class="btn sm primary" onclick="openModal('addEvModal')">+ 일정 추가</button>
+          <button class="btn sm primary" onclick="openAddEventForCreate()">+ 일정 추가</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
       </div>
@@ -902,7 +1148,7 @@
 <!-- Add Event -->
 <div class="modal-bg" id="addEvModal">
   <div class="modal">
-    <h3>일정 / 공지 추가</h3>
+    <h3 id="addEvTitle">일정 / 공지 추가</h3>
     <div class="form-group"><label>유형</label>
       <select id="evType">
         <option>과학&amp;코딩 캠프</option>
@@ -914,11 +1160,15 @@
     </div>
     <div class="form-group"><label>제목</label><input id="evTitle" type="text" placeholder="수업 제목"/></div>
     <div class="form-group"><label>날짜</label><input id="evDate" type="date"/></div>
+    <div style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:1;"><label>시작 시간</label><input id="evStart" type="time"/></div>
+      <div class="form-group" style="flex:1;"><label>종료 시간</label><input id="evEnd" type="time"/></div>
+    </div>
     <div class="form-group"><label>학교 / 장소</label><input id="evPlace" type="text" placeholder="○○초등학교"/></div>
     <div class="form-group"><label>내용</label><textarea id="evDesc" rows="3" placeholder="상세 내용을 입력하세요"></textarea></div>
     <div class="modal-footer">
       <button class="btn primary" onclick="saveEvent()">저장</button>
-      <button class="btn" onclick="closeModal('addEvModal')">취소</button>
+      <button class="btn" onclick="closeAddEvModal()">취소</button>
     </div>
   </div>
 </div>
@@ -932,6 +1182,7 @@
     <div class="section-title" style="font-size:13px;margin-bottom:10px;">지원 강사</div>
     <div id="edApplicants"></div>
     <div class="modal-footer">
+      <button class="btn primary" id="editEvBtn">일정 수정</button>
       <button class="btn danger" id="delEvBtn">일정 삭제</button>
       <button class="btn" onclick="closeModal('evDetailModal')">닫기</button>
     </div>
@@ -973,8 +1224,17 @@
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════════════════
+// 강사관리 시스템 — Firebase 통합 버전
+// 데이터 흐름:
+//   1. 앱 시작 → DB.getAllX()로 초기 로드 → 메모리 상태 S에 저장
+//   2. onXChange 리스너로 실시간 동기화 → 다른 PC에서 변경되면 즉시 반영
+//   3. 사용자 액션 → DB.saveX() → Firestore 저장 → 리스너가 자동으로 화면 갱신
+// ══════════════════════════════════════════════════════════════════
+
 // ── Constants ──
-const DB_KEY = 'tff_ims_v1';
+const DB_KEY = 'tff_ims_v1';                 // 구버전 localStorage 키 (마이그레이션용)
+const MIGRATION_FLAG = 'tff_ims_migrated_v1'; // 마이그레이션 완료 플래그
 const DAYS = [
   { key: 'mon', label: '월' },
   { key: 'tue', label: '화' },
@@ -985,43 +1245,288 @@ const DAYS = [
 ];
 const MON = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
-// ── State ──
+// 유형 → 색상 클래스 매핑
+const TYPE_CLASS = {
+  '과학&코딩 캠프': 'type-camp',
+  '특강수업': 'type-special',
+  '세미나&연수': 'type-seminar',
+  '동아리': 'type-club',
+  '기타사항': 'type-etc'
+};
+function typeCls(type) { return TYPE_CLASS[type] || 'type-etc'; }
+
+function fmtTime(start, end) {
+  if (start && end) return `${start} ~ ${end}`;
+  if (start) return start + ' ~';
+  if (end) return '~ ' + end;
+  return '';
+}
+
+// ── State (메모리 캐시; Firebase 리스너로 자동 갱신됨) ──
 let S = {
-  instructors: {},
-  events: [],
-  admins: { admin: 'admin1234' },
+  instructors: {},           // {name: {pw, name, email, ...}}
+  events: [],                // [{_id, type, title, date, ...}, ...]
+  admins: { admin: null },   // {name: hashedPw}
   currentUser: null,
   isAdmin: false,
   currentAdminName: null,
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
-  dayFilter: {} // { mon_am: true, mon_pm: false, ... }
+  dayFilter: {},
+  editingEventIdx: null,
+  // 리스너 해제용
+  unsubInst: null,
+  unsubEv: null,
+  unsubAdm: null,
+  // 초기 로딩 완료 여부
+  initialized: false
 };
 
-// ── Storage ──
-function loadData() {
+// ══════════════════════════════════════════════════════════════════
+// 유틸: 비밀번호 해시 (SHA-256, Web Crypto API)
+// ══════════════════════════════════════════════════════════════════
+async function hashPw(plain) {
+  if (!plain) return '';
+  const enc = new TextEncoder().encode(plain);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UI 헬퍼
+// ══════════════════════════════════════════════════════════════════
+function showLoading(text) {
+  document.getElementById('loadingText').textContent = text || '데이터 불러오는 중...';
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  // re-flow trick
+  void el.offsetWidth;
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2400);
+}
+
+function setConnStatus(state, text) {
+  ['instConnStatus', 'adminConnStatus'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('online', 'offline', 'connecting');
+    el.classList.add(state);
+  });
+  ['instConnText', 'adminConnText'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 마이그레이션: 기존 localStorage → Firestore (한 번만 실행)
+// ══════════════════════════════════════════════════════════════════
+async function runMigrationIfNeeded() {
+  // 이미 마이그레이션 했으면 스킵
+  if (localStorage.getItem(MIGRATION_FLAG) === 'done') return;
+  const raw = localStorage.getItem(DB_KEY);
+  if (!raw) {
+    // 마이그레이션 할 데이터 없음 → 플래그만 설정하고 끝
+    localStorage.setItem(MIGRATION_FLAG, 'done');
+    return;
+  }
+
+  showLoading('기존 데이터를 Firebase로 옮기는 중...');
   try {
-    const raw = localStorage.getItem(DB_KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      S.instructors = d.instructors || {};
-      S.events = d.events || [];
-      S.admins = d.admins || { admin: 'admin1234' };
+    const old = JSON.parse(raw);
+    let migrated = 0;
+
+    // 1) 강사 마이그레이션 (비밀번호도 해시 변환)
+    if (old.instructors && Object.keys(old.instructors).length) {
+      for (const [name, u] of Object.entries(old.instructors)) {
+        const data = { ...u };
+        // 평문 비밀번호 → 해시
+        if (data.pw && data.pw.length < 64) {
+          data.pw = await hashPw(data.pw);
+        }
+        await window.DB.saveInstructor(name, data);
+        migrated++;
+      }
     }
-  } catch(e) {}
+
+    // 2) 일정 마이그레이션 — 인덱스를 ID로 보존하기 위해 setDoc with custom id 패턴
+    //    (이전엔 array index로 신청 매핑됐으므로, 일정 ID와 instructor.applications 키 일치 필요)
+    if (old.events && old.events.length) {
+      for (let i = 0; i < old.events.length; i++) {
+        const ev = old.events[i];
+        // 일정 ID는 'legacy_0', 'legacy_1' 형태로 보존
+        const evId = `legacy_${i}`;
+        await window.DB.updateEvent(evId, ev);
+        migrated++;
+      }
+      // applications 키도 'legacy_N' 형식으로 변환
+      const inst = await window.DB.getAllInstructors();
+      for (const [name, u] of Object.entries(inst)) {
+        if (!u.applications) continue;
+        const newApps = {};
+        let needsUpdate = false;
+        for (const [k, v] of Object.entries(u.applications)) {
+          // 숫자 키였으면 legacy_N 으로 변환
+          if (/^\d+$/.test(k)) {
+            newApps[`legacy_${k}`] = v;
+            needsUpdate = true;
+          } else {
+            newApps[k] = v;
+          }
+        }
+        if (needsUpdate) {
+          await window.DB.updateInstructor(name, { applications: newApps });
+        }
+      }
+    }
+
+    // 3) 관리자 마이그레이션 (비밀번호 해시)
+    if (old.admins && Object.keys(old.admins).length) {
+      for (const [name, pw] of Object.entries(old.admins)) {
+        const hashed = (pw && pw.length < 64) ? await hashPw(pw) : pw;
+        await window.DB.setAdmin(name, hashed);
+        migrated++;
+      }
+    }
+
+    // 백업: 기존 localStorage는 별도 키에 보관 (안전장치)
+    localStorage.setItem(DB_KEY + '_backup', raw);
+    localStorage.setItem(MIGRATION_FLAG, 'done');
+
+    if (migrated > 0) {
+      toast(`기존 데이터 ${migrated}건을 Firebase로 옮겼습니다`, 'success');
+    }
+  } catch(e) {
+    console.error('Migration failed:', e);
+    toast('데이터 이전 중 오류 발생: ' + e.message, 'error');
+    // 플래그를 설정하지 않으므로 다음 실행 시 재시도됨
+    throw e;
+  }
 }
 
-function saveData() {
+// ══════════════════════════════════════════════════════════════════
+// 기본 admin 계정 보장 (관리자가 0명일 때 자동 복구)
+// ══════════════════════════════════════════════════════════════════
+async function ensureDefaultAdmin() {
+  if (!S.admins || Object.keys(S.admins).length === 0) {
+    const hashed = await hashPw('admin1234');
+    await window.DB.setAdmin('admin', hashed);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 초기화 — Firebase 연결 + 데이터 로드 + 실시간 리스너 등록
+// ══════════════════════════════════════════════════════════════════
+async function initApp() {
+  setConnStatus('connecting', '연결 중');
+  showLoading('서버에 연결하는 중...');
+
+  // DB 객체가 모듈 스크립트로 준비될 때까지 잠시 대기
+  let waitCount = 0;
+  while (!window.__dbReady && waitCount < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    waitCount++;
+  }
+  if (!window.__dbReady) {
+    hideLoading();
+    setConnStatus('offline', '연결 실패');
+    toast('Firebase 연결에 실패했습니다. 새로고침을 시도하세요.', 'error');
+    return;
+  }
+
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify({
-      instructors: S.instructors,
-      events: S.events,
-      admins: S.admins
-    }));
-  } catch(e) {}
+    // 1. 마이그레이션 (필요시)
+    await runMigrationIfNeeded();
+
+    // 2. 초기 데이터 로드
+    showLoading('데이터 불러오는 중...');
+    S.instructors = await window.DB.getAllInstructors();
+    S.events = await window.DB.getAllEvents();
+    S.admins = await window.DB.getAllAdmins();
+
+    // 3. 기본 admin 보장
+    await ensureDefaultAdmin();
+    if (!S.admins.admin) {
+      // 위에서 추가했으니 다시 로드
+      S.admins = await window.DB.getAllAdmins();
+    }
+
+    // 4. 실시간 리스너 등록
+    S.unsubInst = window.DB.onInstructorsChange((data) => {
+      S.instructors = data;
+      onDataChanged('instructors');
+    });
+    S.unsubEv = window.DB.onEventsChange((data) => {
+      S.events = data;
+      onDataChanged('events');
+    });
+    S.unsubAdm = window.DB.onAdminsChange((data) => {
+      S.admins = (Object.keys(data).length === 0) ? S.admins : data;
+      onDataChanged('admins');
+    });
+
+    // 5. 연결 상태 모니터링
+    window.DB.onConnectionChange((online) => {
+      if (online) setConnStatus('online', '연결됨');
+      else setConnStatus('offline', '오프라인');
+    });
+
+    S.initialized = true;
+    hideLoading();
+    setConnStatus('online', '연결됨');
+  } catch(e) {
+    console.error('Init failed:', e);
+    hideLoading();
+    setConnStatus('offline', '연결 실패');
+    toast('초기화 실패: ' + e.message, 'error');
+  }
 }
 
-// ── Login ──
+// 데이터 변경 시 현재 화면 다시 렌더 (활성 화면만)
+function onDataChanged(source) {
+  if (!S.initialized) return;
+  // 강사 화면이 활성 상태면
+  const instActive = document.getElementById('instScreen').classList.contains('active');
+  const adminActive = document.getElementById('adminScreen').classList.contains('active');
+
+  if (instActive) {
+    if (source === 'instructors' && S.currentUser && S.instructors[S.currentUser]) {
+      // 본인 프로필 페이지가 떠 있고, 본인이 다른 곳에서 수정한 거면 다시 채움
+      const profilePage = document.getElementById('ipProfile');
+      if (profilePage && profilePage.classList.contains('active')) {
+        // 입력 중일 수 있으므로 자동 덮어쓰기는 하지 않음 (충돌 방지)
+      }
+    }
+    const evPage = document.getElementById('ipEvents');
+    if (evPage && evPage.classList.contains('active')) renderInstEvents();
+  }
+  if (adminActive) {
+    const calPage = document.getElementById('apCalendar');
+    if (calPage && calPage.classList.contains('active')) renderCal();
+    const instListPage = document.getElementById('apInstructors');
+    if (instListPage && instListPage.classList.contains('active')) renderInstList();
+    const searchPage = document.getElementById('apSearch');
+    if (searchPage && searchPage.classList.contains('active')) searchInst();
+    const settingsPage = document.getElementById('apSettings');
+    if (settingsPage && settingsPage.classList.contains('active')) renderAdminList();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Login
+// ══════════════════════════════════════════════════════════════════
 function setTab(t, btn) {
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -1036,41 +1541,72 @@ function showErr(msg) {
   e.style.display = 'block';
 }
 
-function loginInst() {
+async function loginInst() {
+  if (!S.initialized) { showErr('아직 초기화 중입니다. 잠시 후 다시 시도하세요.'); return; }
   const name = document.getElementById('iName').value.trim();
   const pw = document.getElementById('iPw').value.trim();
   if (!name || !pw) { showErr('이름과 비밀번호를 입력하세요.'); return; }
-  if (S.instructors[name]) {
-    if (S.instructors[name].pw !== pw) { showErr('비밀번호가 틀렸습니다.'); return; }
-  } else {
-    S.instructors[name] = {
-      pw, name, email:'', phone:'', addr:'', subject:'',
-      edu: ['','',''],
-      career: ['','','','',''],
-      certs: ['','','','',''],
-      days: {},
-      carOwn: '',
-      appeal: ''
-    };
-    saveData();
+
+  showLoading('확인 중...');
+  try {
+    const hashedPw = await hashPw(pw);
+    if (S.instructors[name]) {
+      if (S.instructors[name].pw !== hashedPw) {
+        hideLoading();
+        showErr('비밀번호가 틀렸습니다.');
+        return;
+      }
+    } else {
+      // 신규 등록
+      const newProfile = {
+        pw: hashedPw, name, email:'', phone:'', addr:'', subject:'',
+        edu: ['','',''],
+        career: ['','','','',''],
+        certs: ['','','','',''],
+        days: {},
+        carOwn: '',
+        appeal: '',
+        applications: {}
+      };
+      await window.DB.saveInstructor(name, newProfile);
+      S.instructors[name] = newProfile;
+    }
+    document.getElementById('loginErr').style.display = 'none';
+    S.currentUser = name; S.isAdmin = false;
+    hideLoading();
+    showScreen('instScreen');
+    loadInstProfile();
+  } catch(e) {
+    hideLoading();
+    showErr('로그인 실패: ' + e.message);
   }
-  document.getElementById('loginErr').style.display = 'none';
-  S.currentUser = name; S.isAdmin = false;
-  showScreen('instScreen');
-  loadInstProfile();
 }
 
-function loginAdmin() {
+async function loginAdmin() {
+  if (!S.initialized) { showErr('아직 초기화 중입니다. 잠시 후 다시 시도하세요.'); return; }
   const name = document.getElementById('aName').value.trim();
   const pw = document.getElementById('aPw').value;
   if (!S.admins[name]) { showErr('관리자 계정이 없습니다.'); return; }
-  if (S.admins[name] !== pw) { showErr('비밀번호가 틀렸습니다.'); return; }
-  document.getElementById('loginErr').style.display = 'none';
-  S.isAdmin = true; S.currentAdminName = name;
-  document.getElementById('adminTopName').textContent = name + ' 관리자';
-  showScreen('adminScreen');
-  renderCal();
-  initDayFilter();
+
+  showLoading('확인 중...');
+  try {
+    const hashedPw = await hashPw(pw);
+    if (S.admins[name] !== hashedPw) {
+      hideLoading();
+      showErr('비밀번호가 틀렸습니다.');
+      return;
+    }
+    document.getElementById('loginErr').style.display = 'none';
+    S.isAdmin = true; S.currentAdminName = name;
+    document.getElementById('adminTopName').textContent = name + ' 관리자';
+    hideLoading();
+    showScreen('adminScreen');
+    renderCal();
+    initDayFilter();
+  } catch(e) {
+    hideLoading();
+    showErr('로그인 실패: ' + e.message);
+  }
 }
 
 function logout() {
@@ -1086,7 +1622,9 @@ function showScreen(id) {
   s.classList.add('active');
 }
 
-// ── Nav ──
+// ══════════════════════════════════════════════════════════════════
+// Nav
+// ══════════════════════════════════════════════════════════════════
 function showIP(id, btn) {
   document.querySelectorAll('#instScreen .page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('#instScreen .nav-btn').forEach(b => b.classList.remove('active'));
@@ -1105,9 +1643,10 @@ function showAP(id, btn) {
   if (id === 'Settings') renderAdminList();
 }
 
-// ── Profile helpers ──
+// ══════════════════════════════════════════════════════════════════
+// Profile
+// ══════════════════════════════════════════════════════════════════
 function getProfile(u) {
-  // migrate old format
   if (!u.edu) u.edu = ['','',''];
   if (!u.career) u.career = ['','','','',''];
   if (!u.certs) u.certs = ['','','','',''];
@@ -1115,6 +1654,7 @@ function getProfile(u) {
   if (!u.email) u.email = '';
   if (!u.carOwn) u.carOwn = '';
   if (!u.appeal) u.appeal = '';
+  if (!u.applications) u.applications = {};
   return u;
 }
 
@@ -1138,8 +1678,9 @@ function loadInstProfile() {
   });
 }
 
-function saveProfile() {
-  const u = getProfile(S.instructors[S.currentUser]);
+async function saveProfile() {
+  if (!S.currentUser) return;
+  const u = getProfile({ ...(S.instructors[S.currentUser] || {}) });
   u.name = document.getElementById('pName').value;
   u.email = document.getElementById('pEmail').value;
   u.phone = document.getElementById('pPhone').value;
@@ -1156,37 +1697,52 @@ function saveProfile() {
     u.days[d.key + '_am'] = document.getElementById(`d_${d.key}_am`).checked;
     u.days[d.key + '_pm'] = document.getElementById(`d_${d.key}_pm`).checked;
   });
-  saveData();
-  const m = document.getElementById('saveMsg');
-  m.style.display = 'inline';
-  setTimeout(() => m.style.display = 'none', 2000);
+
+  try {
+    await window.DB.saveInstructor(S.currentUser, u);
+    S.instructors[S.currentUser] = u;
+    const m = document.getElementById('saveMsg');
+    m.style.display = 'inline';
+    setTimeout(() => m.style.display = 'none', 2000);
+  } catch(e) {
+    toast('저장 실패: ' + e.message, 'error');
+  }
 }
 
-// ── Instructor events ──
+// ══════════════════════════════════════════════════════════════════
+// 강사용 일정 화면
+// ══════════════════════════════════════════════════════════════════
 function renderInstEvents() {
   const list = document.getElementById('instEvList');
   const myApp = document.getElementById('myApps');
   const u = S.instructors[S.currentUser];
+  if (!u) { list.innerHTML = ''; myApp.innerHTML = ''; return; }
   if (!S.events.length) {
     list.innerHTML = '<p class="empty-msg">등록된 공지가 없습니다.</p>';
     myApp.innerHTML = '';
     return;
   }
   list.innerHTML = '';
-  S.events.forEach((ev, i) => {
-    const applied = u.applications && u.applications[i];
+  S.events.forEach((ev) => {
+    const evId = ev._id;
+    const applied = u.applications && u.applications[evId];
+    const timeStr = fmtTime(ev.startTime, ev.endTime);
     const d = document.createElement('div');
     d.className = 'ev-item';
     d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-      <div>
-        <div class="ev-title">[${ev.type}] ${ev.title}</div>
-        <div class="ev-meta">${ev.date} &middot; ${ev.place}</div>
-        <div class="ev-desc">${ev.desc || ''}</div>
+      <div style="display:flex;align-items:flex-start;flex:1;min-width:0;">
+        <span class="type-stripe ${typeCls(ev.type)}"></span>
+        <div style="flex:1;min-width:0;">
+          <div class="ev-title">[${ev.type}] ${ev.title}</div>
+          <div class="ev-meta">${ev.date}${timeStr ? ' · ' + timeStr : ''} &middot; ${ev.place}</div>
+          <div class="ev-desc">${ev.desc || ''}</div>
+        </div>
       </div>
-      <div style="flex-shrink:0;">
+      <div style="flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
         ${applied
-          ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>`
-          : `<button class="btn sm primary" onclick="applyEv(${i})">신청</button>`}
+          ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>
+             <button class="btn sm danger" onclick="cancelApp('${evId}')">신청 취소</button>`
+          : `<button class="btn sm primary" onclick="applyEv('${evId}')">신청</button>`}
       </div>
     </div>`;
     list.appendChild(d);
@@ -1197,25 +1753,59 @@ function renderInstEvents() {
     return;
   }
   myApp.innerHTML = '';
-  items.forEach(([idx, status]) => {
-    const ev = S.events[idx]; if (!ev) return;
+  items.forEach(([evId, status]) => {
+    const ev = S.events.find(e => e._id === evId);
+    if (!ev) return;
+    const timeStr = fmtTime(ev.startTime, ev.endTime);
     const d = document.createElement('div'); d.className = 'ev-item';
-    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
-      <span>[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}</span></span>
-      <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;flex:1;min-width:0;">
+        <span class="type-stripe ${typeCls(ev.type)}"></span>
+        <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span></span>
+      </span>
+      <div class="btn-grp">
+        <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
+        <button class="btn sm danger" onclick="cancelApp('${evId}')">취소</button>
+      </div>
     </div>`;
     myApp.appendChild(d);
   });
 }
 
-function applyEv(idx) {
+async function applyEv(evId) {
   const u = S.instructors[S.currentUser];
-  if (!u.applications) u.applications = {};
-  u.applications[idx] = 'pending';
-  saveData(); renderInstEvents();
+  if (!u) return;
+  const apps = { ...(u.applications || {}) };
+  apps[evId] = 'pending';
+  try {
+    await window.DB.updateInstructor(S.currentUser, { applications: apps });
+    u.applications = apps;
+    renderInstEvents();
+  } catch(e) {
+    toast('신청 실패: ' + e.message, 'error');
+  }
 }
 
-// ── Calendar ──
+async function cancelApp(evId) {
+  const ev = S.events.find(e => e._id === evId);
+  if (!ev) return;
+  if (!confirm(`'${ev.title}' 신청을 취소하시겠습니까?`)) return;
+  const u = S.instructors[S.currentUser];
+  if (!u) return;
+  const apps = { ...(u.applications || {}) };
+  delete apps[evId];
+  try {
+    await window.DB.updateInstructor(S.currentUser, { applications: apps });
+    u.applications = apps;
+    renderInstEvents();
+  } catch(e) {
+    toast('취소 실패: ' + e.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Calendar
+// ══════════════════════════════════════════════════════════════════
 function renderCal() {
   document.getElementById('calTitle').textContent = `${S.calYear}년 ${MON[S.calMonth]}`;
   const grid = document.getElementById('calGrid');
@@ -1236,15 +1826,22 @@ function renderCal() {
     const ds = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayEvs = S.events.filter(e => e.date === ds);
     dayEvs.slice(0, 2).forEach(ev => {
-      const dot = document.createElement('span'); dot.className = 'ev-dot';
-      dot.textContent = `[${ev.type}] ${ev.title}`; cell.appendChild(dot);
+      const dot = document.createElement('span');
+      dot.className = 'ev-dot ' + typeCls(ev.type);
+      dot.textContent = `[${ev.type}] ${ev.title}`;
+      dot.onclick = (e) => { e.stopPropagation(); openEvDetail(ev._id); };
+      dot.style.cursor = 'pointer';
+      cell.appendChild(dot);
     });
-    if (dayEvs.length > 0) {
-      const idx = S.events.findIndex(e => e.date === ds);
-      cell.onclick = () => openEvDetail(idx);
-    } else {
-      cell.onclick = () => { document.getElementById('evDate').value = ds; openModal('addEvModal'); };
+    if (dayEvs.length > 2) {
+      const more = document.createElement('span');
+      more.className = 'ev-dot type-etc';
+      more.textContent = `+${dayEvs.length - 2}건 더`;
+      more.onclick = (e) => { e.stopPropagation(); openEvDetail(dayEvs[2]._id); };
+      more.style.cursor = 'pointer';
+      cell.appendChild(more);
     }
+    cell.onclick = () => { document.getElementById('evDate').value = ds; openAddEventForCreate(); };
     grid.appendChild(cell);
   }
   renderMonthList();
@@ -1262,52 +1859,109 @@ function renderMonthList() {
   const evs = S.events.filter(e => e.date.startsWith(pfx));
   const div = document.getElementById('monthEvList');
   if (!evs.length) { div.innerHTML = '<p class="empty-msg">이번 달 일정이 없습니다.</p>'; return; }
+  // 날짜순 정렬
+  evs.sort((a,b) => (a.date+'T'+(a.startTime||'00:00')).localeCompare(b.date+'T'+(b.startTime||'00:00')));
   div.innerHTML = '';
   evs.forEach(ev => {
-    const idx = S.events.indexOf(ev);
-    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[idx]);
-    const approved = apps.filter(u => u.applications[idx] === 'approved').length;
+    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[ev._id]);
+    const approved = apps.filter(u => u.applications[ev._id] === 'approved').length;
+    const timeStr = fmtTime(ev.startTime, ev.endTime);
     const d = document.createElement('div'); d.className = 'ev-item';
-    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div class="ev-title">[${ev.type}] ${ev.title}</div>
-        <div class="ev-meta">${ev.date} &middot; ${ev.place} &middot; 신청 ${apps.length}명 / 승인 ${approved}명</div>
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:flex-start;flex:1;min-width:0;">
+        <span class="type-stripe ${typeCls(ev.type)}"></span>
+        <div style="flex:1;min-width:0;">
+          <div class="ev-title">[${ev.type}] ${ev.title}</div>
+          <div class="ev-meta">${ev.date}${timeStr ? ' · ' + timeStr : ''} &middot; ${ev.place} &middot; 신청 ${apps.length}명 / 승인 ${approved}명</div>
+        </div>
       </div>
-      <button class="btn sm" onclick="openEvDetail(${idx})">상세</button>
+      <button class="btn sm" onclick="openEvDetail('${ev._id}')">상세</button>
     </div>`;
     div.appendChild(d);
   });
 }
 
-// ── Modals ──
+// ══════════════════════════════════════════════════════════════════
+// Modals — 일정 추가/수정
+// ══════════════════════════════════════════════════════════════════
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-function saveEvent() {
-  const title = document.getElementById('evTitle').value.trim();
-  const date = document.getElementById('evDate').value;
-  if (!title || !date) { alert('제목과 날짜를 입력하세요.'); return; }
-  S.events.push({
-    type: document.getElementById('evType').value, title, date,
-    place: document.getElementById('evPlace').value,
-    desc: document.getElementById('evDesc').value
-  });
-  saveData(); closeModal('addEvModal');
-  ['evTitle','evPlace','evDesc'].forEach(id => document.getElementById(id).value = '');
-  renderCal();
+function openAddEventForCreate() {
+  S.editingEventIdx = null;
+  document.getElementById('addEvTitle').textContent = '일정 / 공지 추가';
+  ['evTitle','evPlace','evDesc','evStart','evEnd'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('evType').selectedIndex = 0;
+  openModal('addEvModal');
 }
 
-function openEvDetail(idx) {
-  const ev = S.events[idx];
+function openAddEventForEdit(evId) {
+  const ev = S.events.find(e => e._id === evId);
+  if (!ev) return;
+  S.editingEventIdx = evId;
+  document.getElementById('addEvTitle').textContent = '일정 / 공지 수정';
+  document.getElementById('evType').value = ev.type;
+  document.getElementById('evTitle').value = ev.title || '';
+  document.getElementById('evDate').value = ev.date || '';
+  document.getElementById('evStart').value = ev.startTime || '';
+  document.getElementById('evEnd').value = ev.endTime || '';
+  document.getElementById('evPlace').value = ev.place || '';
+  document.getElementById('evDesc').value = ev.desc || '';
+  closeModal('evDetailModal');
+  openModal('addEvModal');
+}
+
+function closeAddEvModal() {
+  S.editingEventIdx = null;
+  closeModal('addEvModal');
+}
+
+async function saveEvent() {
+  const title = document.getElementById('evTitle').value.trim();
+  const date = document.getElementById('evDate').value;
+  const startTime = document.getElementById('evStart').value;
+  const endTime = document.getElementById('evEnd').value;
+  if (!title || !date) { alert('제목과 날짜를 입력하세요.'); return; }
+  if (startTime && endTime && startTime > endTime) {
+    alert('종료 시간은 시작 시간보다 빠를 수 없습니다.'); return;
+  }
+  const data = {
+    type: document.getElementById('evType').value,
+    title, date, startTime, endTime,
+    place: document.getElementById('evPlace').value,
+    desc: document.getElementById('evDesc').value
+  };
+
+  showLoading('저장 중...');
+  try {
+    if (S.editingEventIdx !== null) {
+      await window.DB.updateEvent(S.editingEventIdx, data);
+    } else {
+      await window.DB.addEvent(data);
+    }
+    hideLoading();
+    closeAddEvModal();
+    // 리스너가 자동으로 화면 갱신함
+  } catch(e) {
+    hideLoading();
+    toast('일정 저장 실패: ' + e.message, 'error');
+  }
+}
+
+function openEvDetail(evId) {
+  const ev = S.events.find(e => e._id === evId);
+  if (!ev) return;
   document.getElementById('edTitle').textContent = `[${ev.type}] ${ev.title}`;
-  document.getElementById('edInfo').textContent = `${ev.date} · ${ev.place}`;
+  const timeStr = fmtTime(ev.startTime, ev.endTime);
+  document.getElementById('edInfo').textContent = `${ev.date}${timeStr ? ' · ' + timeStr : ''} · ${ev.place}`;
   document.getElementById('edDesc').textContent = ev.desc || '';
   const apDiv = document.getElementById('edApplicants');
   const applicants = [];
   Object.entries(S.instructors).forEach(([name, u]) => {
-    if (u.applications && u.applications[idx]) applicants.push({ name, status: u.applications[idx] });
+    if (u.applications && u.applications[evId]) applicants.push({ name, status: u.applications[evId] });
   });
-  document.getElementById('delEvBtn').onclick = () => deleteEvent(idx);
+  document.getElementById('delEvBtn').onclick = () => deleteEvent(evId);
+  document.getElementById('editEvBtn').onclick = () => openAddEventForEdit(evId);
   if (!applicants.length) {
     apDiv.innerHTML = '<p class="empty-msg">신청한 강사가 없습니다.</p>';
   } else {
@@ -1318,8 +1972,8 @@ function openEvDetail(idx) {
         <div class="btn-grp">
           <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
           ${status==='pending'
-            ? `<button class="btn sm primary" onclick="approveApp('${name}',${idx},'approved')">승인</button>
-               <button class="btn sm danger" onclick="approveApp('${name}',${idx},'rejected')">거절</button>`
+            ? `<button class="btn sm primary" onclick="approveApp('${name}','${evId}','approved')">승인</button>
+               <button class="btn sm danger" onclick="approveApp('${name}','${evId}','rejected')">거절</button>`
             : ''}
         </div>`;
       apDiv.appendChild(row);
@@ -1328,22 +1982,48 @@ function openEvDetail(idx) {
   openModal('evDetailModal');
 }
 
-function approveApp(name, idx, result) {
-  S.instructors[name].applications[idx] = result;
-  saveData(); openEvDetail(idx);
+async function approveApp(name, evId, result) {
+  const u = S.instructors[name];
+  if (!u) return;
+  const apps = { ...(u.applications || {}) };
+  apps[evId] = result;
+  try {
+    await window.DB.updateInstructor(name, { applications: apps });
+    u.applications = apps;
+    openEvDetail(evId);  // 모달 다시 그리기
+  } catch(e) {
+    toast('상태 변경 실패: ' + e.message, 'error');
+  }
 }
 
-function deleteEvent(idx) {
+async function deleteEvent(evId) {
   if (!confirm('이 일정을 삭제하시겠습니까?')) return;
-  Object.values(S.instructors).forEach(u => { if (u.applications) delete u.applications[idx]; });
-  S.events.splice(idx, 1);
-  saveData(); closeModal('evDetailModal'); renderCal();
+  showLoading('삭제 중...');
+  try {
+    // 모든 강사의 applications에서 이 일정 제거
+    for (const [name, u] of Object.entries(S.instructors)) {
+      if (u.applications && u.applications[evId]) {
+        const apps = { ...u.applications };
+        delete apps[evId];
+        await window.DB.updateInstructor(name, { applications: apps });
+      }
+    }
+    // 일정 자체 삭제
+    await window.DB.deleteEvent(evId);
+    hideLoading();
+    closeModal('evDetailModal');
+  } catch(e) {
+    hideLoading();
+    toast('삭제 실패: ' + e.message, 'error');
+  }
 }
 
-// ── Instructor List ──
+// ══════════════════════════════════════════════════════════════════
+// 강사 목록 (관리자)
+// ══════════════════════════════════════════════════════════════════
 function renderInstList() {
   const div = document.getElementById('instListAdmin');
-  const names = Object.keys(S.instructors);
+  const names = Object.keys(S.instructors).sort();
   if (!names.length) { div.innerHTML = '<p class="empty-msg">등록된 강사가 없습니다.</p>'; return; }
   div.innerHTML = '';
   names.forEach(name => {
@@ -1355,14 +2035,17 @@ function renderInstList() {
         <div class="inst-name">${name}</div>
         <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
       </div>
-      <button class="btn sm" onclick="openProfile('${name}')">프로필</button>`;
+      <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
     div.appendChild(row);
   });
 }
 
-// ── Day Filter ──
+// ══════════════════════════════════════════════════════════════════
+// Day Filter / Search
+// ══════════════════════════════════════════════════════════════════
 function initDayFilter() {
   const wrap = document.getElementById('dayFilterBtns');
+  if (!wrap) return;
   wrap.innerHTML = '';
   DAYS.forEach(d => {
     ['오전','오후'].forEach(t => {
@@ -1389,7 +2072,6 @@ function toggleDayFilter(key, btn) {
   searchInst();
 }
 
-// ── Search ──
 function searchInst() {
   const qName = document.getElementById('sName').value.trim().toLowerCase();
   const qSubj = document.getElementById('sSubject').value.trim().toLowerCase();
@@ -1435,12 +2117,14 @@ function searchInst() {
           ${dayTags ? `<div style="margin-top:4px;">${dayTags}</div>` : ''}
         </div>
       </div>
-      <button class="btn sm" onclick="openProfile('${name}')">프로필</button>`;
+      <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
     div.appendChild(row);
   });
 }
 
-// ── Profile Modal ──
+// ══════════════════════════════════════════════════════════════════
+// Profile Modal (Admin)
+// ══════════════════════════════════════════════════════════════════
 function formatList(arr) {
   return (arr || []).filter(v => v.trim()).map(v => `<div style="padding:2px 0;">${v}</div>`).join('') || '-';
 }
@@ -1481,10 +2165,15 @@ function openProfile(name) {
     hist.innerHTML = '<p class="empty-msg">참여 이력이 없습니다.</p>';
   } else {
     hist.innerHTML = '';
-    items.forEach(([idx, status]) => {
-      const ev = S.events[idx]; if (!ev) return;
+    items.forEach(([evId, status]) => {
+      const ev = S.events.find(e => e._id === evId);
+      if (!ev) return;
+      const timeStr = fmtTime(ev.startTime, ev.endTime);
       const d = document.createElement('div'); d.className = 'app-row';
-      d.innerHTML = `<span>[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}</span></span>
+      d.innerHTML = `<span style="display:flex;align-items:center;flex:1;min-width:0;">
+          <span class="type-stripe ${typeCls(ev.type)}"></span>
+          <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span></span>
+        </span>
         <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>`;
       hist.appendChild(d);
     });
@@ -1493,17 +2182,26 @@ function openProfile(name) {
   openModal('profileModal');
 }
 
-function deleteInst(name) {
+async function deleteInst(name) {
   if (!confirm(`'${name}' 강사를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-  delete S.instructors[name];
-  saveData(); closeModal('profileModal'); renderInstList();
+  showLoading('삭제 중...');
+  try {
+    await window.DB.deleteInstructor(name);
+    hideLoading();
+    closeModal('profileModal');
+  } catch(e) {
+    hideLoading();
+    toast('삭제 실패: ' + e.message, 'error');
+  }
 }
 
-// ── Admin management ──
+// ══════════════════════════════════════════════════════════════════
+// 관리자 계정 관리
+// ══════════════════════════════════════════════════════════════════
 function renderAdminList() {
   const div = document.getElementById('adminList');
   div.innerHTML = '';
-  Object.keys(S.admins).forEach(name => {
+  Object.keys(S.admins).sort().forEach(name => {
     const isSelf = name === S.currentAdminName;
     const row = document.createElement('div'); row.className = 'admin-row';
     row.innerHTML = `
@@ -1514,63 +2212,85 @@ function renderAdminList() {
       </div>
       <div>
         ${!isSelf && Object.keys(S.admins).length > 1
-          ? `<button class="btn sm danger" onclick="deleteAdmin('${name}')">삭제</button>`
+          ? `<button class="btn sm danger" onclick="deleteAdmin('${name.replace(/'/g, "\\'")}')">삭제</button>`
           : ''}
       </div>`;
     div.appendChild(row);
   });
 }
 
-function addAdmin() {
+async function addAdmin() {
   const name = document.getElementById('newAName').value.trim();
   const pw = document.getElementById('newAPw').value.trim();
   const err = document.getElementById('addAdminErr');
   if (!name || !pw) { err.textContent = '이름과 비밀번호를 입력하세요.'; err.style.display = 'block'; return; }
   if (Object.keys(S.admins).length >= 4) { err.textContent = '관리자는 최대 4명까지 등록 가능합니다.'; err.style.display = 'block'; return; }
   if (S.admins[name]) { err.textContent = '이미 존재하는 이름입니다.'; err.style.display = 'block'; return; }
-  S.admins[name] = pw;
-  saveData(); closeModal('addAdminModal');
-  document.getElementById('newAName').value = ''; document.getElementById('newAPw').value = '';
-  err.style.display = 'none';
-  renderAdminList();
+
+  try {
+    const hashed = await hashPw(pw);
+    await window.DB.setAdmin(name, hashed);
+    closeModal('addAdminModal');
+    document.getElementById('newAName').value = '';
+    document.getElementById('newAPw').value = '';
+    err.style.display = 'none';
+    toast('관리자가 추가되었습니다', 'success');
+  } catch(e) {
+    err.textContent = '추가 실패: ' + e.message;
+    err.style.display = 'block';
+  }
 }
 
-function deleteAdmin(name) {
+async function deleteAdmin(name) {
   if (!confirm(`'${name}' 관리자를 삭제하시겠습니까?`)) return;
-  delete S.admins[name]; saveData(); renderAdminList();
+  try {
+    await window.DB.deleteAdmin(name);
+    toast('삭제되었습니다', 'success');
+  } catch(e) {
+    toast('삭제 실패: ' + e.message, 'error');
+  }
 }
 
-function changePw() {
+async function changePw() {
   const cur = document.getElementById('curPw').value;
   const nw = document.getElementById('newPw').value;
   const nw2 = document.getElementById('newPw2').value;
   const msg = document.getElementById('pwMsg');
-  if (S.admins[S.currentAdminName] !== cur) {
-    msg.textContent = '현재 비밀번호가 틀렸습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return;
+
+  try {
+    const curHash = await hashPw(cur);
+    if (S.admins[S.currentAdminName] !== curHash) {
+      msg.textContent = '현재 비밀번호가 틀렸습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return;
+    }
+    if (!nw) { msg.textContent = '새 비밀번호를 입력하세요.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
+    if (nw !== nw2) { msg.textContent = '새 비밀번호가 일치하지 않습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
+    const newHash = await hashPw(nw);
+    await window.DB.setAdmin(S.currentAdminName, newHash);
+    msg.textContent = '✓ 비밀번호가 변경되었습니다.'; msg.style.color = 'var(--green)'; msg.style.display = 'inline';
+    ['curPw','newPw','newPw2'].forEach(id => document.getElementById(id).value = '');
+    setTimeout(() => msg.style.display = 'none', 3000);
+  } catch(e) {
+    msg.textContent = '오류: ' + e.message; msg.style.color = 'var(--red)'; msg.style.display = 'inline';
   }
-  if (!nw) { msg.textContent = '새 비밀번호를 입력하세요.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
-  if (nw !== nw2) { msg.textContent = '새 비밀번호가 일치하지 않습니다.'; msg.style.color = 'var(--red)'; msg.style.display = 'inline'; return; }
-  S.admins[S.currentAdminName] = nw; saveData();
-  msg.textContent = '✓ 비밀번호가 변경되었습니다.'; msg.style.color = 'var(--green)'; msg.style.display = 'inline';
-  ['curPw','newPw','newPw2'].forEach(id => document.getElementById(id).value = '');
-  setTimeout(() => msg.style.display = 'none', 3000);
 }
 
-// ── Excel ──
+// ══════════════════════════════════════════════════════════════════
+// Excel
+// ══════════════════════════════════════════════════════════════════
 function exportExcel() {
   const pfx = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
   const evs = S.events.filter(e => e.date.startsWith(pfx));
   if (!evs.length) { alert('이번 달 일정이 없습니다.'); return; }
-  const rows = [['유형','제목','날짜','장소','내용','신청자수','승인자수','거절자수']];
+  evs.sort((a,b) => (a.date+'T'+(a.startTime||'00:00')).localeCompare(b.date+'T'+(b.startTime||'00:00')));
+  const rows = [['유형','제목','날짜','시작시간','종료시간','장소','내용','신청자수','승인자수','거절자수']];
   evs.forEach(ev => {
-    const idx = S.events.indexOf(ev);
-    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[idx]);
-    const approved = apps.filter(u => u.applications[idx] === 'approved').length;
-    const rejected = apps.filter(u => u.applications[idx] === 'rejected').length;
-    rows.push([ev.type, ev.title, ev.date, ev.place, ev.desc||'', apps.length, approved, rejected]);
+    const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[ev._id]);
+    const approved = apps.filter(u => u.applications[ev._id] === 'approved').length;
+    const rejected = apps.filter(u => u.applications[ev._id] === 'rejected').length;
+    rows.push([ev.type, ev.title, ev.date, ev.startTime||'', ev.endTime||'', ev.place, ev.desc||'', apps.length, approved, rejected]);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:8},{wch:22},{wch:12},{wch:18},{wch:28},{wch:9},{wch:9},{wch:9}];
+  ws['!cols'] = [{wch:8},{wch:22},{wch:12},{wch:9},{wch:9},{wch:18},{wch:28},{wch:9},{wch:9},{wch:9}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '일정');
   XLSX.writeFile(wb, `티치포퓨처_일정_${S.calYear}년${MON[S.calMonth]}.xlsx`);
@@ -1583,7 +2303,11 @@ function exportInstExcel() {
   Object.entries(S.instructors).forEach(([name, rawU]) => {
     const u = getProfile(rawU);
     const apps = Object.entries(u.applications || {});
-    const cnt = (type) => apps.filter(([idx, st]) => st === 'approved' && S.events[idx] && S.events[idx].type === type).length;
+    const cnt = (type) => apps.filter(([evId, st]) => {
+      if (st !== 'approved') return false;
+      const ev = S.events.find(e => e._id === evId);
+      return ev && ev.type === type;
+    }).length;
     const total = apps.filter(([,st]) => st).length;
     const dayVals = DAYS.flatMap(d => [
       u.days[d.key+'_am'] ? 'O' : '',
@@ -1606,8 +2330,25 @@ function exportInstExcel() {
   XLSX.writeFile(wb, `티치포퓨처_강사목록_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// ── Init ──
-loadData();
+// ══════════════════════════════════════════════════════════════════
+// 비상 데이터 초기화 (로컬 캐시만 — Firebase 데이터는 안 지움)
+// ══════════════════════════════════════════════════════════════════
+function resetAllData() {
+  if (!confirm('로컬 캐시(브라우저 저장)를 초기화하시겠습니까?\n\n※ Firebase에 저장된 강사/일정/관리자 데이터는 그대로 유지됩니다.\n※ 로컬 캐시만 비우고 새로고침합니다.')) return;
+  try {
+    localStorage.removeItem(DB_KEY);
+    localStorage.removeItem(DB_KEY + '_backup');
+    localStorage.removeItem(MIGRATION_FLAG);
+  } catch(e) {}
+  location.reload();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  initApp();
+});
 </script>
 </body>
 </html>
