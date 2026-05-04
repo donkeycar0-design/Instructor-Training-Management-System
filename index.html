@@ -793,13 +793,273 @@
     margin-top: 14px;
   }
 
+  /* ════════════════════════════════════════════════════════════
+     📱 MOBILE (≤ 600px) — 종합 모바일 대응
+     ════════════════════════════════════════════════════════════ */
   @media (max-width: 600px) {
-    .content { padding: 12px; }
-    .card { padding: 1rem; }
-    .modal { padding: 1.25rem; }
-    .topbar { padding: 0 14px; }
-    .topbar .title { font-size: 13px; }
-    .day-grid { grid-template-columns: 70px repeat(2, 1fr); }
+
+    /* ── 기본 레이아웃 ── */
+    .content { padding: 10px; max-width: 100%; }
+    .card { padding: 14px; margin-bottom: 12px; border-radius: 8px; }
+    .modal {
+      padding: 16px;
+      max-height: 92vh;
+      max-width: 100%;
+      border-radius: 12px 12px 0 0;
+      margin: auto 0 0;  /* 하단 고정 시트 느낌 */
+    }
+    .modal-bg { padding: 0; align-items: flex-end; }
+    .modal h3 { font-size: 16px; }
+
+    /* ── 상단바 압축 ── */
+    .topbar { padding: 0 10px; height: 50px; }
+    .topbar .title { font-size: 12px; gap: 5px; }
+    .topbar .title small { font-size: 9px; }
+    .topbar-right { gap: 5px; }
+    .conn-status { padding: 2px 6px; font-size: 10px; gap: 3px; }
+    .conn-status .conn-dot { width: 6px; height: 6px; }
+    .user-chip { font-size: 10px; padding: 3px 6px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar .btn.sm { padding: 3px 8px; font-size: 11px; }
+
+    /* ── 탭 메뉴 — 핵심 개선 ── */
+    .nav {
+      padding: 6px 10px;
+      gap: 4px;
+      /* 부드러운 가로 스크롤 + 양끝 페이드 효과 */
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+      scrollbar-width: none;  /* Firefox */
+      -ms-overflow-style: none;  /* IE */
+      mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 32px), transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 32px), transparent);
+      padding-right: 44px;  /* 햄버거 버튼 자리 */
+      position: relative;
+    }
+    .nav::-webkit-scrollbar { display: none; }  /* Chrome/Safari */
+    .nav-btn {
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .nav-btn.active {
+      background: var(--blue);
+      color: white;
+    }
+
+    /* 햄버거 메뉴 버튼 (모바일 전용) */
+    .nav-menu-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 5;
+      box-shadow: -8px 0 12px var(--surface);
+    }
+    .nav-menu-btn:active { background: var(--bg); }
+
+    /* 햄버거 드롭다운 메뉴 */
+    .nav-menu-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+      z-index: 100;
+      min-width: 180px;
+      max-width: calc(100vw - 20px);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .nav-menu-dropdown.open { display: block; }
+    .nav-menu-dropdown button {
+      display: block;
+      width: 100%;
+      padding: 11px 14px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-menu-dropdown button:last-child { border-bottom: none; }
+    .nav-menu-dropdown button:hover,
+    .nav-menu-dropdown button:active { background: var(--blue-light); }
+    .nav-menu-dropdown button.active {
+      background: var(--blue-light);
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    /* ── 달력 축소형 (모바일 전용) ── */
+    .cal-day {
+      min-height: 44px;
+      padding: 3px 2px;
+    }
+    .cal-day .day-num {
+      font-size: 10px;
+      margin-bottom: 1px;
+      text-align: center;
+    }
+    .cal-day .ev-dot {
+      /* 텍스트 숨기고 점만 표시 */
+      font-size: 0 !important;
+      padding: 0 !important;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin: 1px auto !important;
+      border-left: none !important;
+      display: block;
+    }
+    .cal-day-hdr { font-size: 10px; padding: 3px 0 5px; }
+    .cal-month { font-size: 14px; min-width: 90px; }
+    .cal-nav button { width: 26px; height: 26px; font-size: 11px; }
+
+    /* 모바일에서 선택된 날짜 일정 목록 표시 영역 */
+    .mobile-day-events {
+      display: none;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .mobile-day-events.show { display: block; }
+    .mobile-day-events-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--blue);
+      margin-bottom: 8px;
+    }
+
+    /* ── 카드/일정 — 세로 재정렬 ── */
+    .ev-item { padding: 10px 0; }
+    .ev-title { font-size: 13px; }
+    .ev-meta { font-size: 11px; }
+    .ev-desc { font-size: 11px; }
+    /* row-item 의 우측 버튼이 잘리지 않도록 */
+    .row-item { flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+    .row-item button.btn.sm { width: 100%; margin-top: 4px; }
+
+    /* 강사 검색·목록 카드 세로형 */
+    .inst-info { width: 100%; }
+
+    /* ── 신청자 행 / 댓글 / app-row 세로 정렬 ── */
+    .app-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .app-row .btn-grp { width: 100%; }
+
+    .admin-row { padding: 12px 0; }
+
+    /* ── 폼 입력 — 모바일 친화 ── */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 11px 12px;
+      font-size: 16px;  /* iOS 줌 방지: 16px 이상 필수 */
+    }
+    .form-group label {
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .multi-row input { padding: 9px 10px; font-size: 14px; }
+
+    /* 요일 그리드 — 라벨 좁히기 */
+    .day-grid { grid-template-columns: 60px repeat(2, 1fr); }
+    .day-label { font-size: 12px; padding: 6px 4px; }
+    .day-check input[type="checkbox"] { width: 18px; height: 18px; }
+
+    /* ── 검색 패널 ── */
+    .search-panel { padding: 12px; }
+    .search-panel .search-row { gap: 6px; }
+    .search-panel input,
+    .search-panel select {
+      font-size: 14px;
+      min-width: 100%;  /* 한 줄에 하나씩 */
+    }
+
+    /* ── 버튼 ── */
+    .btn { padding: 9px 14px; font-size: 13px; }
+    .btn.sm { padding: 6px 10px; font-size: 11px; }
+    .btn.full { padding: 12px; font-size: 14px; }
+
+    /* ── 공지사항 카드 ── */
+    .notice-card { padding: 11px 12px; }
+    .notice-title { font-size: 13px; }
+    .notice-meta { font-size: 11px; gap: 6px; }
+    .notice-content { padding: 12px; font-size: 12px; }
+
+    /* ── 댓글 폼 ── */
+    .comment-form textarea { font-size: 14px; min-height: 70px; }
+
+    /* ── 프로필 모달 ── */
+    .profile-row { padding: 6px 0; font-size: 12px; gap: 8px; }
+    .profile-row .lbl { min-width: 70px; font-size: 11px; }
+
+    /* ── 모달 푸터 (버튼) ── */
+    .modal-footer {
+      flex-direction: column-reverse;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .modal-footer .btn { width: 100%; }
+
+    /* ── 푸터 ── */
+    .footer-credit { font-size: 10px; padding: 12px; }
+
+    /* ── 토스트 — 너비 자동 조정 ── */
+    .toast {
+      max-width: calc(100vw - 32px);
+      white-space: normal;
+      text-align: center;
+    }
+
+    /* ── 콘텐츠 카드 헤더에서 버튼 길이 제한 ── */
+    .card-header { gap: 8px; flex-wrap: wrap; }
+    .card-header .btn.sm { white-space: nowrap; }
+
+    /* ── 사용설명서 ── */
+    .manual-section h4 { font-size: 13px; }
+    .manual-section h5 { font-size: 12px; }
+    .manual-section p, .manual-section li { font-size: 11px; }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     매우 좁은 화면 (≤ 380px) — 노치/소형폰 대응
+     ════════════════════════════════════════════════════════════ */
+  @media (max-width: 380px) {
+    .content { padding: 8px; }
+    .topbar .title small { display: none; }  /* 부제목 숨김 */
+    .nav-btn { padding: 6px 10px; font-size: 11px; }
+    .day-grid { grid-template-columns: 50px repeat(2, 1fr); }
+    .day-label { font-size: 11px; }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     데스크톱(≥ 601px)에서는 햄버거 버튼 항상 숨김
+     ════════════════════════════════════════════════════════════ */
+  @media (min-width: 601px) {
+    .nav-menu-btn { display: none !important; }
+    .nav-menu-dropdown { display: none !important; }
+    .mobile-day-events { display: none !important; }
   }
 
   /* ── Connection status / loading ── */
@@ -1078,11 +1338,13 @@
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
   </div>
-  <div class="nav">
+  <div class="nav" id="instNav">
     <button class="nav-btn active" onclick="showIP('Notices',this)">📢 공지사항</button>
     <button class="nav-btn" onclick="showIP('Events',this)">강의/연수신청</button>
     <button class="nav-btn" onclick="showIP('Profile',this)">내 프로필</button>
     <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
+    <button class="nav-menu-btn" onclick="toggleNavMenu('instNavMenu', event)" aria-label="메뉴">☰</button>
+    <div class="nav-menu-dropdown" id="instNavMenu"></div>
   </div>
   <div class="content">
 
@@ -1260,7 +1522,7 @@
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
   </div>
-  <div class="nav">
+  <div class="nav" id="adminNav">
     <button class="nav-btn active" onclick="showAP('Notices',this)">📢 공지사항</button>
     <button class="nav-btn" onclick="showAP('Calendar',this)">📅 캘린더</button>
     <button class="nav-btn" onclick="showAP('Schedule',this)">📋 강의/연수일정</button>
@@ -1269,6 +1531,8 @@
     <button class="nav-btn" onclick="showAP('Grade',this)">⭐ 강사등급</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">👤 관리자 설정</button>
     <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템설정</button>
+    <button class="nav-menu-btn" onclick="toggleNavMenu('adminNavMenu', event)" aria-label="메뉴">☰</button>
+    <div class="nav-menu-dropdown" id="adminNavMenu"></div>
   </div>
   <div class="content">
 
@@ -1284,6 +1548,11 @@
           <button class="btn sm primary" onclick="openAddEventForCreate()">+ 일정 추가</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
+        <!-- 모바일 전용: 선택된 날짜의 일정 목록 -->
+        <div class="mobile-day-events" id="mobileDayEvents">
+          <div class="mobile-day-events-title" id="mobileDayEventsTitle"></div>
+          <div id="mobileDayEventsList"></div>
+        </div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -1739,89 +2008,30 @@ function setConnStatus(state, text) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 마이그레이션: 기존 localStorage → Firestore (한 번만 실행)
+// 마이그레이션 — DEPRECATED (비활성화됨)
+// 과거 localStorage 기반 → Firebase 전환용 일회성 코드였음.
+// Firebase 전환 완료 후, 다른 기기에서 접속 시 admin 데이터가
+// 잘못 덮어써지는 문제가 있어 완전히 비활성화함.
+// 만약 아주 옛날 기기의 localStorage에 데이터가 남아있다면,
+// 해당 데이터는 무시하고 Firebase 데이터만 사용함.
 // ══════════════════════════════════════════════════════════════════
 async function runMigrationIfNeeded() {
-  // 이미 마이그레이션 했으면 스킵
-  if (localStorage.getItem(MIGRATION_FLAG) === 'done') return;
-  const raw = localStorage.getItem(DB_KEY);
-  if (!raw) {
-    // 마이그레이션 할 데이터 없음 → 플래그만 설정하고 끝
-    localStorage.setItem(MIGRATION_FLAG, 'done');
-    return;
-  }
-
-  showLoading('기존 데이터를 Firebase로 옮기는 중...');
+  // 마이그레이션 비활성화 — 아무것도 하지 않음.
+  // 단, 혹시 남아있을지 모르는 옛날 localStorage 데이터를 정리해서
+  // 향후 브라우저에서 같은 문제가 재발하지 않도록 함.
   try {
-    const old = JSON.parse(raw);
-    let migrated = 0;
-
-    // 1) 강사 마이그레이션 (비밀번호도 해시 변환)
-    if (old.instructors && Object.keys(old.instructors).length) {
-      for (const [name, u] of Object.entries(old.instructors)) {
-        const data = { ...u };
-        // 평문 비밀번호 → 해시
-        if (data.pw && data.pw.length < 64) {
-          data.pw = await hashPw(data.pw);
-        }
-        await window.DB.saveInstructor(name, data);
-        migrated++;
-      }
+    if (localStorage.getItem(DB_KEY)) {
+      // 안전을 위해 별도 키로 보관 (사용자가 원할 때 수동 복구 가능)
+      const orphan = localStorage.getItem(DB_KEY);
+      localStorage.setItem(DB_KEY + '_orphan_' + Date.now(), orphan);
+      localStorage.removeItem(DB_KEY);
     }
-
-    // 2) 일정 마이그레이션 — 인덱스를 ID로 보존하기 위해 setDoc with custom id 패턴
-    //    (이전엔 array index로 신청 매핑됐으므로, 일정 ID와 instructor.applications 키 일치 필요)
-    if (old.events && old.events.length) {
-      for (let i = 0; i < old.events.length; i++) {
-        const ev = old.events[i];
-        // 일정 ID는 'legacy_0', 'legacy_1' 형태로 보존
-        const evId = `legacy_${i}`;
-        await window.DB.updateEvent(evId, ev);
-        migrated++;
-      }
-      // applications 키도 'legacy_N' 형식으로 변환
-      const inst = await window.DB.getAllInstructors();
-      for (const [name, u] of Object.entries(inst)) {
-        if (!u.applications) continue;
-        const newApps = {};
-        let needsUpdate = false;
-        for (const [k, v] of Object.entries(u.applications)) {
-          // 숫자 키였으면 legacy_N 으로 변환
-          if (/^\d+$/.test(k)) {
-            newApps[`legacy_${k}`] = v;
-            needsUpdate = true;
-          } else {
-            newApps[k] = v;
-          }
-        }
-        if (needsUpdate) {
-          await window.DB.updateInstructor(name, { applications: newApps });
-        }
-      }
-    }
-
-    // 3) 관리자 마이그레이션 (비밀번호 해시)
-    if (old.admins && Object.keys(old.admins).length) {
-      for (const [name, pw] of Object.entries(old.admins)) {
-        const hashed = (pw && pw.length < 64) ? await hashPw(pw) : pw;
-        await window.DB.setAdmin(name, hashed);
-        migrated++;
-      }
-    }
-
-    // 백업: 기존 localStorage는 별도 키에 보관 (안전장치)
-    localStorage.setItem(DB_KEY + '_backup', raw);
-    localStorage.setItem(MIGRATION_FLAG, 'done');
-
-    if (migrated > 0) {
-      toast(`기존 데이터 ${migrated}건을 Firebase로 옮겼습니다`, 'success');
-    }
+    // 마이그레이션 플래그도 정리 (의미 없음)
+    localStorage.removeItem(MIGRATION_FLAG);
   } catch(e) {
-    console.error('Migration failed:', e);
-    toast('데이터 이전 중 오류 발생: ' + e.message, 'error');
-    // 플래그를 설정하지 않으므로 다음 실행 시 재시도됨
-    throw e;
+    // localStorage 접근 실패해도 무시하고 진행
   }
+  return;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2081,25 +2291,100 @@ function showIP(id, btn) {
   document.querySelectorAll('#instScreen .page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('#instScreen .nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('ip' + id).classList.add('active');
-  btn.classList.add('active');
+  if (btn) {
+    btn.classList.add('active');
+    scrollNavBtnIntoView(btn);
+  }
+  closeNavMenus();
   if (id === 'Events') renderInstEvents();
   if (id === 'Profile') loadInstProfile();
   if (id === 'Settings') loadInstSettings();
   if (id === 'Notices') renderInstNotices();
+  // Scroll to top of content on mobile (UX)
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showAP(id, btn) {
   document.querySelectorAll('#adminScreen .page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('#adminScreen .nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('ap' + id).classList.add('active');
-  btn.classList.add('active');
+  if (btn) {
+    btn.classList.add('active');
+    scrollNavBtnIntoView(btn);
+  }
+  closeNavMenus();
   if (id === 'Calendar') { renderCal(); renderMonthList(); }
   if (id === 'Schedule') renderAdminSchedule();
   if (id === 'Instructors') renderInstList();
   if (id === 'Settings') renderAdminList();
   if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
   if (id === 'Notices') renderAdminNotices();
+  // Scroll to top of content on mobile (UX)
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// ── 모바일 nav 보조 기능들 ──
+
+// 활성 탭 버튼이 화면에 보이도록 스크롤
+function scrollNavBtnIntoView(btn) {
+  if (!btn) return;
+  const nav = btn.closest('.nav');
+  if (!nav) return;
+  // 작은 지연으로 active 클래스가 적용된 후 스크롤
+  setTimeout(() => {
+    const navRect = nav.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    if (btnRect.left < navRect.left || btnRect.right > navRect.right - 40) {
+      const scrollTo = btn.offsetLeft - (nav.offsetWidth - btn.offsetWidth) / 2;
+      nav.scrollTo({ left: Math.max(0, scrollTo), behavior: 'smooth' });
+    }
+  }, 50);
+}
+
+// 햄버거 메뉴 토글: 현재 nav의 모든 버튼을 드롭다운으로 보여줌
+function toggleNavMenu(menuId, event) {
+  if (event) event.stopPropagation();
+  const dropdown = document.getElementById(menuId);
+  if (!dropdown) return;
+
+  // 이미 열려있으면 닫기
+  if (dropdown.classList.contains('open')) {
+    dropdown.classList.remove('open');
+    return;
+  }
+
+  // 다른 드롭다운들 닫기
+  closeNavMenus();
+
+  // 부모 nav의 모든 .nav-btn을 복제해서 드롭다운에 채움
+  const nav = dropdown.parentElement;
+  const navBtns = nav.querySelectorAll('.nav-btn');
+  dropdown.innerHTML = '';
+  navBtns.forEach(orig => {
+    const item = document.createElement('button');
+    item.textContent = orig.textContent;
+    if (orig.classList.contains('active')) item.classList.add('active');
+    // 원본 버튼 클릭과 동일하게 동작
+    item.onclick = (e) => {
+      e.stopPropagation();
+      orig.click();
+    };
+    dropdown.appendChild(item);
+  });
+
+  dropdown.classList.add('open');
+}
+
+function closeNavMenus() {
+  document.querySelectorAll('.nav-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+// 바깥 클릭 시 메뉴 닫기
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.nav-menu-btn') && !e.target.closest('.nav-menu-dropdown')) {
+    closeNavMenus();
+  }
+});
 
 // ══════════════════════════════════════════════════════════════════
 // Profile
@@ -2366,10 +2651,80 @@ function renderCal() {
       more.style.cursor = 'pointer';
       cell.appendChild(more);
     }
-    cell.onclick = () => { document.getElementById('evDate').value = ds; openAddEventForCreate(); };
+    // 셀 클릭: 모바일이면 하단에 일정 표시, 데스크톱이면 새 일정 추가
+    cell.onclick = () => {
+      const isMobile = window.innerWidth <= 600;
+      if (isMobile) {
+        showMobileDayEvents(ds, dayEvs);
+      } else {
+        document.getElementById('evDate').value = ds;
+        openAddEventForCreate();
+      }
+    };
     grid.appendChild(cell);
   }
   renderMonthList();
+}
+
+// 모바일: 선택된 날짜의 일정 목록 표시
+function showMobileDayEvents(ds, dayEvs) {
+  const wrap = document.getElementById('mobileDayEvents');
+  const titleEl = document.getElementById('mobileDayEventsTitle');
+  const listEl = document.getElementById('mobileDayEventsList');
+  if (!wrap || !titleEl || !listEl) return;
+
+  const dt = new Date(ds + 'T00:00:00');
+  const dayLabel = ['일','월','화','수','목','금','토'][dt.getDay()];
+  titleEl.textContent = `📅 ${ds} (${dayLabel}) — ${dayEvs.length}건`;
+
+  if (!dayEvs.length) {
+    listEl.innerHTML = `
+      <p class="empty-msg" style="margin-bottom:10px;">이 날짜에 일정이 없습니다.</p>
+      <button class="btn sm primary" style="width:100%;" onclick="document.getElementById('evDate').value='${ds}';openAddEventForCreate();">+ 이 날짜에 일정 추가</button>`;
+  } else {
+    listEl.innerHTML = '';
+    dayEvs.forEach(ev => {
+      const apps = Object.values(S.instructors).filter(u => u.applications && u.applications[ev._id]);
+      const approved = apps.filter(u => u.applications[ev._id] === 'approved').length;
+      const timeStr = fmtTime(ev.startTime, ev.endTime);
+      const card = document.createElement('div');
+      card.className = 'notice-card';
+      card.style.borderLeftColor = ({
+        '과학&코딩 캠프': '#185FA5',
+        '특강수업': '#0F6E56',
+        '세미나&연수': '#854F0B',
+        '동아리': '#6B3FA0',
+        '기타사항': '#999'
+      })[ev.type] || '#999';
+      card.innerHTML = `
+        <div class="notice-title-row">
+          <span class="badge ${typeCls(ev.type)}" style="font-size:10px;">${ev.type}</span>
+          <span class="notice-title">${_escapeHtml(ev.title)}</span>
+        </div>
+        <div class="notice-meta">
+          ${timeStr ? `<span>🕒 ${timeStr}</span>` : ''}
+          <span>📍 ${_escapeHtml(ev.place || '-')}</span>
+          <span>👥 ${apps.length}명${approved ? ` (✓${approved})` : ''}</span>
+        </div>
+      `;
+      card.onclick = () => openEvDetail(ev._id);
+      listEl.appendChild(card);
+    });
+    // 일정 추가 버튼
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn primary';
+    addBtn.style.cssText = 'width:100%;margin-top:10px;';
+    addBtn.textContent = `+ 이 날짜에 일정 추가`;
+    addBtn.onclick = () => {
+      document.getElementById('evDate').value = ds;
+      openAddEventForCreate();
+    };
+    listEl.appendChild(addBtn);
+  }
+
+  wrap.classList.add('show');
+  // 부드럽게 스크롤
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 }
 
 function chMon(d) {
