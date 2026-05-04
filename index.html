@@ -798,6 +798,9 @@
      ════════════════════════════════════════════════════════════ */
   @media (max-width: 600px) {
 
+    /* ── 기본 본문 글자 키움 ── */
+    body { font-size: 15px; line-height: 1.65; }
+
     /* ── 기본 레이아웃 ── */
     .content { padding: 10px; max-width: 100%; }
     .card { padding: 14px; margin-bottom: 12px; border-radius: 8px; }
@@ -809,36 +812,46 @@
       margin: auto 0 0;  /* 하단 고정 시트 느낌 */
     }
     .modal-bg { padding: 0; align-items: flex-end; }
-    .modal h3 { font-size: 16px; }
+    .modal h3 { font-size: 18px; }
 
-    /* ── 상단바 압축 ── */
+    /* ── 상단바 압축 (단, 글자는 살짝 키움) ── */
     .topbar { padding: 0 10px; height: 50px; }
-    .topbar .title { font-size: 12px; gap: 5px; }
-    .topbar .title small { font-size: 9px; }
-    .topbar-right { gap: 5px; }
-    .conn-status { padding: 2px 6px; font-size: 10px; gap: 3px; }
-    .conn-status .conn-dot { width: 6px; height: 6px; }
-    .user-chip { font-size: 10px; padding: 3px 6px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .topbar .btn.sm { padding: 3px 8px; font-size: 11px; }
+    .topbar .title { font-size: 13px; gap: 5px; }
+    .topbar .title small { font-size: 10px; }
+    .topbar-right { gap: 6px; }
+
+    /* 모바일에선 연결 텍스트 숨김, 점만 표시 */
+    .conn-status {
+      padding: 4px;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      gap: 0;
+      justify-content: center;
+    }
+    .conn-status .conn-text { display: none; }
+    .conn-status .conn-dot { width: 8px; height: 8px; }
+
+    .user-chip { font-size: 11px; padding: 3px 8px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar .btn.sm { padding: 4px 9px; font-size: 12px; }
 
     /* ── 탭 메뉴 — 핵심 개선 ── */
     .nav {
       padding: 6px 10px;
       gap: 4px;
-      /* 부드러운 가로 스크롤 + 양끝 페이드 효과 */
       -webkit-overflow-scrolling: touch;
       scroll-behavior: smooth;
-      scrollbar-width: none;  /* Firefox */
-      -ms-overflow-style: none;  /* IE */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
       mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 32px), transparent);
       -webkit-mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 32px), transparent);
-      padding-right: 44px;  /* 햄버거 버튼 자리 */
+      padding-right: 44px;
       position: relative;
     }
-    .nav::-webkit-scrollbar { display: none; }  /* Chrome/Safari */
+    .nav::-webkit-scrollbar { display: none; }
     .nav-btn {
-      padding: 7px 12px;
-      font-size: 12px;
+      padding: 8px 13px;
+      font-size: 13px;
       font-weight: 500;
       flex-shrink: 0;
     }
@@ -856,12 +869,12 @@
       right: 6px;
       top: 50%;
       transform: translateY(-50%);
-      width: 34px; height: 34px;
+      width: 36px; height: 36px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
-      font-size: 18px;
+      font-size: 19px;
       cursor: pointer;
       z-index: 5;
       box-shadow: -8px 0 12px var(--surface);
@@ -879,7 +892,7 @@
       border-radius: 10px;
       box-shadow: 0 6px 20px rgba(0,0,0,0.12);
       z-index: 100;
-      min-width: 180px;
+      min-width: 190px;
       max-width: calc(100vw - 20px);
       overflow: hidden;
       margin-top: 4px;
@@ -888,11 +901,11 @@
     .nav-menu-dropdown button {
       display: block;
       width: 100%;
-      padding: 11px 14px;
+      padding: 12px 15px;
       border: none;
       background: transparent;
       color: var(--text);
-      font-size: 13px;
+      font-size: 14px;
       font-family: inherit;
       text-align: left;
       cursor: pointer;
@@ -913,12 +926,11 @@
       padding: 3px 2px;
     }
     .cal-day .day-num {
-      font-size: 10px;
+      font-size: 11px;
       margin-bottom: 1px;
       text-align: center;
     }
     .cal-day .ev-dot {
-      /* 텍스트 숨기고 점만 표시 */
       font-size: 0 !important;
       padding: 0 !important;
       width: 6px;
@@ -928,11 +940,11 @@
       border-left: none !important;
       display: block;
     }
-    .cal-day-hdr { font-size: 10px; padding: 3px 0 5px; }
-    .cal-month { font-size: 14px; min-width: 90px; }
-    .cal-nav button { width: 26px; height: 26px; font-size: 11px; }
+    .cal-day-hdr { font-size: 11px; padding: 3px 0 5px; }
+    .cal-month { font-size: 15px; min-width: 100px; }
+    .cal-nav button { width: 28px; height: 28px; font-size: 12px; }
 
-    /* 모바일에서 선택된 날짜 일정 목록 표시 영역 */
+    /* 모바일에서 선택된 날짜 일정 목록 */
     .mobile-day-events {
       display: none;
       margin-top: 12px;
@@ -941,20 +953,24 @@
     }
     .mobile-day-events.show { display: block; }
     .mobile-day-events-title {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--blue);
       margin-bottom: 8px;
     }
 
-    /* ── 카드/일정 — 세로 재정렬 ── */
-    .ev-item { padding: 10px 0; }
-    .ev-title { font-size: 13px; }
-    .ev-meta { font-size: 11px; }
-    .ev-desc { font-size: 11px; }
-    /* row-item 의 우측 버튼이 잘리지 않도록 */
+    /* ── 카드/일정 — 글자 키우고 세로 재정렬 ── */
+    .section-title { font-size: 15px; }
+    .ev-item { padding: 11px 0; }
+    .ev-title { font-size: 14px; }
+    .ev-meta { font-size: 12px; }
+    .ev-desc { font-size: 12px; }
+    .empty-msg { font-size: 14px; padding: 10px 0; }
+
     .row-item { flex-wrap: wrap; gap: 8px; padding: 12px 0; }
     .row-item button.btn.sm { width: 100%; margin-top: 4px; }
+    .inst-name { font-size: 15px; }
+    .inst-sub { font-size: 13px; }
 
     /* 강사 검색·목록 카드 세로형 */
     .inst-info { width: 100%; }
@@ -964,57 +980,72 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 6px;
+      font-size: 14px;
     }
     .app-row .btn-grp { width: 100%; }
 
-    .admin-row { padding: 12px 0; }
+    .admin-row { padding: 12px 0; font-size: 14px; }
 
-    /* ── 폼 입력 — 모바일 친화 ── */
+    /* ── 폼 입력 — 모바일 친화 (16px 유지: iOS 줌 방지) ── */
     .form-group input,
     .form-group select,
     .form-group textarea {
-      padding: 11px 12px;
-      font-size: 16px;  /* iOS 줌 방지: 16px 이상 필수 */
+      padding: 12px 14px;
+      font-size: 16px;
     }
     .form-group label {
-      font-size: 11px;
+      font-size: 12px;
       margin-bottom: 6px;
     }
-    .multi-row input { padding: 9px 10px; font-size: 14px; }
+    .multi-row input { padding: 10px 12px; font-size: 15px; }
+    .multi-row span { font-size: 13px; }
+    .multi-input-group label { font-size: 12px; }
 
-    /* 요일 그리드 — 라벨 좁히기 */
+    /* 요일 그리드 — 라벨 좁히고 글자 키움 */
     .day-grid { grid-template-columns: 60px repeat(2, 1fr); }
-    .day-label { font-size: 12px; padding: 6px 4px; }
-    .day-check input[type="checkbox"] { width: 18px; height: 18px; }
+    .day-label { font-size: 13px; padding: 6px 4px; }
+    .day-header { font-size: 12px; }
+    .day-check input[type="checkbox"] { width: 19px; height: 19px; }
 
     /* ── 검색 패널 ── */
     .search-panel { padding: 12px; }
     .search-panel .search-row { gap: 6px; }
     .search-panel input,
     .search-panel select {
-      font-size: 14px;
-      min-width: 100%;  /* 한 줄에 하나씩 */
+      font-size: 15px;
+      min-width: 100%;
     }
 
     /* ── 버튼 ── */
-    .btn { padding: 9px 14px; font-size: 13px; }
-    .btn.sm { padding: 6px 10px; font-size: 11px; }
-    .btn.full { padding: 12px; font-size: 14px; }
+    .btn { padding: 10px 15px; font-size: 14px; }
+    .btn.sm { padding: 7px 11px; font-size: 12px; }
+    .btn.full { padding: 13px; font-size: 15px; }
 
     /* ── 공지사항 카드 ── */
-    .notice-card { padding: 11px 12px; }
-    .notice-title { font-size: 13px; }
-    .notice-meta { font-size: 11px; gap: 6px; }
-    .notice-content { padding: 12px; font-size: 12px; }
+    .notice-card { padding: 12px 13px; }
+    .notice-title { font-size: 14px; }
+    .notice-meta { font-size: 12px; gap: 6px; }
+    .notice-content { padding: 13px; font-size: 13px; }
+    .priority-badge { font-size: 12px; padding: 3px 10px; }
 
     /* ── 댓글 폼 ── */
-    .comment-form textarea { font-size: 14px; min-height: 70px; }
+    .comment-form textarea { font-size: 15px; min-height: 75px; }
+    .comment-item { font-size: 14px; }
+    .comment-author { font-size: 13px; }
+    .comment-head { font-size: 12px; }
 
     /* ── 프로필 모달 ── */
-    .profile-row { padding: 6px 0; font-size: 12px; gap: 8px; }
-    .profile-row .lbl { min-width: 70px; font-size: 11px; }
+    .profile-row { padding: 7px 0; font-size: 13px; gap: 8px; }
+    .profile-row .lbl { min-width: 75px; font-size: 12px; }
+    .profile-section-title { font-size: 12px; }
 
-    /* ── 모달 푸터 (버튼) ── */
+    /* ── 배지 ── */
+    .badge { font-size: 12px; padding: 3px 10px; }
+
+    /* ── 정보 박스 ── */
+    .info-box { font-size: 13px; padding: 11px 14px; }
+
+    /* ── 모달 푸터 ── */
     .modal-footer {
       flex-direction: column-reverse;
       gap: 6px;
@@ -1023,23 +1054,33 @@
     .modal-footer .btn { width: 100%; }
 
     /* ── 푸터 ── */
-    .footer-credit { font-size: 10px; padding: 12px; }
+    .footer-credit { font-size: 11px; padding: 14px; }
 
-    /* ── 토스트 — 너비 자동 조정 ── */
+    /* ── 토스트 ── */
     .toast {
       max-width: calc(100vw - 32px);
       white-space: normal;
       text-align: center;
+      font-size: 14px;
     }
 
-    /* ── 콘텐츠 카드 헤더에서 버튼 길이 제한 ── */
+    /* ── 콘텐츠 카드 헤더 ── */
     .card-header { gap: 8px; flex-wrap: wrap; }
     .card-header .btn.sm { white-space: nowrap; }
 
     /* ── 사용설명서 ── */
-    .manual-section h4 { font-size: 13px; }
-    .manual-section h5 { font-size: 12px; }
-    .manual-section p, .manual-section li { font-size: 11px; }
+    .manual-section h4 { font-size: 14px; }
+    .manual-section h5 { font-size: 13px; }
+    .manual-section p, .manual-section li { font-size: 13px; line-height: 1.85; }
+    .manual-section .note,
+    .manual-section .warn,
+    .manual-section .danger { font-size: 13px; }
+    .manual-toc a { font-size: 13px; }
+
+    /* ── 로그인 화면 ── */
+    .login-logo h1 { font-size: 22px; }
+    .login-logo .sub { font-size: 13px; }
+    .tab { font-size: 14px; padding: 9px; }
   }
 
   /* ════════════════════════════════════════════════════════════
@@ -1047,10 +1088,10 @@
      ════════════════════════════════════════════════════════════ */
   @media (max-width: 380px) {
     .content { padding: 8px; }
-    .topbar .title small { display: none; }  /* 부제목 숨김 */
-    .nav-btn { padding: 6px 10px; font-size: 11px; }
+    .topbar .title small { display: none; }
+    .nav-btn { padding: 7px 11px; font-size: 12px; }
     .day-grid { grid-template-columns: 50px repeat(2, 1fr); }
-    .day-label { font-size: 11px; }
+    .day-label { font-size: 12px; }
   }
 
   /* ════════════════════════════════════════════════════════════
@@ -1333,7 +1374,7 @@
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
-      <span class="conn-status connecting" id="instConnStatus" title="연결 상태"><span class="conn-dot"></span><span id="instConnText">연결 중</span></span>
+      <span class="conn-status connecting" id="instConnStatus" title="연결 상태"><span class="conn-dot"></span><span class="conn-text" id="instConnText">연결 중</span></span>
       <span class="user-chip" id="instTopName"></span>
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
@@ -1517,7 +1558,7 @@
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
-      <span class="conn-status connecting" id="adminConnStatus" title="연결 상태"><span class="conn-dot"></span><span id="adminConnText">연결 중</span></span>
+      <span class="conn-status connecting" id="adminConnStatus" title="연결 상태"><span class="conn-dot"></span><span class="conn-text" id="adminConnText">연결 중</span></span>
       <span class="badge admin" id="adminTopName"></span>
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
