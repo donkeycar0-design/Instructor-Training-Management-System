@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>티치포퓨처 강사/연수 관리시스템</title>
+<title>티치포퓨처 강사/연수 관리</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- ══════════════════════════════════════════════════════════════════
@@ -799,59 +799,59 @@
   @media (max-width: 600px) {
 
     /* ── 기본 본문 글자 키움 ── */
-    body { font-size: 15px; line-height: 1.65; }
+    body { font-size: 16px; line-height: 1.7; }
 
     /* ── 기본 레이아웃 ── */
-    .content { padding: 10px; max-width: 100%; }
-    .card { padding: 14px; margin-bottom: 12px; border-radius: 8px; }
+    .content { padding: 12px; max-width: 100%; }
+    .card { padding: 16px; margin-bottom: 13px; border-radius: 8px; }
     .modal {
-      padding: 16px;
+      padding: 18px;
       max-height: 92vh;
       max-width: 100%;
       border-radius: 12px 12px 0 0;
       margin: auto 0 0;  /* 하단 고정 시트 느낌 */
     }
     .modal-bg { padding: 0; align-items: flex-end; }
-    .modal h3 { font-size: 18px; }
+    .modal h3 { font-size: 19px; }
 
     /* ── 상단바 압축 (단, 글자는 살짝 키움) ── */
-    .topbar { padding: 0 10px; height: 50px; }
-    .topbar .title { font-size: 13px; gap: 5px; }
-    .topbar .title small { font-size: 10px; }
-    .topbar-right { gap: 6px; }
+    .topbar { padding: 0 12px; height: 52px; }
+    .topbar .title { font-size: 14px; gap: 5px; }
+    .topbar .title small { font-size: 11px; }
+    .topbar-right { gap: 7px; }
 
     /* 모바일에선 연결 텍스트 숨김, 점만 표시 */
     .conn-status {
       padding: 4px;
       border-radius: 50%;
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       gap: 0;
       justify-content: center;
     }
     .conn-status .conn-text { display: none; }
-    .conn-status .conn-dot { width: 8px; height: 8px; }
+    .conn-status .conn-dot { width: 9px; height: 9px; }
 
-    .user-chip { font-size: 11px; padding: 3px 8px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .topbar .btn.sm { padding: 4px 9px; font-size: 12px; }
+    .user-chip { font-size: 12px; padding: 4px 9px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar .btn.sm { padding: 5px 10px; font-size: 13px; }
 
-    /* ── 탭 메뉴 — 핵심 개선 ── */
+    /* ── 탭 메뉴 ── */
     .nav {
-      padding: 6px 10px;
-      gap: 4px;
+      padding: 7px 11px;
+      gap: 5px;
       -webkit-overflow-scrolling: touch;
       scroll-behavior: smooth;
       scrollbar-width: none;
       -ms-overflow-style: none;
       mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 32px), transparent);
       -webkit-mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 32px), transparent);
-      padding-right: 44px;
+      padding-right: 46px;
       position: relative;
     }
     .nav::-webkit-scrollbar { display: none; }
     .nav-btn {
-      padding: 8px 13px;
-      font-size: 13px;
+      padding: 9px 14px;
+      font-size: 14px;
       font-weight: 500;
       flex-shrink: 0;
     }
@@ -860,7 +860,7 @@
       color: white;
     }
 
-    /* 햄버거 메뉴 버튼 (모바일 전용) */
+    /* 햄버거 메뉴 버튼 */
     .nav-menu-btn {
       display: flex;
       align-items: center;
@@ -869,12 +869,12 @@
       right: 6px;
       top: 50%;
       transform: translateY(-50%);
-      width: 36px; height: 36px;
+      width: 38px; height: 38px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
-      font-size: 19px;
+      font-size: 20px;
       cursor: pointer;
       z-index: 5;
       box-shadow: -8px 0 12px var(--surface);
@@ -892,7 +892,7 @@
       border-radius: 10px;
       box-shadow: 0 6px 20px rgba(0,0,0,0.12);
       z-index: 100;
-      min-width: 190px;
+      min-width: 200px;
       max-width: calc(100vw - 20px);
       overflow: hidden;
       margin-top: 4px;
@@ -901,11 +901,11 @@
     .nav-menu-dropdown button {
       display: block;
       width: 100%;
-      padding: 12px 15px;
+      padding: 13px 16px;
       border: none;
       background: transparent;
       color: var(--text);
-      font-size: 14px;
+      font-size: 15px;
       font-family: inherit;
       text-align: left;
       cursor: pointer;
@@ -920,13 +920,13 @@
       font-weight: 700;
     }
 
-    /* ── 달력 축소형 (모바일 전용) ── */
+    /* ── 달력 축소형 ── */
     .cal-day {
-      min-height: 44px;
+      min-height: 46px;
       padding: 3px 2px;
     }
     .cal-day .day-num {
-      font-size: 11px;
+      font-size: 12px;
       margin-bottom: 1px;
       text-align: center;
     }
@@ -940,37 +940,37 @@
       border-left: none !important;
       display: block;
     }
-    .cal-day-hdr { font-size: 11px; padding: 3px 0 5px; }
-    .cal-month { font-size: 15px; min-width: 100px; }
-    .cal-nav button { width: 28px; height: 28px; font-size: 12px; }
+    .cal-day-hdr { font-size: 12px; padding: 4px 0 6px; }
+    .cal-month { font-size: 16px; min-width: 110px; }
+    .cal-nav button { width: 30px; height: 30px; font-size: 13px; }
 
     /* 모바일에서 선택된 날짜 일정 목록 */
     .mobile-day-events {
       display: none;
-      margin-top: 12px;
-      padding-top: 10px;
+      margin-top: 13px;
+      padding-top: 11px;
       border-top: 1px solid var(--border);
     }
     .mobile-day-events.show { display: block; }
     .mobile-day-events-title {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
       color: var(--blue);
-      margin-bottom: 8px;
+      margin-bottom: 9px;
     }
 
     /* ── 카드/일정 — 글자 키우고 세로 재정렬 ── */
-    .section-title { font-size: 15px; }
-    .ev-item { padding: 11px 0; }
-    .ev-title { font-size: 14px; }
-    .ev-meta { font-size: 12px; }
-    .ev-desc { font-size: 12px; }
-    .empty-msg { font-size: 14px; padding: 10px 0; }
+    .section-title { font-size: 16px; }
+    .ev-item { padding: 12px 0; }
+    .ev-title { font-size: 15px; }
+    .ev-meta { font-size: 13px; }
+    .ev-desc { font-size: 13px; }
+    .empty-msg { font-size: 15px; padding: 11px 0; }
 
-    .row-item { flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+    .row-item { flex-wrap: wrap; gap: 9px; padding: 13px 0; }
     .row-item button.btn.sm { width: 100%; margin-top: 4px; }
-    .inst-name { font-size: 15px; }
-    .inst-sub { font-size: 13px; }
+    .inst-name { font-size: 16px; }
+    .inst-sub { font-size: 14px; }
 
     /* 강사 검색·목록 카드 세로형 */
     .inst-info { width: 100%; }
@@ -979,119 +979,121 @@
     .app-row {
       flex-direction: column;
       align-items: flex-start;
-      gap: 6px;
-      font-size: 14px;
+      gap: 7px;
+      font-size: 15px;
     }
     .app-row .btn-grp { width: 100%; }
 
-    .admin-row { padding: 12px 0; font-size: 14px; }
+    .admin-row { padding: 13px 0; font-size: 15px; }
 
-    /* ── 폼 입력 — 모바일 친화 (16px 유지: iOS 줌 방지) ── */
+    /* ── 폼 입력 ── */
     .form-group input,
     .form-group select,
     .form-group textarea {
-      padding: 12px 14px;
-      font-size: 16px;
+      padding: 13px 14px;
+      font-size: 16px;  /* iOS 줌 방지: 16px 유지 */
     }
     .form-group label {
-      font-size: 12px;
-      margin-bottom: 6px;
+      font-size: 13px;
+      margin-bottom: 7px;
     }
-    .multi-row input { padding: 10px 12px; font-size: 15px; }
-    .multi-row span { font-size: 13px; }
-    .multi-input-group label { font-size: 12px; }
+    .multi-row input { padding: 11px 13px; font-size: 16px; }
+    .multi-row span { font-size: 14px; }
+    .multi-input-group label { font-size: 13px; }
 
-    /* 요일 그리드 — 라벨 좁히고 글자 키움 */
-    .day-grid { grid-template-columns: 60px repeat(2, 1fr); }
-    .day-label { font-size: 13px; padding: 6px 4px; }
-    .day-header { font-size: 12px; }
-    .day-check input[type="checkbox"] { width: 19px; height: 19px; }
+    /* 요일 그리드 */
+    .day-grid { grid-template-columns: 65px repeat(2, 1fr); }
+    .day-label { font-size: 14px; padding: 7px 5px; }
+    .day-header { font-size: 13px; }
+    .day-check input[type="checkbox"] { width: 20px; height: 20px; }
 
     /* ── 검색 패널 ── */
-    .search-panel { padding: 12px; }
-    .search-panel .search-row { gap: 6px; }
+    .search-panel { padding: 13px; }
+    .search-panel .search-row { gap: 7px; }
     .search-panel input,
     .search-panel select {
-      font-size: 15px;
+      font-size: 16px;
       min-width: 100%;
     }
 
     /* ── 버튼 ── */
-    .btn { padding: 10px 15px; font-size: 14px; }
-    .btn.sm { padding: 7px 11px; font-size: 12px; }
-    .btn.full { padding: 13px; font-size: 15px; }
+    .btn { padding: 11px 16px; font-size: 15px; }
+    .btn.sm { padding: 8px 12px; font-size: 13px; }
+    .btn.full { padding: 14px; font-size: 16px; }
 
     /* ── 공지사항 카드 ── */
-    .notice-card { padding: 12px 13px; }
-    .notice-title { font-size: 14px; }
-    .notice-meta { font-size: 12px; gap: 6px; }
-    .notice-content { padding: 13px; font-size: 13px; }
-    .priority-badge { font-size: 12px; padding: 3px 10px; }
+    .notice-card { padding: 13px 14px; }
+    .notice-title { font-size: 15px; }
+    .notice-meta { font-size: 13px; gap: 7px; }
+    .notice-content { padding: 14px; font-size: 14px; }
+    .priority-badge { font-size: 13px; padding: 3px 11px; }
 
     /* ── 댓글 폼 ── */
-    .comment-form textarea { font-size: 15px; min-height: 75px; }
-    .comment-item { font-size: 14px; }
-    .comment-author { font-size: 13px; }
-    .comment-head { font-size: 12px; }
+    .comment-form textarea { font-size: 16px; min-height: 78px; }
+    .comment-item { font-size: 15px; }
+    .comment-author { font-size: 14px; }
+    .comment-head { font-size: 13px; }
+    .comment-body { font-size: 14px; }
 
     /* ── 프로필 모달 ── */
-    .profile-row { padding: 7px 0; font-size: 13px; gap: 8px; }
-    .profile-row .lbl { min-width: 75px; font-size: 12px; }
-    .profile-section-title { font-size: 12px; }
+    .profile-row { padding: 8px 0; font-size: 14px; gap: 9px; }
+    .profile-row .lbl { min-width: 80px; font-size: 13px; }
+    .profile-section-title { font-size: 13px; }
 
     /* ── 배지 ── */
-    .badge { font-size: 12px; padding: 3px 10px; }
+    .badge { font-size: 13px; padding: 3px 11px; }
 
     /* ── 정보 박스 ── */
-    .info-box { font-size: 13px; padding: 11px 14px; }
+    .info-box { font-size: 14px; padding: 12px 15px; }
 
     /* ── 모달 푸터 ── */
     .modal-footer {
       flex-direction: column-reverse;
-      gap: 6px;
-      margin-top: 14px;
+      gap: 7px;
+      margin-top: 15px;
     }
     .modal-footer .btn { width: 100%; }
 
     /* ── 푸터 ── */
-    .footer-credit { font-size: 11px; padding: 14px; }
+    .footer-credit { font-size: 12px; padding: 15px; }
 
     /* ── 토스트 ── */
     .toast {
       max-width: calc(100vw - 32px);
       white-space: normal;
       text-align: center;
-      font-size: 14px;
+      font-size: 15px;
+      padding: 12px 20px;
     }
 
     /* ── 콘텐츠 카드 헤더 ── */
-    .card-header { gap: 8px; flex-wrap: wrap; }
+    .card-header { gap: 9px; flex-wrap: wrap; }
     .card-header .btn.sm { white-space: nowrap; }
 
     /* ── 사용설명서 ── */
-    .manual-section h4 { font-size: 14px; }
-    .manual-section h5 { font-size: 13px; }
-    .manual-section p, .manual-section li { font-size: 13px; line-height: 1.85; }
+    .manual-section h4 { font-size: 15px; }
+    .manual-section h5 { font-size: 14px; }
+    .manual-section p, .manual-section li { font-size: 14px; line-height: 1.85; }
     .manual-section .note,
     .manual-section .warn,
-    .manual-section .danger { font-size: 13px; }
-    .manual-toc a { font-size: 13px; }
+    .manual-section .danger { font-size: 14px; }
+    .manual-toc a { font-size: 14px; }
 
     /* ── 로그인 화면 ── */
-    .login-logo h1 { font-size: 22px; }
-    .login-logo .sub { font-size: 13px; }
-    .tab { font-size: 14px; padding: 9px; }
+    .login-logo h1 { font-size: 23px; }
+    .login-logo .sub { font-size: 14px; }
+    .tab { font-size: 15px; padding: 10px; }
   }
 
   /* ════════════════════════════════════════════════════════════
      매우 좁은 화면 (≤ 380px) — 노치/소형폰 대응
      ════════════════════════════════════════════════════════════ */
   @media (max-width: 380px) {
-    .content { padding: 8px; }
+    .content { padding: 10px; }
     .topbar .title small { display: none; }
-    .nav-btn { padding: 7px 11px; font-size: 12px; }
-    .day-grid { grid-template-columns: 50px repeat(2, 1fr); }
-    .day-label { font-size: 12px; }
+    .nav-btn { padding: 8px 12px; font-size: 13px; }
+    .day-grid { grid-template-columns: 55px repeat(2, 1fr); }
+    .day-label { font-size: 13px; }
   }
 
   /* ════════════════════════════════════════════════════════════
@@ -1333,7 +1335,7 @@
           <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6L23 9zm0 2.27L19.09 9 12 12.73 4.91 9zm-5 7.09l5 2.72 5-2.72v3.55L12 18.73l-5-2.82z"/>
         </svg>
       </div>
-      <h1>티치포퓨처 강사/연수 관리시스템</h1>
+      <h1>티치포퓨처 강사/연수 관리</h1>
       <p class="sub">Teach for Future — Instructor Management</p>
     </div>
     <div class="login-card">
@@ -1370,7 +1372,7 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      티치포퓨처 강사/연수 관리시스템
+      티치포퓨처 강사/연수 관리
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -1554,7 +1556,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      티치포퓨처 강사/연수 관리시스템
+      티치포퓨처 강사/연수 관리
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -1939,7 +1941,7 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-// 티치포퓨처 강사/연수 관리시스템 — Firebase 통합 버전
+// 티치포퓨처 강사/연수 관리 — Firebase 통합 버전
 // 데이터 흐름:
 //   1. 앱 시작 → DB.getAllX()로 초기 로드 → 메모리 상태 S에 저장
 //   2. onXChange 리스너로 실시간 동기화 → 다른 PC에서 변경되면 즉시 반영
@@ -3758,7 +3760,7 @@ function downloadBackupJson() {
   try {
     const backup = {
       _meta: {
-        app: '티치포퓨처 강사/연수 관리시스템',
+        app: '티치포퓨처 강사/연수 관리',
         version: BACKUP_VERSION,
         exportedAt: new Date().toISOString(),
         exportedBy: S.currentAdminName || 'unknown',
@@ -3893,7 +3895,7 @@ function downloadBackupExcel() {
     // 시트 6: 보고서 정보
     const infoRows = [
       ['항목','값'],
-      ['앱 이름', '티치포퓨처 강사/연수 관리시스템'],
+      ['앱 이름', '티치포퓨처 강사/연수 관리'],
       ['보고서 생성 시각', _fmtDateTime(new Date())],
       ['생성자', S.currentAdminName || ''],
       ['총 강사 수', Object.keys(S.instructors).length],
@@ -4163,7 +4165,7 @@ function renderManual() {
 
     <div class="manual-section" id="m-overview">
       <h4>1. 시스템 개요</h4>
-      <p><b>티치포퓨처 강사/연수 관리시스템</b>은 강사 정보·강의/연수 일정·신청 현황·공지사항을 통합 관리하는 웹 기반 시스템입니다.</p>
+      <p><b>티치포퓨처 강사/연수 관리</b>은 강사 정보·강의/연수 일정·신청 현황·공지사항을 통합 관리하는 웹 기반 시스템입니다.</p>
       <h5>주요 기능</h5>
       <ul>
         <li><b>강사 관리</b>: 강사 자체 등록 및 프로필 관리 (학력·경력·자격증·수업 가능 요일 등)</li>
@@ -4423,7 +4425,7 @@ function renderManual() {
 
     <hr style="border:none;border-top:1px solid var(--border);margin:24px 0 14px;">
     <div style="text-align:center;font-size:11px;color:var(--text-hint);">
-      티치포퓨처 강사/연수 관리시스템<br>
+      티치포퓨처 강사/연수 관리<br>
       AI코딩연구소 제작 · Kim Byeong-Du, Hong Sang-Jin
     </div>
   `;
