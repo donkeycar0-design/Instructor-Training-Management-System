@@ -1659,6 +1659,9 @@ async function initApp() {
   }
 
   try {
+    /* ⭐ Firestore 읽기 전에 먼저 익명 로그인 (보안 규칙 통과용) */
+    await window.DB.signIn();
+
     await runMigrationIfNeeded();
 
     showLoading('데이터 불러오는 중...');
