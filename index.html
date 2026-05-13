@@ -1454,7 +1454,19 @@
 
 <div class="modal-bg" id="profileModal">
   <div class="modal">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+    <!-- 1️⃣ 최상단: 액션 버튼 -->
+    <div style="display:flex;gap:8px;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <button class="btn" id="resetInstPwBtn">🔑 비밀번호 초기화</button>
+      <button class="btn danger" id="delInstBtn">강사 삭제</button>
+      <button class="btn" onclick="closeModal('profileModal')">닫기</button>
+    </div>
+
+    <!-- 2️⃣ 수업 / 연수 참여 이력 -->
+    <div class="section-title" style="font-size:13px;margin-bottom:10px;">수업 / 연수 참여 이력</div>
+    <div id="pmHistory"></div>
+
+    <!-- 3️⃣ 강사 이름 + 기본 정보 -->
+    <div style="display:flex;align-items:center;gap:12px;margin:1.25rem 0 1rem;padding-top:1rem;border-top:1px solid var(--border);">
       <div class="avatar" style="width:44px;height:44px;font-size:18px;" id="pmAvatar"></div>
       <div>
         <h3 style="margin-bottom:2px;" id="pmName"></h3>
@@ -1462,13 +1474,6 @@
       </div>
     </div>
     <div id="pmInfo"></div>
-    <div class="section-title" style="font-size:13px;margin:14px 0 10px;">수업 / 연수 참여 이력</div>
-    <div id="pmHistory"></div>
-    <div class="modal-footer">
-      <button class="btn" id="resetInstPwBtn">🔑 비밀번호 초기화</button>
-      <button class="btn danger" id="delInstBtn">강사 삭제</button>
-      <button class="btn" onclick="closeModal('profileModal')">닫기</button>
-    </div>
   </div>
 </div>
 
