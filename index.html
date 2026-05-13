@@ -2324,6 +2324,8 @@ function renderApprovalList() {
   updatePendingBadge();
 }
 
+
+
 async function approveInstructor(name) {
   if (!S.instructors[name]) return;
   const cur = getProfile(S.instructors[name]);
@@ -2335,18 +2337,29 @@ async function approveInstructor(name) {
 
   try {
     showLoading('승인 처리 중...');
-    await window.DB.updateInstructor(name, {
+    const updateData = {
       status: 'approved',
       approvedAt: new Date().toISOString(),
       approvedBy: S.currentAdminName || ''
-    });
+    };
+    await window.DB.updateInstructor(name, updateData);
+
+    // ⭐ 로컬 상태 즉시 반영 (onSnapshot 콜백을 기다리지 않음)
+    S.instructors[name] = { ...S.instructors[name], ...updateData };
+
     hideLoading();
     toast(`✓ '${name}' 강사가 승인되었습니다`, 'success');
+
+    // ⭐ 화면 즉시 갱신
+    renderApprovalList();
+    updatePendingBadge();
   } catch(e) {
     hideLoading();
     toast('승인 실패: ' + e.message, 'error');
   }
 }
+
+
 
 async function rejectInstructor(name) {
   if (!S.instructors[name]) return;
@@ -2354,18 +2367,28 @@ async function rejectInstructor(name) {
 
   try {
     showLoading('처리 중...');
-    await window.DB.updateInstructor(name, {
+    const updateData = {
       status: 'rejected',
       rejectedAt: new Date().toISOString(),
       rejectedBy: S.currentAdminName || ''
-    });
+    };
+    await window.DB.updateInstructor(name, updateData);
+
+    // ⭐ 로컬 상태 즉시 반영
+    S.instructors[name] = { ...S.instructors[name], ...updateData };
+
     hideLoading();
     toast(`'${name}' 강사 신청이 거절되었습니다`, 'success');
+
+    // ⭐ 화면 즉시 갱신
+    renderApprovalList();
+    updatePendingBadge();
   } catch(e) {
     hideLoading();
     toast('처리 실패: ' + e.message, 'error');
   }
 }
+
 
 // ══════════════════════════════════════════════════════════════════
 // Calendar
@@ -2932,8 +2955,21 @@ async function deleteInst(name) {
   showLoading('삭제 중...');
   try {
     await window.DB.deleteInstructor(name);
+
+    // ⭐ 로컬 상태 즉시 반영
+    delete S.instructors[name];
+
     hideLoading();
     closeModal('profileModal');
+
+    // ⭐ 현재 활성 페이지에 따라 화면 즉시 갱신
+    const apprPage = document.getElementById('apApproval');
+    if (apprPage && apprPage.classList.contains('active')) renderApprovalList();
+    const instListPage = document.getElementById('apInstructors');
+    if (instListPage && instListPage.classList.contains('active')) renderInstList();
+    const searchPage = document.getElementById('apSearch');
+    if (searchPage && searchPage.classList.contains('active')) searchInst();
+    updatePendingBadge();
   } catch(e) {
     hideLoading();
     toast('삭제 실패: ' + e.message, 'error');
