@@ -142,7 +142,7 @@
       }, (err) => console.error('notices listener error:', err));
     },
 
-    /* ⭐ NEW: 시스템 가중치 설정 Firebase 연동 */
+    /* ⭐ 시스템 가중치 설정 Firebase 연동 */
     async getGradeWeights() {
       try {
         const snap = await getDoc(doc(fdb, 'system', 'gradeWeights'));
@@ -1055,7 +1055,6 @@ function showIP(id, btn) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ⭐ MODIFIED: 메뉴 탭 전환 시 강사등급 (Grade) 비동기 처리 적용
 function showAP(id, btn) {
   document.querySelectorAll('#adminScreen .page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('#adminScreen .nav-btn').forEach(b => b.classList.remove('active'));
@@ -1071,7 +1070,6 @@ function showAP(id, btn) {
   if (id === 'Notices') renderAdminNotices();
   if (id === 'Approval') renderApprovalList();
   
-  // ⭐ Firebase에서 가중치 값을 가져온 후 리스트를 렌더링하도록 비동기(async) 처리
   if (id === 'Grade') { 
     loadGradeWeights().then(() => renderGradeList()); 
   } 
@@ -1302,11 +1300,87 @@ function searchInst() {
   });
 }
 
+// ⭐ 프로필 상세 정보 및 참여 이력, 비밀번호 초기화 기능 적용
 function openProfile(name) {
   const u = getProfile(S.instructors[name]);
+  
+  // 상단 이름 및 아바타 세팅
+  document.getElementById('pmAvatar').textContent = name.slice(0, 1);
   document.getElementById('pmName').textContent = name;
-  document.getElementById('pmInfo').innerHTML = `<div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email}</span></div> <div class="profile-row"><span class="lbl">전공</span><span class="val">${u.subject}</span></div>`;
-  document.getElementById('delInstBtn').onclick = async () => { if(confirm('삭제?')){ await window.DB.deleteInstructor(name); delete S.instructors[name]; closeModal('profileModal'); renderInstList(); } };
+  document.getElementById('pmSubject').textContent = u.subject || '전공/과목 미입력';
+
+  // 1. 배열 데이터(학력, 경력, 자격증) 빈 줄 제거 후 포맷팅
+  const eduStr = u.edu.filter(x => x.trim()).join('<br>') || '-';
+  const carStr = u.career.filter(x => x.trim()).join('<br>') || '-';
+  const certStr = u.certs.filter(x => x.trim()).join('<br>') || '-';
+
+  // 2. 수업 가능 요일 포맷팅
+  const daysArr = [];
+  DAYS.forEach(d => {
+    let am = u.days[d.key + '_am'] ? '오전' : '';
+    let pm = u.days[d.key + '_pm'] ? '오후' : '';
+    if(am && pm) daysArr.push(`${d.label}(종일)`);
+    else if(am) daysArr.push(`${d.label}(오전)`);
+    else if(pm) daysArr.push(`${d.label}(오후)`);
+  });
+  const daysStr = daysArr.length > 0 ? daysArr.join(', ') : '-';
+
+  // 3. 프로필 상세 정보 렌더링
+  document.getElementById('pmInfo').innerHTML = `
+    <div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email || '-'}</span></div>
+    <div class="profile-row"><span class="lbl">연락처</span><span class="val">${u.phone || '-'}</span></div>
+    <div class="profile-row"><span class="lbl">주소</span><span class="val">${u.addr || '-'}</span></div>
+    <div class="profile-row"><span class="lbl">차량유무</span><span class="val">${u.carOwn || '-'}</span></div>
+    <div class="profile-row"><span class="lbl">학력</span><span class="val" style="line-height:1.5;">${eduStr}</span></div>
+    <div class="profile-row"><span class="lbl">경력</span><span class="val" style="line-height:1.5;">${carStr}</span></div>
+    <div class="profile-row"><span class="lbl">자격증</span><span class="val" style="line-height:1.5;">${certStr}</span></div>
+    <div class="profile-row"><span class="lbl">가능 요일</span><span class="val">${daysStr}</span></div>
+    <div class="profile-row"><span class="lbl">자기 어필</span><span class="val" style="white-space:pre-wrap; line-height:1.6;">${u.appeal || '-'}</span></div>
+  `;
+
+  // 4. 수업 / 연수 참여 이력 렌더링 (승인된 일정만 표시)
+  const historyDiv = document.getElementById('pmHistory');
+  const approvedApps = Object.entries(u.applications || {}).filter(([evId, status]) => status === 'approved');
+  
+  if (approvedApps.length === 0) {
+    historyDiv.innerHTML = '<div class="empty-msg">참여 이력이 없습니다.</div>';
+  } else {
+    historyDiv.innerHTML = '';
+    approvedApps.forEach(([evId]) => {
+      const ev = S.events.find(e => e._id === evId);
+      if (ev) {
+        const d = document.createElement('div');
+        d.style.padding = '8px 0';
+        d.style.borderBottom = '1px solid var(--border)';
+        d.style.fontSize = '12px';
+        d.innerHTML = `<div style="font-weight:500;">[${ev.type}] ${ev.title}</div><div style="color:var(--text-sub);margin-top:2px;">${ev.date} · ${ev.place || '-'}</div>`;
+        historyDiv.appendChild(d);
+      }
+    });
+  }
+
+  // 5. 하단 버튼 이벤트 연결
+  document.getElementById('delInstBtn').onclick = async () => { 
+    if(confirm('이 강사 계정을 완전히 삭제하시겠습니까?')){ 
+      await window.DB.deleteInstructor(name); 
+      delete S.instructors[name]; 
+      closeModal('profileModal'); 
+      renderInstList(); 
+    } 
+  };
+
+  const resetBtn = document.getElementById('resetInstPwBtn');
+  if (resetBtn) {
+    resetBtn.onclick = async () => {
+      if(confirm('비밀번호를 임시 비밀번호인 \\'123456\\'으로 초기화하시겠습니까?')) {
+        const hashed = await hashPw('123456');
+        await window.DB.updateInstructor(name, { pw: hashed });
+        S.instructors[name].pw = hashed;
+        toast('비밀번호가 123456으로 초기화되었습니다.', 'success');
+      }
+    };
+  }
+
   openModal('profileModal');
 }
 
@@ -1364,7 +1438,7 @@ function downloadBackupJson() {}
 function downloadBackupExcel() {}
 function handleRestoreFileSelect(e) {}
 
-// ⭐ MODIFIED: Firebase Firestore에 가중치 저장 및 불러오기
+// ⭐ Firebase Firestore에 가중치 저장 및 불러오기
 async function saveGradeWeightsToDB() {
   const weights = {
     univ: parseFloat(document.getElementById('wUniv').value) || 0,
@@ -1397,7 +1471,7 @@ async function loadGradeWeights() {
   }
 }
 
-// ⭐ MODIFIED: DB 저장 대기를 위해 비동기(async)로 변경
+// ⭐ DB 저장 대기를 위해 비동기(async)로 변경
 async function renderGradeList() {
   const list = document.getElementById('gradeResultList');
   if (!list) return;
