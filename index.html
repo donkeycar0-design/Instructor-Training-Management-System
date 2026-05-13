@@ -3582,3 +3582,70 @@ async function executeRestore() {
     for (const [name, profile] of Object.entries(data.instructors)) await window.DB.saveInstructor(name, profile);
     for (const ev of data.events) { const { _id, ...evData } = ev; if (_id) await window.DB.updateEvent(_id, evData); else await window.DB.addEvent(evData); }
     for (const n of (data.notices||[])) { const { _id, ...nData } = n; if (_id) await window.DB.updateNotice(_id저는 언어 모델일 뿐이라서 그것을 도와드릴 수가 없습니다.
+
+
+        async function executeRestore() {
+  if (!_pendingRestoreData) return;
+  closeModal('restoreModal');
+  showLoading('복원 진행 중...');
+  try {
+    const data = _pendingRestoreData;
+    for (const name of Object.keys(S.instructors)) await window.DB.deleteInstructor(name);
+    for (const ev of S.events) await window.DB.deleteEvent(ev._id);
+    for (const n of S.notices) await window.DB.deleteNotice(n._id);
+    for (const name of Object.keys(S.admins)) { if (name !== S.currentAdminName) await window.DB.deleteAdmin(name); }
+    for (const [name, profile] of Object.entries(data.instructors)) await window.DB.saveInstructor(name, profile);
+    for (const ev of data.events) { const { _id, ...evData } = ev; if (_id) await window.DB.updateEvent(_id, evData); else await window.DB.addEvent(evData); }
+    for (const n of (data.notices||[])) { const { _id, ...nData } = n; if (_id) await window.DB.updateNotice(_id, nData); else await window.DB.addNotice(nData); }
+    for (const [name, pw] of Object.entries(data.admins)) { await window.DB.setAdmin(name, pw); }
+    
+    cancelRestore();
+    hideLoading();
+    toast('복원이 완료되었습니다. 시스템을 새로고침합니다.', 'success');
+    setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    hideLoading();
+    toast('복원 실패: ' + e.message, 'error');
+  }
+}
+
+function toggleManual() {
+  const content = document.getElementById('manualContent');
+  const btn = document.getElementById('manualToggleBtn');
+  if (content.style.display === 'none') {
+    renderManual();
+    content.style.display = 'block';
+    btn.textContent = '접어 두기';
+  } else {
+    content.style.display = 'none';
+    btn.textContent = '펼쳐 보기';
+  }
+}
+
+function renderManualIfShown() {
+  const content = document.getElementById('manualContent');
+  if (content && content.style.display !== 'none') {
+    renderManual();
+  }
+}
+
+function renderManual() {
+  const content = document.getElementById('manualContent');
+  content.innerHTML = `
+    <div style="font-size:13px; line-height:1.7;">
+      <div style="margin-bottom:12px;"><b>[티치포퓨처 강사 플랫폼 관리자 매뉴얼]</b></div>
+      <ul style="padding-left:20px; margin-bottom:12px;">
+        <li><b>강사 승인:</b> 신규 가입한 강사는 '강사 승인' 메뉴에서 승인해야 로그인할 수 있습니다.</li>
+        <li><b>일정 관리:</b> 캘린더나 일정 탭에서 '+ 일정 추가'를 눌러 일정을 등록하세요.</li>
+        <li><b>공지사항:</b> 중요도(일반/중요/긴급)를 설정하여 공지를 등록할 수 있습니다.</li>
+        <li><b>시스템 설정 (백업/복원):</b> 정기적으로 전체 데이터를 JSON으로 백업해 두는 것을 권장합니다.</li>
+      </ul>
+    </div>
+  `;
+}
+
+// 앱 초기화 실행
+window.addEventListener('db-ready', initApp);
+</script>
+</body>
+</html>
