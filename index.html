@@ -466,8 +466,8 @@
   }
 
   .inst-info { flex: 1; min-width: 0; }
-  .inst-name { font-size: 14px; font-weight: 500; }
-  .inst-sub { font-size: 12px; color: var(--text-sub); margin-top: 1px; }
+  .inst-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; flex-wrap: wrap; }
+  .inst-sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
 
   /* ── Calendar ── */
   .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -1814,7 +1814,7 @@ async function loginInst() {
       showErr(
         '✅ 가입 신청이 접수되었습니다!\n' +
         `'${name}' 님의 신청이 관리자에게 전달되었습니다.\n` +
-        '관리자가 승인하면 등록하신 비밀번호로 로그인할 수 있습니다.',
+        '관리자가 승인하면 등록하신 비밀번호로 로그인할 수 일습니다.',
         'success'
       );
       return;
@@ -2699,7 +2699,7 @@ async function saveEvent() {
   const endTime = document.getElementById('evEnd').value;
   if (!title || !date) { alert('제목과 날짜를 입력하세요.'); return; }
   if (startTime && endTime && startTime > endTime) {
-    alert('종료 시간은 시작 시간보다 빠를 수 없습니다.'); return;
+    alert('종료 시간은 시작 시간보다 빠를 수 정 없습니다.'); return;
   }
   const data = {
     type: document.getElementById('evType').value,
@@ -2803,11 +2803,20 @@ function renderInstList() {
   div.innerHTML = '';
   names.forEach(name => {
     const u = getProfile(S.instructors[name]);
+    
+    // ⭐ 해당 강사가 '승인(approved)' 받은 일정의 개수를 셉니다.
+    const approvedCount = Object.values(u.applications || {}).filter(status => status === 'approved').length;
+
     const row = document.createElement('div'); row.className = 'row-item';
     row.innerHTML = `
       <div class="avatar">${name.slice(0,1)}</div>
       <div class="inst-info">
-        <div class="inst-name">${name}</div>
+        <div class="inst-name">
+          ${name}
+          <span class="badge" style="margin-left:6px; background:var(--blue-light); color:var(--blue); font-size:10px; padding:2px 8px;">
+            🏆 참여 ${approvedCount}회
+          </span>
+        </div>
         <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
       </div>
       <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
@@ -2876,19 +2885,29 @@ function searchInst() {
   div.innerHTML = `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">검색 결과 ${matches.length}명</div>`;
   matches.forEach(name => {
     const u = getProfile(S.instructors[name]);
+    
+    // ⭐ 검색 결과에서도 참여 횟수 표시
+    const approvedCount = Object.values(u.applications || {}).filter(status => status === 'approved').length;
+
     const dayTags = DAYS.flatMap(d => {
       const tags = [];
       if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin-right:3px;">${d.label} 오전</span>`);
       if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin-right:3px;">${d.label} 오후</span>`);
       return tags;
     }).join('');
+    
     const row = document.createElement('div'); row.className = 'row-item';
     row.style.flexWrap = 'wrap';
     row.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
         <div class="avatar">${name.slice(0,1)}</div>
         <div class="inst-info">
-          <div class="inst-name">${name}</div>
+          <div class="inst-name">
+            ${name}
+            <span class="badge" style="margin-left:6px; background:var(--blue-light); color:var(--blue); font-size:10px; padding:2px 8px;">
+              🏆 참여 ${approvedCount}회
+            </span>
+          </div>
           <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
           ${dayTags ? `<div style="margin-top:4px;">${dayTags}</div>` : ''}
         </div>
