@@ -2345,7 +2345,7 @@ async function approveInstructor(name) {
       approvedBy: adminName
     });
 
-    // ② 로컬 데이터 즉시 동기화 (화면 즉시 반영의 핵심)
+    // ② 로컬 데이터 즉시 동기화
     S.instructors[name].status = 'approved';
     S.instructors[name].approvedAt = now;
     S.instructors[name].approvedBy = adminName;
@@ -2962,11 +2962,28 @@ function openProfile(name) {
 
 async function deleteInst(name) {
   if (!confirm(`'${name}' 강사를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  
   showLoading('삭제 중...');
   try {
+    // ① Firebase DB에서 강사 삭제
     await window.DB.deleteInstructor(name);
+    
+    // ② 로컬 데이터에서 즉시 제거 (화면 즉각 반영의 핵심)
+    if (S.instructors[name]) {
+      delete S.instructors[name];
+    }
+
+    // ③ UI 리스트 및 화면 수동 강제 새로고침
+    renderApprovalList(); // '거절된 신청 내역' 및 대기 목록 갱신
+    renderInstList();     // '강사 목록' 탭 갱신
+    updatePendingBadge(); // 뱃지 숫자 갱신
+
     hideLoading();
-    closeModal('profileModal');
+    
+    // 강사 프로필 모달 안에서 삭제버튼을 누른 경우를 위해 모달 닫기 유지
+    closeModal('profileModal'); 
+    
+    toast(`✓ '${name}' 강사가 완전 삭제되었습니다.`, 'success');
   } catch(e) {
     hideLoading();
     toast('삭제 실패: ' + e.message, 'error');
