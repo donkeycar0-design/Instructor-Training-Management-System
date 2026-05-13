@@ -794,15 +794,23 @@
   .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #ddd; flex-shrink: 0; transition: width 0.3s, height 0.3s; }
   .conn-status.online .conn-dot {
     width: 10px; height: 10px;
-    background: #5BD25B;
-    animation: onlinePulse 1.8s ease-in-out infinite;
+    background: #4ADE80; /* 조금 더 밝고 선명한 초록색으로 변경 */
+    animation: onlinePulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite; /* 깜빡임 속도와 리듬감 조정 */
   }
   .conn-status.offline .conn-dot { background: #FF6B6B; }
   .conn-status.connecting .conn-dot { background: #FFC857; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  
+  /* 확실하게 점멸하는 새로운 효과 */
   @keyframes onlinePulse {
-    0%, 100% { box-shadow: 0 0 4px #5BD25B, 0 0 0 0 rgba(91, 210, 91, 0.55); }
-    50% { box-shadow: 0 0 10px #5BD25B, 0 0 0 5px rgba(91, 210, 91, 0); }
+    0%, 100% {
+      opacity: 1;
+      box-shadow: 0 0 8px #4ADE80, 0 0 0 0 rgba(74, 222, 128, 0.7);
+    }
+    50% {
+      opacity: 0.25; /* 확실하게 어두워지며 점멸 */
+      box-shadow: 0 0 2px #4ADE80, 0 0 0 8px rgba(74, 222, 128, 0); /* 불빛이 링 형태로 퍼지며 사라짐 */
+    }
   }
 
   .loading-overlay {
