@@ -131,7 +131,6 @@ async function initApp() {
 
   try {
     await window.DB.signIn();
-
     await runMigrationIfNeeded();
 
     showLoading('데이터 불러오는 중...');
@@ -198,6 +197,8 @@ function onDataChanged(source) {
     if (instListPage && instListPage.classList.contains('active')) renderInstList();
     const searchPage = document.getElementById('apSearch');
     if (searchPage && searchPage.classList.contains('active')) searchInst();
+    const gradePage = document.getElementById('apGrade');
+    if (gradePage && gradePage.classList.contains('active')) renderGradeTab();
     const settingsPage = document.getElementById('apSettings');
     if (settingsPage && settingsPage.classList.contains('active')) renderAdminList();
     const notPage = document.getElementById('apNotices');
@@ -257,15 +258,10 @@ async function loginInst() {
     } else {
       const newProfile = {
         pw: hashedPw, name, email:'', phone:'', addr:'', subject:'',
-        edu: ['','',''],
-        career: ['','','','',''],
-        certs: ['','','','',''],
-        days: {},
-        carOwn: '',
-        appeal: '',
-        applications: {},
-        status: 'pending',
-        registeredAt: new Date().toISOString()
+        eduLevel: '', isMajor: '', manualScore: 0,
+        edu: ['','',''], career: ['','','','',''], certs: ['','','','',''],
+        days: {}, carOwn: '', appeal: '', applications: {},
+        status: 'pending', registeredAt: new Date().toISOString()
       };
       await window.DB.signIn();
       await window.DB.saveInstructor(name, newProfile);
@@ -402,6 +398,8 @@ function showAP(id, btn) {
   if (id === 'Calendar') { renderCal(); renderMonthList(); }
   if (id === 'Schedule') renderAdminSchedule();
   if (id === 'Instructors') renderInstList();
+  if (id === 'Search') searchInst();
+  if (id === 'Grade') renderGradeTab();
   if (id === 'Settings') renderAdminList();
   if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
   if (id === 'Notices') renderAdminNotices();
@@ -433,6 +431,10 @@ function getProfile(u) {
   if (!u.appeal) u.appeal = '';
   if (!u.applications) u.applications = {};
   if (!u.status) u.status = 'approved';
+  // 새로 추가된 필드 기본값
+  if (!u.eduLevel) u.eduLevel = ''; 
+  if (u.isMajor === undefined) u.isMajor = '';
+  if (typeof u.manualScore !== 'number') u.manualScore = 0;
   return u;
 }
 
@@ -444,6 +446,11 @@ function loadInstProfile() {
   document.getElementById('pPhone').value = u.phone || '';
   document.getElementById('pAddr').value = u.addr || '';
   document.getElementById('pSubject').value = u.subject || '';
+  
+  // 새 필드 불러오기
+  document.getElementById('pEduLevel').value = u.eduLevel || '';
+  document.getElementById('pIsMajor').value = u.isMajor !== '' ? String(u.isMajor) : '';
+
   for (let i = 0; i < 3; i++) document.getElementById(`pEdu${i+1}`).value = u.edu[i] || '';
   for (let i = 0; i < 5; i++) document.getElementById(`pCar${i+1}`).value = u.career[i] || '';
   for (let i = 0; i < 5; i++) document.getElementById(`pCert${i+1}`).value = u.certs[i] || '';
@@ -464,6 +471,12 @@ async function saveProfile() {
   u.phone = document.getElementById('pPhone').value;
   u.addr = document.getElementById('pAddr').value;
   u.subject = document.getElementById('pSubject').value;
+  
+  // 새 필드 저장
+  u.eduLevel = document.getElementById('pEduLevel').value;
+  const majorVal = document.getElementById('pIsMajor').value;
+  u.isMajor = majorVal === 'true' ? true : majorVal === 'false' ? false : '';
+
   u.edu = [1,2,3].map(i => document.getElementById(`pEdu${i}`).value.trim());
   u.career = [1,2,3,4,5].map(i => document.getElementById(`pCar${i}`).value.trim());
   u.certs = [1,2,3,4,5].map(i => document.getElementById(`pCert${i}`).value.trim());
@@ -1075,7 +1088,7 @@ async function saveEvent() {
   const endTime = document.getElementById('evEnd').value;
   if (!title || !date) { alert('제목과 날짜를 입력하세요.'); return; }
   if (startTime && endTime && startTime > endTime) {
-    alert('종료 시간은 시작 시간보다 빠를 수 정 없습니다.'); return;
+    alert('종료 시간은 시작 시간보다 빠를 수 없습니다.'); return;
   }
   const data = {
     type: document.getElementById('evType').value,
@@ -1291,8 +1304,10 @@ function openProfile(name) {
     <div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email||'-'}</span></div>
     <div class="profile-row"><span class="lbl">연락처</span><span class="val">${u.phone||'-'}</span></div>
     <div class="profile-row"><span class="lbl">주소</span><span class="val">${u.addr||'-'}</span></div>
+    <div class="profile-row"><span class="lbl">학력(등급용)</span><span class="val">${u.eduLevel||'-'}</span></div>
+    <div class="profile-row"><span class="lbl">전공(등급용)</span><span class="val">${u.isMajor === true ? '전공자' : u.isMajor === false ? '비전공자' : '-'}</span></div>
     <div class="profile-row"><span class="lbl">차량 유무</span><span class="val">${u.carOwn||'-'}</span></div>
-    <div class="profile-section-title">학력</div>
+    <div class="profile-section-title">학력(상세)</div>
     <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.edu)}</span></div>
     <div class="profile-section-title">경력</div>
     <div class="profile-row"><span class="val" style="min-width:0;">${formatList(u.career)}</span></div>
@@ -1750,7 +1765,7 @@ function exportInstExcel() {
   const approvedNames = Object.keys(S.instructors).filter(n => (S.instructors[n].status || 'approved') === 'approved');
   if (!approvedNames.length) { alert('승인된 강사가 없습니다.'); return; }
   const dayHeaders = DAYS.flatMap(d => [`${d.label}오전`, `${d.label}오후`]);
-  const rows = [['이름','이메일','연락처','주소','차량유무','학력1','학력2','학력3','경력1','경력2','경력3','경력4','경력5','자격증1','자격증2','자격증3','자격증4','자격증5','전공/과목',...dayHeaders,'어필','총 신청수']];
+  const rows = [['이름','이메일','연락처','주소','차량유무','최종학력','관련전공여부','학력1','학력2','학력3','경력1','경력2','경력3','경력4','경력5','자격증1','자격증2','자격증3','자격증4','자격증5','전공/과목',...dayHeaders,'어필','총 신청수']];
   approvedNames.forEach(name => {
     const u = getProfile(S.instructors[name]);
     const apps = Object.entries(u.applications || {});
@@ -1761,6 +1776,7 @@ function exportInstExcel() {
     ]);
     rows.push([
       name, u.email||'', u.phone||'', u.addr||'', u.carOwn||'',
+      u.eduLevel||'', u.isMajor === true ? '전공' : u.isMajor === false ? '비전공' : '',
       ...(u.edu || ['','','']),
       ...(u.career || ['','','','','']),
       ...(u.certs || ['','','','','']),
@@ -1850,12 +1866,12 @@ function downloadBackupExcel() {
   try {
     const wb = XLSX.utils.book_new();
     const dayHeaders = DAYS.flatMap(d => [`${d.label}오전`, `${d.label}오후`]);
-    const instRows = [['이름','상태','이메일','연락처','주소','차량유무','전공/과목','학력1','학력2','학력3','경력1','경력2','경력3','경력4','경력5','자격증1','자격증2','자격증3','자격증4','자격증5',...dayHeaders,'어필']];
+    const instRows = [['이름','상태','이메일','연락처','주소','차량유무','전공/과목','최종학력','관련전공여부','학력1','학력2','학력3','경력1','경력2','경력3','경력4','경력5','자격증1','자격증2','자격증3','자격증4','자격증5',...dayHeaders,'어필']];
     Object.entries(S.instructors).sort().forEach(([name, rawU]) => {
       const u = getProfile(rawU);
       const dayVals = DAYS.flatMap(d => [u.days[d.key+'_am'] ? 'O' : '', u.days[d.key+'_pm'] ? 'O' : '']);
       const statusKr = u.status === 'approved' ? '승인됨' : u.status === 'pending' ? '대기중' : '거절됨';
-      instRows.push([name, statusKr, u.email||'', u.phone||'', u.addr||'', u.carOwn||'', u.subject||'', ...(u.edu||['','','']), ...(u.career||['','','','','']), ...(u.certs||['','','','','']), ...dayVals, u.appeal||'']);
+      instRows.push([name, statusKr, u.email||'', u.phone||'', u.addr||'', u.carOwn||'', u.subject||'', u.eduLevel||'', u.isMajor === true ? '전공' : u.isMajor === false ? '비전공' : '', ...(u.edu||['','','']), ...(u.career||['','','','','']), ...(u.certs||['','','','','']), ...dayVals, u.appeal||'']);
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instRows), '강사목록');
 
@@ -2002,7 +2018,128 @@ function renderManual() {
   `;
 }
 
-// Global 함수 매핑 (HTML의 onclick 속성에서 호출할 수 있도록 설정)
+// ══════════════════════════════════════════════════════════════════
+// 강사 등급 시스템 (계산 및 UI 렌더링)
+// ══════════════════════════════════════════════════════════════════
+
+async function renderGradeTab() {
+  const tbody = document.getElementById('gradingTableBody');
+  if (!tbody) return;
+
+  // 1. 가중치 설정 불러오기
+  const config = await window.DB.getGradingConfig();
+  document.getElementById('wUni').value = config.wUni;
+  document.getElementById('wGrad').value = config.wGrad;
+  document.getElementById('wCar').value = config.wCar;
+  document.getElementById('wMajor').value = config.wMajor;
+  document.getElementById('wClass').value = config.wClass;
+
+  // 2. 승인된 강사 목록 가져오기 및 점수 계산
+  let list = [];
+  Object.keys(S.instructors).forEach(name => {
+    const u = getProfile(S.instructors[name]);
+    if (u.status !== 'approved') return;
+
+    // 참여 횟수 계산 ('approved' 된 수업만 카운트)
+    const classCount = Object.values(u.applications || {}).filter(st => st === 'approved').length;
+
+    // 시스템 점수 계산
+    let sysScore = 0;
+    if (u.eduLevel === '대졸') sysScore += Number(config.wUni);
+    if (u.eduLevel === '대학원졸') sysScore += Number(config.wGrad);
+    if (u.carOwn === '있음') sysScore += Number(config.wCar);
+    if (u.isMajor === true) sysScore += Number(config.wMajor);
+    sysScore += (classCount * Number(config.wClass));
+
+    const total = sysScore + (Number(u.manualScore) || 0);
+
+    list.push({
+      name: name,
+      eduLevel: u.eduLevel || '-',
+      isMajor: u.isMajor === true ? '전공' : u.isMajor === false ? '비전공' : '-',
+      carOwn: u.carOwn || '-',
+      classCount: classCount,
+      sysScore: sysScore,
+      manualScore: u.manualScore || 0,
+      total: total
+    });
+  });
+
+  // 3. 총점(Total) 기준 내림차순 정렬
+  list.sort((a, b) => b.total - a.total);
+
+  // 4. 테이블 그리기
+  tbody.innerHTML = '';
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg" style="text-align:center; padding:20px;">평가할 강사가 없습니다.</td></tr>';
+    return;
+  }
+
+  list.forEach((item, idx) => {
+    // 1~3등은 순위 뱃지 스타일링
+    const rankBadge = idx < 3 ? `<span class="badge" style="background:var(--amber);color:white;">${idx + 1}위</span>` : `${idx + 1}위`;
+    
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:10px;">${rankBadge}</td>
+      <td style="padding:10px; font-weight:500;">${item.name}</td>
+      <td style="padding:10px; font-size:12px; color:var(--text-sub);">
+        학력:${item.eduLevel} / ${item.isMajor} / 차량:${item.carOwn} / 수업:${item.classCount}회
+        <br><span style="color:var(--text); font-weight:500;">(자동 ${item.sysScore}점)</span>
+      </td>
+      <td style="padding:10px;">
+        <input type="number" id="manual_${item.name}" value="${item.manualScore}" style="width:60px; padding:4px; border:1px solid var(--border); border-radius:4px;"> 점
+      </td>
+      <td style="padding:10px; font-weight:700; color:var(--blue); font-size:15px;">${item.total}</td>
+      <td style="padding:10px;">
+        <button class="btn sm" onclick="saveManualScore('${item.name.replace(/'/g, "\\'")}')">수정 반영</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// 가중치 저장 기능
+async function saveGradingWeights() {
+  const config = {
+    wUni: Number(document.getElementById('wUni').value) || 0,
+    wGrad: Number(document.getElementById('wGrad').value) || 0,
+    wCar: Number(document.getElementById('wCar').value) || 0,
+    wMajor: Number(document.getElementById('wMajor').value) || 0,
+    wClass: Number(document.getElementById('wClass').value) || 0
+  };
+  
+  showLoading('가중치 저장 중...');
+  try {
+    await window.DB.saveGradingConfig(config);
+    hideLoading();
+    toast('가중치가 저장되고 점수가 재계산되었습니다.', 'success');
+    renderGradeTab();
+  } catch(e) {
+    hideLoading();
+    toast('저장 실패: ' + e.message, 'error');
+  }
+}
+
+// 개별 강사 정성 평가 점수 저장 기능
+async function saveManualScore(name) {
+  const inputEl = document.getElementById(`manual_${name}`);
+  if (!inputEl) return;
+  const newScore = Number(inputEl.value) || 0;
+
+  try {
+    await window.DB.updateInstructor(name, { manualScore: newScore });
+    // 로컬 데이터 즉시 업데이트
+    if (S.instructors[name]) S.instructors[name].manualScore = newScore;
+    toast(`${name} 강사의 평가 점수가 반영되었습니다.`, 'success');
+    renderGradeTab();
+  } catch(e) {
+    toast('점수 반영 실패: ' + e.message, 'error');
+  }
+}
+
+// Global 함수 매핑
 window.loginInst = loginInst;
 window.openAdminLoginModal = openAdminLoginModal;
 window.loginAdmin = loginAdmin;
@@ -2049,6 +2186,9 @@ window.toggleManual = toggleManual;
 window.searchInst = searchInst;
 window.openModal = openModal;
 window.closeModal = closeModal;
+window.renderGradeTab = renderGradeTab;
+window.saveGradingWeights = saveGradingWeights;
+window.saveManualScore = saveManualScore;
 
 window.addEventListener('DOMContentLoaded', () => {
   initApp();
