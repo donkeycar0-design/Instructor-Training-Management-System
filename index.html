@@ -202,14 +202,13 @@
 
     <!-- 새 공지사항 알림 (로그인 전 미리보기) -->
     <div id="loginNoticesWrap" class="login-notices" style="display:none;">
-      <div class="login-notices-header" onclick="toggleLoginNotices()">
+      <div class="login-notices-header">
         <span class="login-notices-title">
           <span class="login-notices-icon">📢</span>
-          <span id="loginNoticesCount">새 공지사항</span>
+          <span id="loginNoticesHeaderText">확인이 필요한 소식</span>
         </span>
-        <span id="loginNoticesArrow" class="login-notices-arrow">▼</span>
       </div>
-      <div id="loginNoticesList" class="login-notices-list" style="display:none;"></div>
+      <div id="loginNoticesBody" class="login-notices-body"></div>
     </div>
 
     <div class="login-card">
@@ -781,10 +780,19 @@
     <h3 id="edTitle"></h3>
     <div id="edInfo" style="font-size:13px;color:var(--text-sub);margin-bottom:4px;"></div>
     <div id="edDesc" style="font-size:13px;margin-bottom:1rem;"></div>
+
+    <!-- 모집 상태 안내 (마감된 경우에만 표시) -->
+    <div id="edClosedNotice" style="display:none; margin-bottom:14px; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12.5px; color:var(--text-sub); line-height:1.55;">
+      <span style="font-weight:700; color:var(--text);">🔒 모집 마감 (확정 완료)</span>
+      <span id="edClosedMeta" style="margin-left:6px;"></span><br>
+      이 일정은 강사 신청·취소가 차단된 상태입니다.
+    </div>
+
     <div class="section-title" style="font-size:13px;margin-bottom:10px;">지원 강사</div>
     <div id="edApplicants"></div>
     <div class="modal-footer">
       <button class="btn primary" id="editEvBtn">일정 수정</button>
+      <button class="btn" id="closeEvBtn" style="background:var(--blue-light); color:var(--blue-dark); border-color:rgba(24,110,72,0.25);">확정 완료 ✓</button>
       <button class="btn danger" id="delEvBtn">일정 삭제</button>
       <button class="btn" onclick="closeModal('evDetailModal')">닫기</button>
     </div>

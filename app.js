@@ -82,10 +82,12 @@ function setConnStatus(state, text) {
     el.classList.remove('online', 'offline', 'connecting');
     el.classList.add(state);
   });
-  ['instConnText', 'adminConnText'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  });
+  // 관리자 모드: 원문 그대로
+  const adminEl = document.getElementById('adminConnText');
+  if (adminEl) adminEl.textContent = text;
+  // 강사 모드: "Firebase" → "DB"로 부드럽게 표현
+  const instEl = document.getElementById('instConnText');
+  if (instEl) instEl.textContent = text.replace(/Firebase/gi, 'DB');
 }
 
 async function runMigrationIfNeeded() {
@@ -759,25 +761,39 @@ function renderInstEvents() {
       const applied = u.applications && u.applications[evId];
       const isPast = ev.date < todayStr;
       const timeStr = fmtTime(ev.startTime, ev.endTime);
+      const isClosed = ev.status === 'closed';
       const d = document.createElement('div');
       d.className = 'ev-item';
-      if (isPast) d.style.opacity = '0.55';
+      if (isPast || isClosed) d.style.opacity = '0.55';
+      const statusBadge = applied
+        ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'✨ 다음 기회에'}</span>`
+        : '';
+      // 마감/종료 시 버튼 숨김, 신청 가능할 때만 신청/취소 버튼
+      let actionHtml = '';
+      if (isClosed) {
+        actionHtml = `<span class="badge" style="background:var(--bg);color:var(--text-sub);">🔒 모집 마감</span>`;
+      } else if (isPast) {
+        actionHtml = applied ? '' : `<span class="badge" style="background:var(--bg);color:var(--text-hint);">종료</span>`;
+      } else if (applied) {
+        actionHtml = `<button class="btn sm danger" onclick="cancelApp('${evId}')">신청 취소</button>`;
+      } else {
+        actionHtml = `<button class="btn sm primary" onclick="applyEv('${evId}')">신청</button>`;
+      }
+      const titleSuffix = isPast ? ' <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(종료)</span>'
+                       : isClosed ? ' <span style="font-size:11px;color:var(--text-sub);font-weight:400;">(모집 마감)</span>'
+                       : '';
       d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
         <div style="display:flex;align-items:flex-start;flex:1;min-width:0;">
           <span class="type-stripe ${typeCls(ev.type)}"></span>
           <div style="flex:1;min-width:0;">
-            <div class="ev-title">[${ev.type}] ${ev.title}${isPast ? ' <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(종료)</span>' : ''}</div>
+            <div class="ev-title">[${ev.type}] ${ev.title}${titleSuffix}</div>
             <div class="ev-meta">${ev.date}${timeStr ? ' · ' + timeStr : ''} &middot; ${ev.place}</div>
             <div class="ev-desc">${ev.desc || ''}</div>
           </div>
         </div>
         <div style="flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
-          ${applied
-            ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>
-               ${isPast ? '' : `<button class="btn sm danger" onclick="cancelApp('${evId}')">신청 취소</button>`}`
-            : (isPast
-                ? `<span class="badge" style="background:var(--bg);color:var(--text-hint);">종료</span>`
-                : `<button class="btn sm primary" onclick="applyEv('${evId}')">신청</button>`)}
+          ${statusBadge}
+          ${actionHtml}
         </div>
       </div>`;
       list.appendChild(d);
@@ -803,16 +819,24 @@ function renderInstEvents() {
   myItems.forEach(({ evId, status, ev }) => {
     const timeStr = fmtTime(ev.startTime, ev.endTime);
     const isPast = ev.date < todayStr;
+    const isClosed = ev.status === 'closed';
     const d = document.createElement('div'); d.className = 'ev-item';
-    if (isPast) d.style.opacity = '0.55';
+    if (isPast || isClosed) d.style.opacity = '0.55';
+    const badgeText = status==='pending' ? '검토중'
+                    : status==='approved' ? '승인됨'
+                    : '✨ 다음 기회에';
+    const titleSuffix = isPast ? ' <span style="font-size:11px;color:var(--text-hint);">(종료)</span>'
+                     : isClosed ? ' <span style="font-size:11px;color:var(--text-sub);">(마감)</span>'
+                     : '';
+    const cancelBtn = (isPast || isClosed) ? '' : `<button class="btn sm danger" onclick="cancelApp('${evId}')">취소</button>`;
     d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="display:flex;align-items:center;flex:1;min-width:0;">
         <span class="type-stripe ${typeCls(ev.type)}"></span>
-        <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span>${isPast ? ' <span style="font-size:11px;color:var(--text-hint);">(종료)</span>' : ''}</span>
+        <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span>${titleSuffix}</span>
       </span>
       <div class="btn-grp">
-        <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
-        ${isPast ? '' : `<button class="btn sm danger" onclick="cancelApp('${evId}')">취소</button>`}
+        <span class="badge ${status}">${badgeText}</span>
+        ${cancelBtn}
       </div>
     </div>`;
     myApp.appendChild(d);
@@ -822,6 +846,11 @@ function renderInstEvents() {
 async function applyEv(evId) {
   const u = S.instructors[S.currentUser];
   if (!u) return;
+  const ev = S.events.find(e => e._id === evId);
+  if (ev && ev.status === 'closed') {
+    toast('이 일정은 모집이 마감되었습니다.', 'error');
+    return;
+  }
   const apps = { ...(u.applications || {}) };
   apps[evId] = 'pending';
   try {
@@ -836,6 +865,10 @@ async function applyEv(evId) {
 async function cancelApp(evId) {
   const ev = S.events.find(e => e._id === evId);
   if (!ev) return;
+  if (ev.status === 'closed') {
+    toast('이 일정은 모집이 마감되어 취소할 수 없습니다.', 'error');
+    return;
+  }
   if (!confirm(`'${ev.title}' 신청을 취소하시겠습니까?`)) return;
   const u = S.instructors[S.currentUser];
   if (!u) return;
@@ -1218,6 +1251,7 @@ function renderAdminSchedule() {
       const pending = apps.filter(u => u.applications[ev._id] === 'pending').length;
       const rejected = apps.filter(u => u.applications[ev._id] === 'rejected').length;
       const timeStr = fmtTime(ev.startTime, ev.endTime);
+      const isClosed = ev.status === 'closed';
 
       const card = document.createElement('div');
       card.className = 'notice-card priority-normal-border';
@@ -1229,16 +1263,22 @@ function renderAdminSchedule() {
         '기타사항': '#999'
       })[ev.type] || '#999';
       if (isPast && !isToday) card.style.opacity = '0.7';
+      if (isClosed) card.style.opacity = '0.7';
+
+      const closedBadge = isClosed
+        ? `<span class="badge" style="background:var(--bg);color:var(--text-sub);border:1px solid var(--border);">🔒 모집 마감</span>`
+        : '';
 
       card.innerHTML = `
         <div class="notice-title-row">
-          <span class="badge" style="background:#${({'과학&코딩 캠프':'E6F1FB','특강수업':'E1F5EE','세미나&연수':'FAEEDA','동아리':'F0E7FA','기타사항':'ECECEC'})[ev.type]||'ECECEC'};color:${({'과학&코딩 캠프':'#186E48','특강수업':'#0F6E56','세미나&연수':'#854F0B','동아리':'#6B3FA0','기타사항':'#555'})[ev.type]||'#555'};">${ev.type}</span>
+          <span class="badge" style="background:#${({'과학&코딩 캠프':'E1F1E8','특강수업':'E1F5EE','세미나&연수':'FAEEDA','동아리':'F0E7FA','기타사항':'ECECEC'})[ev.type]||'ECECEC'};color:${({'과학&코딩 캠프':'#186E48','특강수업':'#0F6E56','세미나&연수':'#854F0B','동아리':'#6B3FA0','기타사항':'#555'})[ev.type]||'#555'};">${ev.type}</span>
+          ${closedBadge}
           <span class="notice-title">${_escapeHtml(ev.title)}</span>
         </div>
         <div class="notice-meta">
           ${timeStr ? `<span>🕒 ${timeStr}</span>` : ''}
           <span>📍 ${_escapeHtml(ev.place || '-')}</span>
-          <span>👥 신청 ${apps.length}명${approved ? ` (✓${approved})` : ''}${pending ? ` (검토중 ${pending})` : ''}${rejected ? ` (거절 ${rejected})` : ''}</span>
+          <span>👥 신청 ${apps.length}명${approved ? ` (✓${approved})` : ''}${pending ? ` (검토중 ${pending})` : ''}${rejected ? ` (✨ 다음기회 ${rejected})` : ''}</span>
         </div>
         ${ev.desc ? `<div class="notice-preview" style="margin-top:6px;">${_escapeHtml(ev.desc)}</div>` : ''}
       `;
@@ -1318,6 +1358,31 @@ function openEvDetail(evId) {
   const timeStr = fmtTime(ev.startTime, ev.endTime);
   document.getElementById('edInfo').textContent = `${ev.date}${timeStr ? ' · ' + timeStr : ''} · ${ev.place}`;
   document.getElementById('edDesc').textContent = ev.desc || '';
+
+  // 모집 상태 처리
+  const isClosed = ev.status === 'closed';
+  const closedNotice = document.getElementById('edClosedNotice');
+  const closeBtn = document.getElementById('closeEvBtn');
+  if (isClosed) {
+    closedNotice.style.display = '';
+    const meta = ev.closedAt
+      ? `· ${new Date(ev.closedAt).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}${ev.closedBy ? ' · ' + _escapeHtml(ev.closedBy) : ''}`
+      : '';
+    document.getElementById('edClosedMeta').textContent = meta;
+    closeBtn.textContent = '🔓 마감 취소';
+    closeBtn.style.background = 'var(--amber-light)';
+    closeBtn.style.color = 'var(--amber)';
+    closeBtn.style.borderColor = 'rgba(133,79,11,0.25)';
+    closeBtn.onclick = () => reopenEvent(evId);
+  } else {
+    closedNotice.style.display = 'none';
+    closeBtn.textContent = '확정 완료 ✓';
+    closeBtn.style.background = 'var(--blue-light)';
+    closeBtn.style.color = 'var(--blue-dark)';
+    closeBtn.style.borderColor = 'rgba(24,110,72,0.25)';
+    closeBtn.onclick = () => closeEvent(evId);
+  }
+
   const apDiv = document.getElementById('edApplicants');
   const applicants = [];
   Object.entries(S.instructors).forEach(([name, u]) => {
@@ -1331,18 +1396,93 @@ function openEvDetail(evId) {
     apDiv.innerHTML = '';
     applicants.forEach(({ name, status }) => {
       const row = document.createElement('div'); row.className = 'app-row';
+      const badgeText = status==='pending' ? '검토중'
+                      : status==='approved' ? '승인됨'
+                      : '다음 기회에';
+      // 마감 후에도 관리자가 추가로 승인/거절 변경 가능 (실수 보정용)
       row.innerHTML = `<span>${name}</span>
         <div class="btn-grp">
-          <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
+          <span class="badge ${status}">${badgeText}</span>
           ${status==='pending'
             ? `<button class="btn sm primary" onclick="approveApp('${name}','${evId}','approved')">승인</button>
-               <button class="btn sm danger" onclick="approveApp('${name}','${evId}','rejected')">거절</button>`
+               <button class="btn sm" style="background:var(--amber-light);color:var(--amber);border-color:rgba(133,79,11,0.25);" onclick="approveApp('${name}','${evId}','rejected')">다음 기회로</button>`
             : ''}
         </div>`;
       apDiv.appendChild(row);
     });
   }
   openModal('evDetailModal');
+}
+
+// 일정 모집 마감 처리
+async function closeEvent(evId) {
+  const ev = S.events.find(e => e._id === evId);
+  if (!ev) return;
+
+  // 미처리(검토중) 신청 카운트
+  const pendingNames = Object.entries(S.instructors)
+    .filter(([_, u]) => u.applications && u.applications[evId] === 'pending')
+    .map(([name]) => name);
+  const pendingCount = pendingNames.length;
+
+  let msg;
+  if (pendingCount > 0) {
+    const namesList = pendingNames.slice(0, 5).join(', ')
+                    + (pendingNames.length > 5 ? ` 외 ${pendingNames.length - 5}명` : '');
+    msg = `⚠️ 미처리 신청이 ${pendingCount}건 남아 있습니다.\n`
+        + `(${namesList})\n\n`
+        + `마감하기 전에 신청한 강사들을 모두\n`
+        + `[승인] 또는 [다음 기회로] 처리해 주세요.\n\n`
+        + `그래도 지금 마감하시겠습니까?\n`
+        + `(미처리 상태로 남으면 강사가 결과를 알 수 없습니다)`;
+  } else {
+    msg = `이 일정의 모집을 마감합니다.\n\n`
+        + `• 강사는 더 이상 신청·취소할 수 없게 됩니다.\n`
+        + `• 승인/다음기회 결과는 그대로 유지됩니다.\n`
+        + `• 필요 시 [마감 취소]로 다시 열 수 있습니다.\n\n`
+        + `계속하시겠습니까?`;
+  }
+
+  if (!confirm(msg)) return;
+
+  showLoading('마감 처리 중...');
+  try {
+    const patch = {
+      status: 'closed',
+      closedAt: new Date().toISOString(),
+      closedBy: S.currentAdminName || ''
+    };
+    const { _id, ...rest } = ev;
+    await window.DB.updateEvent(evId, { ...rest, ...patch });
+    Object.assign(ev, patch);
+    hideLoading();
+    toast('모집이 마감되었습니다.', 'success');
+    openEvDetail(evId);
+  } catch(e) {
+    hideLoading();
+    toast('마감 실패: ' + e.message, 'error');
+  }
+}
+
+// 일정 모집 마감 취소 (다시 열기)
+async function reopenEvent(evId) {
+  const ev = S.events.find(e => e._id === evId);
+  if (!ev) return;
+  if (!confirm('이 일정의 모집 마감을 취소하시겠습니까?\n다시 강사가 신청할 수 있게 됩니다.')) return;
+  showLoading('처리 중...');
+  try {
+    const { _id, closedAt, closedBy, ...rest } = ev;
+    await window.DB.updateEvent(evId, { ...rest, status: 'open' });
+    ev.status = 'open';
+    delete ev.closedAt;
+    delete ev.closedBy;
+    hideLoading();
+    toast('모집이 다시 열렸습니다.', 'success');
+    openEvDetail(evId);
+  } catch(e) {
+    hideLoading();
+    toast('처리 실패: ' + e.message, 'error');
+  }
 }
 
 async function approveApp(name, evId, result) {
@@ -1579,7 +1719,7 @@ function openProfile(name) {
           <span class="type-stripe ${typeCls(ev.type)}"></span>
           <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span></span>
         </span>
-        <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>`;
+        <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'✨ 다음 기회에'}</span>`;
       hist.appendChild(d);
     });
   }
@@ -2031,6 +2171,7 @@ function _getLoginUnreadItems() {
   }
   const unreadEvents = events.filter(ev => {
     if (!ev.date || ev.date < todayStr) return false;  // 지난 일정 제외
+    if (ev.status === 'closed') return false;          // 마감 일정 제외
     if (!myName) return true;
     return !myApps[ev._id];
   }).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2048,78 +2189,39 @@ function renderLoginNotices() {
   const { unreadNotices, unreadEvents, hasUser } = _getLoginUnreadItems();
   const nCount = unreadNotices.length;
   const eCount = unreadEvents.length;
-  const total = nCount + eCount;
 
-  if (total === 0) { wrap.style.display = 'none'; return; }
+  if (nCount === 0 && eCount === 0) { wrap.style.display = 'none'; return; }
 
   wrap.style.display = '';
 
-  // 헤더 요약 텍스트
-  const summaryParts = [];
-  if (nCount > 0) summaryParts.push(`공지 ${nCount}`);
-  if (eCount > 0) summaryParts.push(`일정 ${eCount}`);
-  const summary = summaryParts.join(' · ');
-  document.getElementById('loginNoticesCount').textContent = hasUser
-    ? `새 소식 (${summary})`
-    : `등록된 소식 (${summary})`;
+  // 헤더 텍스트 — 사용자 식별 여부에 따라 친근하게
+  const headerEl = document.getElementById('loginNoticesHeaderText');
+  if (headerEl) headerEl.textContent = hasUser ? '확인이 필요한 소식' : '등록된 새 소식';
 
-  // 펼친 영역: 공지 섹션 + 일정 섹션
-  const PRIO_ICON = { urgent: '🔴', important: '🟡', normal: '⚪' };
-  const TYPE_ICON = {
-    '과학&코딩 캠프': '🔬',
-    '특강수업': '✨',
-    '세미나&연수': '📖',
-    '동아리': '🎨',
-    '기타사항': '📌'
-  };
-  const fmtDate = (iso) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const pad = n => String(n).padStart(2, '0');
-    return `${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
-  };
-  const fmtEvDate = (s) => {
-    if (!s) return '';
-    const parts = s.split('-');
-    return parts.length === 3 ? `${parts[1]}/${parts[2]}` : s;
-  };
-
-  let html = '';
+  // 본문 — 카테고리별 1행씩 (건수 + 행동 안내)
+  const rows = [];
   if (nCount > 0) {
-    html += `<div class="login-section-label">📢 공지사항</div>`;
-    const shown = unreadNotices.slice(0, 3);
-    html += shown.map(n => `
-      <div class="login-notice-item">
-        <span class="login-notice-priority">${PRIO_ICON[n.priority] || '⚪'}</span>
-        <span class="login-notice-title">${_escapeHtml(n.title || '제목 없음')}</span>
-        <span class="login-notice-date">${fmtDate(n.createdAt)}</span>
-      </div>`).join('');
-    if (nCount > 3) html += `<div class="login-notice-more">외 ${nCount - 3}건</div>`;
+    rows.push(`
+      <div class="login-notice-row">
+        <div class="ln-icon">📌</div>
+        <div class="ln-text">
+          <div class="ln-cat">공지사항 <span class="ln-count">${nCount}건</span></div>
+          <div class="ln-action">💬 로그인 후 댓글로 확인 부탁드려요</div>
+        </div>
+      </div>`);
   }
   if (eCount > 0) {
-    if (nCount > 0) html += `<div class="login-section-divider"></div>`;
-    html += `<div class="login-section-label">📅 강의/연수</div>`;
-    const shown = unreadEvents.slice(0, 3);
-    html += shown.map(ev => `
-      <div class="login-notice-item">
-        <span class="login-notice-priority">${TYPE_ICON[ev.type] || '📌'}</span>
-        <span class="login-notice-title">${_escapeHtml(ev.title || '제목 없음')}</span>
-        <span class="login-notice-date">${fmtEvDate(ev.date)}</span>
-      </div>`).join('');
-    if (eCount > 3) html += `<div class="login-notice-more">외 ${eCount - 3}건</div>`;
+    rows.push(`
+      <div class="login-notice-row">
+        <div class="ln-icon">📅</div>
+        <div class="ln-text">
+          <div class="ln-cat">강의/연수 <span class="ln-count">${eCount}건</span></div>
+          <div class="ln-action">✋ 로그인 후 참여 신청해 주세요</div>
+        </div>
+      </div>`);
   }
 
-  document.getElementById('loginNoticesList').innerHTML = html;
-}
-
-function toggleLoginNotices() {
-  const list = document.getElementById('loginNoticesList');
-  const arrow = document.getElementById('loginNoticesArrow');
-  if (!list) return;
-  const isHidden = list.style.display === 'none' || list.style.display === '';
-  list.style.display = isHidden ? 'block' : 'none';
-  if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+  document.getElementById('loginNoticesBody').innerHTML = rows.join('');
 }
 
 function exportExcel() {
@@ -2611,7 +2713,6 @@ window.setInstEventFilter = setInstEventFilter;
 window.setInstListSort = setInstListSort;
 window.toggleCertCategories = toggleCertCategories;
 window._updateCertCatLabel = _updateCertCatLabel;
-window.toggleLoginNotices = toggleLoginNotices;
 window.approveInstructor = approveInstructor;
 window.rejectInstructor = rejectInstructor;
 window.chMon = chMon;
