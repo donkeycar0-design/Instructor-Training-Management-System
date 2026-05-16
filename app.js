@@ -425,6 +425,7 @@ function getProfile(u) {
   if (!u.edu) u.edu = ['','',''];
   if (!u.career) u.career = ['','','','',''];
   if (!u.certs) u.certs = ['','','','',''];
+  if (!Array.isArray(u.certCategories)) u.certCategories = [];
   if (!u.days) u.days = {};
   if (!u.email) u.email = '';
   if (!u.carOwn) u.carOwn = '';
@@ -435,13 +436,35 @@ function getProfile(u) {
   if (!u.eduLevel) u.eduLevel = ''; 
   if (u.isMajor === undefined) u.isMajor = '';
   if (typeof u.manualScore !== 'number') u.manualScore = 0;
+  if (!u.ssn1) u.ssn1 = '';
+  if (!u.ssn2) u.ssn2 = '';
   return u;
+}
+
+function toggleCertCategories() {
+  const panel = document.getElementById('pCertCatPanel');
+  if (!panel) return;
+  const isHidden = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = isHidden ? 'block' : 'none';
+  _updateCertCatLabel();
+}
+
+function _updateCertCatLabel() {
+  const label = document.getElementById('pCertCatLabel');
+  const panel = document.getElementById('pCertCatPanel');
+  if (!label) return;
+  const count = document.querySelectorAll('#pCertCatPanel input[data-cert-cat]:checked').length;
+  const open = panel && panel.style.display === 'block';
+  const arrow = open ? '▲' : '▼';
+  label.textContent = count > 0 ? `${count}개 선택됨 ${arrow}` : `선택 안함 ${arrow}`;
 }
 
 function loadInstProfile() {
   const u = getProfile(S.instructors[S.currentUser]);
   document.getElementById('instTopName').textContent = S.currentUser + '님';
   document.getElementById('pName').value = u.name || S.currentUser;
+  document.getElementById('pSsn1').value = u.ssn1 || '';
+  document.getElementById('pSsn2').value = u.ssn2 || '';
   document.getElementById('pEmail').value = u.email || '';
   document.getElementById('pPhone').value = u.phone || '';
   document.getElementById('pAddr').value = u.addr || '';
@@ -454,6 +477,17 @@ function loadInstProfile() {
   for (let i = 0; i < 3; i++) document.getElementById(`pEdu${i+1}`).value = u.edu[i] || '';
   for (let i = 0; i < 5; i++) document.getElementById(`pCar${i+1}`).value = u.career[i] || '';
   for (let i = 0; i < 5; i++) document.getElementById(`pCert${i+1}`).value = u.certs[i] || '';
+
+  // 자격증 카테고리 체크박스 반영 + 라벨 업데이트
+  const certCats = Array.isArray(u.certCategories) ? u.certCategories : [];
+  document.querySelectorAll('#pCertCatPanel input[data-cert-cat]').forEach(cb => {
+    cb.checked = certCats.includes(cb.dataset.certCat);
+  });
+  // 패널은 기본적으로 접힌 상태로 시작
+  const panel = document.getElementById('pCertCatPanel');
+  if (panel) panel.style.display = 'none';
+  _updateCertCatLabel();
+
   document.getElementById('pCarY').checked = u.carOwn === '있음';
   document.getElementById('pCarN').checked = u.carOwn === '없음';
   document.getElementById('pAppeal').value = u.appeal || '';
@@ -461,15 +495,99 @@ function loadInstProfile() {
     document.getElementById(`d_${d.key}_am`).checked = !!(u.days[d.key + '_am']);
     document.getElementById(`d_${d.key}_pm`).checked = !!(u.days[d.key + '_pm']);
   });
+
+  // 검증 실패 표시 초기화
+  _clearProfileInvalid();
+}
+
+function _clearProfileInvalid() {
+  ['pName','pSsn1','pSsn2','pEmail','pPhone','pAddr','pEduLevel','pIsMajor','pCertCatToggle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('invalid');
+  });
+}
+
+function _markInvalid(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('invalid');
+}
+
+function validateProfileInputs() {
+  _clearProfileInvalid();
+  const errors = [];
+
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { errors.push({ id:'pName', label:'이름' }); }
+
+  const ssn1 = document.getElementById('pSsn1').value.trim();
+  const ssn2 = document.getElementById('pSsn2').value.trim();
+  if (!ssn1) {
+    errors.push({ id:'pSsn1', label:'주민번호 앞자리' });
+  } else if (!/^\d{6}$/.test(ssn1)) {
+    errors.push({ id:'pSsn1', label:'주민번호 앞자리는 숫자 6자리' });
+  }
+  if (!ssn2) {
+    errors.push({ id:'pSsn2', label:'주민번호 성별 구분' });
+  } else if (!/^[1-8]$/.test(ssn2)) {
+    errors.push({ id:'pSsn2', label:'주민번호 성별 구분은 1~8' });
+  }
+
+  const email = document.getElementById('pEmail').value.trim();
+  if (!email) errors.push({ id:'pEmail', label:'이메일' });
+
+  const phone = document.getElementById('pPhone').value.trim();
+  if (!phone) errors.push({ id:'pPhone', label:'연락처' });
+
+  const addr = document.getElementById('pAddr').value.trim();
+  if (!addr) errors.push({ id:'pAddr', label:'주소' });
+
+  if (!document.getElementById('pEduLevel').value) {
+    errors.push({ id:'pEduLevel', label:'최종 학력' });
+  }
+  if (!document.getElementById('pIsMajor').value) {
+    errors.push({ id:'pIsMajor', label:'관련 전공' });
+  }
+
+  const certCount = document.querySelectorAll('#pCertCatPanel input[data-cert-cat]:checked').length;
+  if (certCount === 0) {
+    errors.push({ id:'pCertCatToggle', label:'보유 자격증 종류 (최소 1개)' });
+  }
+
+  errors.forEach(e => _markInvalid(e.id));
+  return errors;
 }
 
 async function saveProfile() {
   if (!S.currentUser) return;
+
+  // 필수 입력 검증
+  const errors = validateProfileInputs();
+  if (errors.length > 0) {
+    const first = errors[0];
+    toast(`필수 입력: ${first.label}${errors.length > 1 ? ` 외 ${errors.length-1}건` : ''}`, 'error');
+    const el = document.getElementById(first.id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (el.focus) try { el.focus(); } catch(e) {}
+    }
+    // 자격증 카테고리 검증 실패면 펼침 자동 열기
+    if (errors.some(e => e.id === 'pCertCatToggle')) {
+      const panel = document.getElementById('pCertCatPanel');
+      if (panel && panel.style.display === 'none') {
+        panel.style.display = 'block';
+        _updateCertCatLabel();
+      }
+    }
+    return;
+  }
+
   const u = getProfile({ ...(S.instructors[S.currentUser] || {}) });
-  u.name = document.getElementById('pName').value;
-  u.email = document.getElementById('pEmail').value;
-  u.phone = document.getElementById('pPhone').value;
-  u.addr = document.getElementById('pAddr').value;
+  u.name = document.getElementById('pName').value.trim();
+  u.ssn1 = document.getElementById('pSsn1').value.trim();
+  u.ssn2 = document.getElementById('pSsn2').value.trim();
+  u.email = document.getElementById('pEmail').value.trim();
+  u.phone = document.getElementById('pPhone').value.trim();
+  u.addr = document.getElementById('pAddr').value.trim();
   u.subject = document.getElementById('pSubject').value;
   
   // 새 필드 저장
@@ -480,6 +598,12 @@ async function saveProfile() {
   u.edu = [1,2,3].map(i => document.getElementById(`pEdu${i}`).value.trim());
   u.career = [1,2,3,4,5].map(i => document.getElementById(`pCar${i}`).value.trim());
   u.certs = [1,2,3,4,5].map(i => document.getElementById(`pCert${i}`).value.trim());
+
+  // 자격증 카테고리 수집 (체크된 항목만)
+  u.certCategories = Array.from(
+    document.querySelectorAll('#pCertCatPanel input[data-cert-cat]:checked')
+  ).map(cb => cb.dataset.certCat);
+
   const carChecked = document.querySelector('input[name="pCar"]:checked');
   u.carOwn = carChecked ? carChecked.value : '';
   u.appeal = document.getElementById('pAppeal').value.trim();
@@ -2135,13 +2259,31 @@ async function renderGradeTab() {
   const tbody = document.getElementById('gradingTableBody');
   if (!tbody) return;
 
-  // 1. 가중치 설정 불러오기
-  const config = await window.DB.getGradingConfig();
+  // 1. 가중치 설정 불러오기 (없는 키는 기본값으로 보정)
+  const cfgRaw = await window.DB.getGradingConfig();
+  const config = {
+    wUni: cfgRaw.wUni ?? 10,
+    wGrad: cfgRaw.wGrad ?? 20,
+    wCar: cfgRaw.wCar ?? 5,
+    wMajor: cfgRaw.wMajor ?? 15,
+    wClass: cfgRaw.wClass ?? 2,
+    wCertTeacher: cfgRaw.wCertTeacher ?? 15,
+    wCertLifelong: cfgRaw.wCertLifelong ?? 12,
+    wCertYouth: cfgRaw.wCertYouth ?? 8,
+    wCertOther: cfgRaw.wCertOther ?? 2
+  };
   document.getElementById('wUni').value = config.wUni;
   document.getElementById('wGrad').value = config.wGrad;
   document.getElementById('wCar').value = config.wCar;
   document.getElementById('wMajor').value = config.wMajor;
   document.getElementById('wClass').value = config.wClass;
+  document.getElementById('wCertTeacher').value = config.wCertTeacher;
+  document.getElementById('wCertLifelong').value = config.wCertLifelong;
+  document.getElementById('wCertYouth').value = config.wCertYouth;
+  document.getElementById('wCertOther').value = config.wCertOther;
+
+  // 기타 자격증 5종
+  const OTHER_CERTS = ['운전면허','국가기술자격증','국가기능사자격증','민간자격증','기타자격증'];
 
   // 2. 승인된 강사 목록 가져오기 및 점수 계산
   let list = [];
@@ -2160,6 +2302,17 @@ async function renderGradeTab() {
     if (u.isMajor === true) sysScore += Number(config.wMajor);
     sysScore += (classCount * Number(config.wClass));
 
+    // 자격증 점수 (NEW)
+    const cats = Array.isArray(u.certCategories) ? u.certCategories : [];
+    let certScore = 0;
+    const certDetails = [];
+    if (cats.includes('교원자격')) { certScore += Number(config.wCertTeacher); certDetails.push(`교원 +${config.wCertTeacher}`); }
+    if (cats.includes('평생교육사')) { certScore += Number(config.wCertLifelong); certDetails.push(`평생 +${config.wCertLifelong}`); }
+    if (cats.includes('청소년지도사')) { certScore += Number(config.wCertYouth); certDetails.push(`청소년 +${config.wCertYouth}`); }
+    const otherCount = cats.filter(c => OTHER_CERTS.includes(c)).length;
+    if (otherCount > 0) { certScore += otherCount * Number(config.wCertOther); certDetails.push(`기타 ${otherCount}개 +${otherCount * Number(config.wCertOther)}`); }
+    sysScore += certScore;
+
     const total = sysScore + (Number(u.manualScore) || 0);
 
     list.push({
@@ -2168,6 +2321,9 @@ async function renderGradeTab() {
       isMajor: u.isMajor === true ? '전공' : u.isMajor === false ? '비전공' : '-',
       carOwn: u.carOwn || '-',
       classCount: classCount,
+      certCount: cats.length,
+      certScore: certScore,
+      certDetails: certDetails.join(' / ') || '없음',
       sysScore: sysScore,
       manualScore: u.manualScore || 0,
       total: total
@@ -2187,7 +2343,7 @@ async function renderGradeTab() {
   list.forEach((item, idx) => {
     // 1~3등은 순위 뱃지 스타일링
     const rankBadge = idx < 3 ? `<span class="badge" style="background:var(--amber);color:white;">${idx + 1}위</span>` : `${idx + 1}위`;
-    
+
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border)';
     tr.innerHTML = `
@@ -2195,6 +2351,7 @@ async function renderGradeTab() {
       <td style="padding:10px; font-weight:500;">${item.name}</td>
       <td style="padding:10px; font-size:12px; color:var(--text-sub);">
         학력:${item.eduLevel} / ${item.isMajor} / 차량:${item.carOwn} / 수업:${item.classCount}회
+        <br>자격증: ${item.certDetails}
         <br><span style="color:var(--text); font-weight:500;">(자동 ${item.sysScore}점)</span>
       </td>
       <td style="padding:10px;">
@@ -2216,7 +2373,11 @@ async function saveGradingWeights() {
     wGrad: Number(document.getElementById('wGrad').value) || 0,
     wCar: Number(document.getElementById('wCar').value) || 0,
     wMajor: Number(document.getElementById('wMajor').value) || 0,
-    wClass: Number(document.getElementById('wClass').value) || 0
+    wClass: Number(document.getElementById('wClass').value) || 0,
+    wCertTeacher: Number(document.getElementById('wCertTeacher').value) || 0,
+    wCertLifelong: Number(document.getElementById('wCertLifelong').value) || 0,
+    wCertYouth: Number(document.getElementById('wCertYouth').value) || 0,
+    wCertOther: Number(document.getElementById('wCertOther').value) || 0
   };
   
   showLoading('가중치 저장 중...');
@@ -2262,6 +2423,8 @@ window.applyEv = applyEv;
 window.cancelApp = cancelApp;
 window.setInstEventFilter = setInstEventFilter;
 window.setInstListSort = setInstListSort;
+window.toggleCertCategories = toggleCertCategories;
+window._updateCertCatLabel = _updateCertCatLabel;
 window.approveInstructor = approveInstructor;
 window.rejectInstructor = rejectInstructor;
 window.chMon = chMon;

@@ -112,6 +112,34 @@ body {
 }
 .form-group textarea { resize: vertical; }
 
+/* 필수 입력 표시 (*) */
+.req-star { color: var(--red); font-weight: 700; margin-left: 2px; }
+
+/* 검증 실패: 빨간 테두리 강조 */
+.form-group input.invalid,
+.form-group select.invalid,
+.form-group textarea.invalid,
+button.invalid {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(163,45,45,0.12) !important;
+}
+
+/* 자격증 카테고리 체크박스 항목 */
+.cert-cat-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 400; cursor: pointer;
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  transition: background 0.15s, border-color 0.15s;
+  text-transform: none; letter-spacing: 0;
+}
+.cert-cat-item:hover { background: var(--blue-light); border-color: var(--blue); }
+.cert-cat-item input[type="checkbox"] {
+  width: 15px; height: 15px; accent-color: var(--blue); cursor: pointer; margin: 0;
+}
+#pCertCatToggle:hover { border-color: var(--blue); }
+#pCertCatToggle:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+
 .multi-input-group { margin-bottom: 1rem; }
 .multi-input-group label {
   display: block; font-size: 11px; font-weight: 700;

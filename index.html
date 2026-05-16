@@ -146,7 +146,10 @@
 
     async getGradingConfig() {
       const snap = await getDoc(doc(fdb, 'settings', 'grading'));
-      return snap.exists() ? snap.data() : { wUni:10, wGrad:20, wCar:5, wMajor:15, wClass:2 };
+      return snap.exists() ? snap.data() : {
+        wUni:10, wGrad:20, wCar:5, wMajor:15, wClass:2,
+        wCertTeacher:15, wCertLifelong:12, wCertYouth:8, wCertOther:2
+      };
     },
     async saveGradingConfig(data) {
       await setDoc(doc(fdb, 'settings', 'grading'), data);
@@ -255,16 +258,24 @@
           <div class="section-title">내 프로필</div>
         </div>
 
-        <div class="form-group"><label>이름</label><input id="pName" type="text"/></div>
-        <div class="form-group"><label>이메일</label><input id="pEmail" type="email" placeholder="example@email.com"/></div>
-        <div class="form-group"><label>연락처</label><input id="pPhone" type="text" placeholder="010-0000-0000"/></div>
-        <div class="form-group"><label>주소</label><input id="pAddr" type="text" placeholder="거주지 주소"/></div>
-        
-        <div class="form-group"><label>전공 / 담당 과목 (상세)</label><input id="pSubject" type="text" placeholder="수학, 영어 등"/></div>
+        <div class="form-group"><label>이름 <span class="req-star">*</span></label><input id="pName" type="text"/></div>
+        <div class="form-group">
+          <label>주민번호 <span class="req-star">*</span></label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="pSsn1" type="text" inputmode="numeric" maxlength="6" placeholder="앞 6자리" style="flex:1;letter-spacing:1px;"/>
+            <span style="color:var(--text-sub);font-weight:700;">-</span>
+            <input id="pSsn2" type="text" inputmode="numeric" maxlength="1" placeholder="성별" style="width:64px;text-align:center;letter-spacing:1px;"/>
+            <span style="color:var(--text-hint);font-size:13px;letter-spacing:2px;">●●●●●●</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:4px;line-height:1.5;">예: 901225-1 · 남자(1900년대 1, 2000년대 3) / 여자(1900년대 2, 2000년대 4)</div>
+        </div>
+        <div class="form-group"><label>이메일 <span class="req-star">*</span></label><input id="pEmail" type="email" placeholder="example@email.com"/></div>
+        <div class="form-group"><label>연락처 <span class="req-star">*</span></label><input id="pPhone" type="text" placeholder="010-0000-0000"/></div>
+        <div class="form-group"><label>주소 <span class="req-star">*</span></label><input id="pAddr" type="text" placeholder="거주지 주소"/></div>
 
-        <div style="display:flex; gap:10px; margin-bottom:1rem;">
-          <div class="form-group" style="flex:1; margin-bottom:0;">
-            <label>최종 학력 <span style="color:var(--blue);">(등급용)</span></label>
+        <div style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+          <div class="form-group" style="flex:1 1 140px; margin-bottom:0;">
+            <label>최종 학력 <span class="req-star">*</span></label>
             <select id="pEduLevel">
               <option value="">선택하세요</option>
               <option value="고졸">고졸</option>
@@ -273,15 +284,38 @@
               <option value="대학원졸">대학원졸(석/박사)</option>
             </select>
           </div>
-          <div class="form-group" style="flex:1; margin-bottom:0;">
-            <label>관련 전공 <span style="color:var(--blue);">(등급용)</span></label>
+          <div class="form-group" style="flex:1 1 140px; margin-bottom:0;">
+            <label>관련 전공 <span class="req-star">*</span></label>
             <select id="pIsMajor">
               <option value="">선택하세요</option>
               <option value="true">예 (전공자)</option>
               <option value="false">아니오 (비전공자)</option>
             </select>
           </div>
+          <div class="form-group" style="flex:1 1 140px; margin-bottom:0;">
+            <label>보유 자격증 종류 <span class="req-star">*</span></label>
+            <button type="button" id="pCertCatToggle" onclick="toggleCertCategories()"
+              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;text-align:left;cursor:pointer;outline:none;transition:border-color 0.15s;">
+              <span id="pCertCatLabel">선택 안함 ▼</span>
+            </button>
+          </div>
         </div>
+
+        <div id="pCertCatPanel" style="display:none; margin-bottom:1rem; padding:12px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm);">
+          <div style="font-size:11px; color:var(--text-sub); margin-bottom:10px;">해당하는 자격증 종류를 모두 체크하세요. (중복 선택 가능)</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px 12px;">
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="운전면허" onchange="_updateCertCatLabel()"/> 운전면허</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="교원자격" onchange="_updateCertCatLabel()"/> 교원자격</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="평생교육사" onchange="_updateCertCatLabel()"/> 평생교육사</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="청소년지도사" onchange="_updateCertCatLabel()"/> 청소년지도사</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="국가기술자격증" onchange="_updateCertCatLabel()"/> 국가기술자격증</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="국가기능사자격증" onchange="_updateCertCatLabel()"/> 국가기능사자격증</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="민간자격증" onchange="_updateCertCatLabel()"/> 민간자격증</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="기타자격증" onchange="_updateCertCatLabel()"/> 기타자격증</label>
+          </div>
+        </div>
+
+        <div class="form-group"><label>전공 / 담당 과목 (상세)</label><input id="pSubject" type="text" placeholder="수학, 영어 등"/></div>
 
         <div class="form-group">
           <label>차량 유무</label>
@@ -585,13 +619,22 @@
           <button class="btn sm primary" onclick="saveGradingWeights()">가중치 저장</button>
         </div>
         <div class="info-box">아래 배점을 변경하고 저장하면 강사들의 점수와 순위가 즉시 재계산됩니다.</div>
-        <div class="search-panel" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:6px 0 8px;">📚 기본 항목</div>
+        <div class="search-panel" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin-bottom:14px;">
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">대졸 점수</label><input id="wUni" type="number" value="10" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">대학원졸 점수</label><input id="wGrad" type="number" value="20" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">차량보유 점수</label><input id="wCar" type="number" value="5" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">관련전공 점수</label><input id="wMajor" type="number" value="15" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">수업 1회당 점수</label><input id="wClass" type="number" value="2" style="width:100%;"></div>
         </div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:6px 0 8px;">🏅 자격증 항목 <span style="font-weight:400;color:var(--text-hint);">(보유한 강사에게 합산)</span></div>
+        <div class="search-panel" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px;">
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">교원자격</label><input id="wCertTeacher" type="number" value="15" style="width:100%;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">평생교육사</label><input id="wCertLifelong" type="number" value="12" style="width:100%;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">청소년지도사</label><input id="wCertYouth" type="number" value="8" style="width:100%;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">기타 자격증 1개당</label><input id="wCertOther" type="number" value="2" style="width:100%;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:8px;line-height:1.6;">※ "기타 자격증"은 운전면허·국가기술·국가기능사·민간자격증·기타자격증을 의미합니다.</div>
       </div>
 
       <div class="card">
@@ -600,12 +643,12 @@
           <span style="font-size:12px;color:var(--text-sub);">승인된 강사 기준</span>
         </div>
         <div style="overflow-x:auto;">
-          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left; min-width:600px;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left; min-width:680px;">
             <thead>
               <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
                 <th style="padding:10px; font-weight:700;">순위</th>
                 <th style="padding:10px; font-weight:700;">이름</th>
-                <th style="padding:10px; font-weight:700;">시스템 계산 (학력/전공/차량/수업)</th>
+                <th style="padding:10px; font-weight:700;">시스템 계산 (학력/전공/차량/수업/자격증)</th>
                 <th style="padding:10px; font-weight:700;">정성 평가(±)</th>
                 <th style="padding:10px; font-weight:700; color:var(--blue);">총점</th>
                 <th style="padding:10px; font-weight:700;"></th>
