@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>티치포퓨처 강사 플랫폼 V1</title>
+<title>티치포퓨처 강사 플랫폼 V2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- 1. 외부 CSS 파일 불러오기 -->
@@ -196,9 +196,22 @@
           <path d="M5 9.5 Q9.5 8 14 9.5 L14.5 20 H4.5 Z" fill="currentColor"/>
         </svg>
       </div>
-      <h1>티치포퓨처 강사 플랫폼 V1</h1>
+      <h1>티치포퓨처 강사 플랫폼<span class="login-version">V2</span></h1>
       <p class="sub">Teach for Future — Instructor Management</p>
     </div>
+
+    <!-- 새 공지사항 알림 (로그인 전 미리보기) -->
+    <div id="loginNoticesWrap" class="login-notices" style="display:none;">
+      <div class="login-notices-header" onclick="toggleLoginNotices()">
+        <span class="login-notices-title">
+          <span class="login-notices-icon">📢</span>
+          <span id="loginNoticesCount">새 공지사항</span>
+        </span>
+        <span id="loginNoticesArrow" class="login-notices-arrow">▼</span>
+      </div>
+      <div id="loginNoticesList" class="login-notices-list" style="display:none;"></div>
+    </div>
+
     <div class="login-card">
       <div id="ltInst">
         <div class="info-box" style="font-size:11.5px;line-height:1.55;">
@@ -209,16 +222,13 @@
         </div>
         <div class="form-group"><label>이름</label><input id="iName" type="text" placeholder="홍길동" onkeypress="if(event.key==='Enter')document.getElementById('iPw').focus();"/></div>
         <div class="form-group"><label>비밀번호</label><input id="iPw" type="password" placeholder="비밀번호 입력" onkeypress="if(event.key==='Enter')loginInst();"/></div>
-        <button class="btn primary full" onclick="loginInst()">로그인 / 가입 신청</button>
+        <button class="btn primary full login-submit" onclick="loginInst()">로그인 / 가입 신청</button>
       </div>
 
       <div id="loginErr" class="err-msg"></div>
 
-      <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-        <button onclick="openAdminLoginModal()"
-                style="background:transparent;border:1px solid transparent;color:var(--text-hint);font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;transition:all 0.15s;"
-                onmouseover="this.style.color='var(--text-sub)';this.style.background='var(--bg)';this.style.borderColor='var(--border)';"
-                onmouseout="this.style.color='var(--text-hint)';this.style.background='transparent';this.style.borderColor='transparent';">
+      <div style="text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+        <button class="admin-login-btn" onclick="openAdminLoginModal()">
           ⚙️ <span>관리자 로그인</span>
         </button>
       </div>
@@ -235,7 +245,7 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      티치포퓨처 강사 플랫폼 V1
+      티치포퓨처 강사 플랫폼 V2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -246,8 +256,8 @@
   </div>
   <div class="nav" id="instNav">
     <button class="nav-btn active" onclick="showIP('Notices',this)">📢 공지사항</button>
-    <button class="nav-btn" onclick="showIP('Events',this)">강의/연수신청</button>
-    <button class="nav-btn" onclick="showIP('Profile',this)">내 프로필</button>
+    <button class="nav-btn" onclick="showIP('Events',this)">📅 강의/연수신청</button>
+    <button class="nav-btn" onclick="showIP('Profile',this)">👤 내 프로필</button>
     <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
   </div>
   <div class="content">
@@ -460,7 +470,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      티치포퓨처 강사 플랫폼 V1
+      티치포퓨처 강사 플랫폼 V2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">

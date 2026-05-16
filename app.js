@@ -167,6 +167,8 @@ async function initApp() {
     S.initialized = true;
     hideLoading();
     setConnStatus('online', 'Firebase 연결됨');
+    // 로그인 화면이 보이는 상태라면 공지 알림 표시
+    renderLoginNotices();
   } catch(e) {
     console.error('Init failed:', e);
     hideLoading();
@@ -177,8 +179,14 @@ async function initApp() {
 
 function onDataChanged(source) {
   if (!S.initialized) return;
+  const loginActive = document.getElementById('loginScreen').classList.contains('active');
   const instActive = document.getElementById('instScreen').classList.contains('active');
   const adminActive = document.getElementById('adminScreen').classList.contains('active');
+
+  // 로그인 화면: 공지/일정/강사(=내 신청 변동) 모두 알림에 영향
+  if (loginActive && (source === 'notices' || source === 'events' || source === 'instructors')) {
+    renderLoginNotices();
+  }
 
   if (instActive) {
     const evPage = document.getElementById('ipEvents');
@@ -266,6 +274,7 @@ async function loginInst() {
       await window.DB.signIn();
       await window.DB.saveInstructor(name, newProfile);
       S.instructors[name] = newProfile;
+      try { localStorage.setItem('tff_last_user', name); } catch(e) {}
       hideLoading();
       document.getElementById('iName').value = '';
       document.getElementById('iPw').value = '';
@@ -282,6 +291,8 @@ async function loginInst() {
 
     document.getElementById('loginErr').style.display = 'none';
     S.currentUser = name; S.isAdmin = false;
+    // 다음 방문 시 로그인 화면 알림에서 "내가 참여한 항목" 필터링에 사용
+    try { localStorage.setItem('tff_last_user', name); } catch(e) {}
     hideLoading();
     showScreen('instScreen');
     loadInstProfile();
@@ -368,6 +379,8 @@ function showScreen(id) {
   const s = document.getElementById(id);
   s.style.display = id === 'loginScreen' ? 'flex' : 'block';
   s.classList.add('active');
+  // 로그인 화면으로 돌아왔을 때 공지 알림 갱신
+  if (id === 'loginScreen') renderLoginNotices();
 }
 
 function showIP(id, btn) {
@@ -1056,7 +1069,7 @@ function showMobileDayEvents(ds, dayEvs) {
       const card = document.createElement('div');
       card.className = 'notice-card';
       card.style.borderLeftColor = ({
-        '과학&코딩 캠프': '#185FA5',
+        '과학&코딩 캠프': '#186E48',
         '특강수업': '#0F6E56',
         '세미나&연수': '#854F0B',
         '동아리': '#6B3FA0',
@@ -1209,7 +1222,7 @@ function renderAdminSchedule() {
       const card = document.createElement('div');
       card.className = 'notice-card priority-normal-border';
       card.style.borderLeftColor = ({
-        '과학&코딩 캠프': '#185FA5',
+        '과학&코딩 캠프': '#186E48',
         '특강수업': '#0F6E56',
         '세미나&연수': '#854F0B',
         '동아리': '#6B3FA0',
@@ -1219,7 +1232,7 @@ function renderAdminSchedule() {
 
       card.innerHTML = `
         <div class="notice-title-row">
-          <span class="badge" style="background:#${({'과학&코딩 캠프':'E6F1FB','특강수업':'E1F5EE','세미나&연수':'FAEEDA','동아리':'F0E7FA','기타사항':'ECECEC'})[ev.type]||'ECECEC'};color:${({'과학&코딩 캠프':'#185FA5','특강수업':'#0F6E56','세미나&연수':'#854F0B','동아리':'#6B3FA0','기타사항':'#555'})[ev.type]||'#555'};">${ev.type}</span>
+          <span class="badge" style="background:#${({'과학&코딩 캠프':'E6F1FB','특강수업':'E1F5EE','세미나&연수':'FAEEDA','동아리':'F0E7FA','기타사항':'ECECEC'})[ev.type]||'ECECEC'};color:${({'과학&코딩 캠프':'#186E48','특강수업':'#0F6E56','세미나&연수':'#854F0B','동아리':'#6B3FA0','기타사항':'#555'})[ev.type]||'#555'};">${ev.type}</span>
           <span class="notice-title">${_escapeHtml(ev.title)}</span>
         </div>
         <div class="notice-meta">
@@ -1494,7 +1507,7 @@ function searchInst() {
     const u = getProfile(S.instructors[name]);
     const dayTags = DAYS.flatMap(d => {
       const tags = [];
-      if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin-right:3px;">${d.label} 오전</span>`);
+      if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E1F1E8;color:#186E48;margin-right:3px;">${d.label} 오전</span>`);
       if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin-right:3px;">${d.label} 오후</span>`);
       return tags;
     }).join('');
@@ -1526,7 +1539,7 @@ function openProfile(name) {
 
   const dayStr = DAYS.flatMap(d => {
     const tags = [];
-    if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E6F1FB;color:#185FA5;margin:1px;">${d.label} 오전</span>`);
+    if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E1F1E8;color:#186E48;margin:1px;">${d.label} 오전</span>`);
     if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin:1px;">${d.label} 오후</span>`);
     return tags;
   }).join('') || '<span style="color:var(--text-hint)">미입력</span>';
@@ -1976,6 +1989,139 @@ function _escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// ══════════════════════════════════════════════════════════════════
+// 로그인 화면: 새 소식 알림 (공지 + 강의/연수)
+// "참여(댓글/신청)하지 않은 항목"만 새 항목으로 표시
+// localStorage의 마지막 로그인 이름을 기준으로 판정
+// 공지는 등록 후 LOGIN_NOTICE_MAX_DAYS 일이 지나면 자동 제외
+// ══════════════════════════════════════════════════════════════════
+
+const LOGIN_NOTICE_MAX_DAYS = 30;   // 이 값을 바꾸면 만료 기간 조정됨
+
+function _todayStrLocal() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function _getLoginUnreadItems() {
+  const myName = (() => { try { return localStorage.getItem('tff_last_user') || ''; } catch(e) { return ''; } })();
+  const todayStr = _todayStrLocal();
+
+  // 공지 만료 기준 (LOGIN_NOTICE_MAX_DAYS일 이전 등록은 제외)
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - LOGIN_NOTICE_MAX_DAYS);
+  const cutoffIso = cutoff.toISOString();
+
+  // 1) 공지: 30일 이내 + 내가 댓글 안 단 것만. 이름 없으면 30일 이내 전체.
+  const notices = Array.isArray(S.notices) ? [...S.notices] : [];
+  const unreadNotices = notices.filter(n => {
+    // 등록 후 30일 지난 공지는 자동 제외 (createdAt 없는 레거시 데이터는 표시 유지)
+    if (n.createdAt && n.createdAt < cutoffIso) return false;
+    if (!myName) return true;
+    const comments = Array.isArray(n.comments) ? n.comments : [];
+    return !comments.some(c => c.author === myName);
+  }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  // 2) 일정: 내가 신청하지 않은 미래 일정만. 이름이 없으면 전체(미래만).
+  const events = Array.isArray(S.events) ? [...S.events] : [];
+  let myApps = {};
+  if (myName && S.instructors[myName] && S.instructors[myName].applications) {
+    myApps = S.instructors[myName].applications;
+  }
+  const unreadEvents = events.filter(ev => {
+    if (!ev.date || ev.date < todayStr) return false;  // 지난 일정 제외
+    if (!myName) return true;
+    return !myApps[ev._id];
+  }).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  return { unreadNotices, unreadEvents, hasUser: !!myName };
+}
+
+function renderLoginNotices() {
+  const wrap = document.getElementById('loginNoticesWrap');
+  if (!wrap) return;
+
+  const loginActive = document.getElementById('loginScreen').classList.contains('active');
+  if (!loginActive) { wrap.style.display = 'none'; return; }
+
+  const { unreadNotices, unreadEvents, hasUser } = _getLoginUnreadItems();
+  const nCount = unreadNotices.length;
+  const eCount = unreadEvents.length;
+  const total = nCount + eCount;
+
+  if (total === 0) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = '';
+
+  // 헤더 요약 텍스트
+  const summaryParts = [];
+  if (nCount > 0) summaryParts.push(`공지 ${nCount}`);
+  if (eCount > 0) summaryParts.push(`일정 ${eCount}`);
+  const summary = summaryParts.join(' · ');
+  document.getElementById('loginNoticesCount').textContent = hasUser
+    ? `새 소식 (${summary})`
+    : `등록된 소식 (${summary})`;
+
+  // 펼친 영역: 공지 섹션 + 일정 섹션
+  const PRIO_ICON = { urgent: '🔴', important: '🟡', normal: '⚪' };
+  const TYPE_ICON = {
+    '과학&코딩 캠프': '🔬',
+    '특강수업': '✨',
+    '세미나&연수': '📖',
+    '동아리': '🎨',
+    '기타사항': '📌'
+  };
+  const fmtDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
+  };
+  const fmtEvDate = (s) => {
+    if (!s) return '';
+    const parts = s.split('-');
+    return parts.length === 3 ? `${parts[1]}/${parts[2]}` : s;
+  };
+
+  let html = '';
+  if (nCount > 0) {
+    html += `<div class="login-section-label">📢 공지사항</div>`;
+    const shown = unreadNotices.slice(0, 3);
+    html += shown.map(n => `
+      <div class="login-notice-item">
+        <span class="login-notice-priority">${PRIO_ICON[n.priority] || '⚪'}</span>
+        <span class="login-notice-title">${_escapeHtml(n.title || '제목 없음')}</span>
+        <span class="login-notice-date">${fmtDate(n.createdAt)}</span>
+      </div>`).join('');
+    if (nCount > 3) html += `<div class="login-notice-more">외 ${nCount - 3}건</div>`;
+  }
+  if (eCount > 0) {
+    if (nCount > 0) html += `<div class="login-section-divider"></div>`;
+    html += `<div class="login-section-label">📅 강의/연수</div>`;
+    const shown = unreadEvents.slice(0, 3);
+    html += shown.map(ev => `
+      <div class="login-notice-item">
+        <span class="login-notice-priority">${TYPE_ICON[ev.type] || '📌'}</span>
+        <span class="login-notice-title">${_escapeHtml(ev.title || '제목 없음')}</span>
+        <span class="login-notice-date">${fmtEvDate(ev.date)}</span>
+      </div>`).join('');
+    if (eCount > 3) html += `<div class="login-notice-more">외 ${eCount - 3}건</div>`;
+  }
+
+  document.getElementById('loginNoticesList').innerHTML = html;
+}
+
+function toggleLoginNotices() {
+  const list = document.getElementById('loginNoticesList');
+  const arrow = document.getElementById('loginNoticesArrow');
+  if (!list) return;
+  const isHidden = list.style.display === 'none' || list.style.display === '';
+  list.style.display = isHidden ? 'block' : 'none';
+  if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+}
+
 function exportExcel() {
   const pfx = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
   const evs = S.events.filter(e => e.date.startsWith(pfx));
@@ -2294,36 +2440,64 @@ async function renderGradeTab() {
     // 참여 횟수 계산 ('approved' 된 수업만 카운트)
     const classCount = Object.values(u.applications || {}).filter(st => st === 'approved').length;
 
-    // 시스템 점수 계산
-    let sysScore = 0;
-    if (u.eduLevel === '대졸') sysScore += Number(config.wUni);
-    if (u.eduLevel === '대학원졸') sysScore += Number(config.wGrad);
-    if (u.carOwn === '있음') sysScore += Number(config.wCar);
-    if (u.isMajor === true) sysScore += Number(config.wMajor);
-    sysScore += (classCount * Number(config.wClass));
+    // 자동 점수 항목별 breakdown — { label, reason, score }
+    const breakdown = [];
 
-    // 자격증 점수 (NEW)
+    // 학력
+    if (u.eduLevel) {
+      let s = 0;
+      if (u.eduLevel === '대졸') s = Number(config.wUni);
+      else if (u.eduLevel === '대학원졸') s = Number(config.wGrad);
+      breakdown.push({ label: '학력', reason: u.eduLevel, score: s });
+    }
+
+    // 관련 전공
+    if (u.isMajor === true || u.isMajor === false) {
+      const s = u.isMajor === true ? Number(config.wMajor) : 0;
+      breakdown.push({ label: '관련 전공', reason: u.isMajor === true ? '전공자' : '비전공자', score: s });
+    }
+
+    // 차량
+    if (u.carOwn) {
+      const s = u.carOwn === '있음' ? Number(config.wCar) : 0;
+      breakdown.push({ label: '차량보유', reason: u.carOwn, score: s });
+    }
+
+    // 수업 참여 (항상 표시)
+    breakdown.push({
+      label: '수업 참여',
+      reason: `${classCount}회 × ${config.wClass}`,
+      score: classCount * Number(config.wClass)
+    });
+
+    // 자격증
     const cats = Array.isArray(u.certCategories) ? u.certCategories : [];
-    let certScore = 0;
-    const certDetails = [];
-    if (cats.includes('교원자격')) { certScore += Number(config.wCertTeacher); certDetails.push(`교원 +${config.wCertTeacher}`); }
-    if (cats.includes('평생교육사')) { certScore += Number(config.wCertLifelong); certDetails.push(`평생 +${config.wCertLifelong}`); }
-    if (cats.includes('청소년지도사')) { certScore += Number(config.wCertYouth); certDetails.push(`청소년 +${config.wCertYouth}`); }
+    if (cats.includes('교원자격')) {
+      breakdown.push({ label: '교원자격', reason: '보유', score: Number(config.wCertTeacher) });
+    }
+    if (cats.includes('평생교육사')) {
+      breakdown.push({ label: '평생교육사', reason: '보유', score: Number(config.wCertLifelong) });
+    }
+    if (cats.includes('청소년지도사')) {
+      breakdown.push({ label: '청소년지도사', reason: '보유', score: Number(config.wCertYouth) });
+    }
     const otherCount = cats.filter(c => OTHER_CERTS.includes(c)).length;
-    if (otherCount > 0) { certScore += otherCount * Number(config.wCertOther); certDetails.push(`기타 ${otherCount}개 +${otherCount * Number(config.wCertOther)}`); }
-    sysScore += certScore;
+    if (otherCount > 0) {
+      breakdown.push({
+        label: '기타 자격증',
+        reason: `${otherCount}개 × ${config.wCertOther}`,
+        score: otherCount * Number(config.wCertOther)
+      });
+    }
+
+    // 자동 합계 = breakdown 합
+    const sysScore = breakdown.reduce((sum, b) => sum + Number(b.score || 0), 0);
 
     const total = sysScore + (Number(u.manualScore) || 0);
 
     list.push({
       name: name,
-      eduLevel: u.eduLevel || '-',
-      isMajor: u.isMajor === true ? '전공' : u.isMajor === false ? '비전공' : '-',
-      carOwn: u.carOwn || '-',
-      classCount: classCount,
-      certCount: cats.length,
-      certScore: certScore,
-      certDetails: certDetails.join(' / ') || '없음',
+      breakdown: breakdown,
       sysScore: sysScore,
       manualScore: u.manualScore || 0,
       total: total
@@ -2344,21 +2518,33 @@ async function renderGradeTab() {
     // 1~3등은 순위 뱃지 스타일링
     const rankBadge = idx < 3 ? `<span class="badge" style="background:var(--amber);color:white;">${idx + 1}위</span>` : `${idx + 1}위`;
 
+    // breakdown 행 HTML
+    const bdRows = item.breakdown.map(b => `
+      <div class="bd-row">
+        <span class="bd-label">${b.label}</span>
+        <span class="bd-reason">${_escapeHtml(b.reason)}</span>
+        <span class="bd-score ${b.score > 0 ? 'pos' : 'zero'}">${b.score >= 0 ? '+' : ''}${b.score}</span>
+      </div>`).join('');
+
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border)';
     tr.innerHTML = `
-      <td style="padding:10px;">${rankBadge}</td>
-      <td style="padding:10px; font-weight:500;">${item.name}</td>
-      <td style="padding:10px; font-size:12px; color:var(--text-sub);">
-        학력:${item.eduLevel} / ${item.isMajor} / 차량:${item.carOwn} / 수업:${item.classCount}회
-        <br>자격증: ${item.certDetails}
-        <br><span style="color:var(--text); font-weight:500;">(자동 ${item.sysScore}점)</span>
+      <td style="padding:10px; vertical-align:top;">${rankBadge}</td>
+      <td style="padding:10px; font-weight:500; vertical-align:top;">${item.name}</td>
+      <td style="padding:10px; vertical-align:top;">
+        <div class="bd-table">
+          ${bdRows}
+          <div class="bd-sum-row">
+            <span>자동 합계</span>
+            <span class="bd-sum-val">${item.sysScore}점</span>
+          </div>
+        </div>
       </td>
-      <td style="padding:10px;">
+      <td style="padding:10px; vertical-align:top;">
         <input type="number" id="manual_${item.name}" value="${item.manualScore}" style="width:60px; padding:4px; border:1px solid var(--border); border-radius:4px;"> 점
       </td>
-      <td style="padding:10px; font-weight:700; color:var(--blue); font-size:15px;">${item.total}</td>
-      <td style="padding:10px;">
+      <td style="padding:10px; font-weight:700; color:var(--blue); font-size:16px; vertical-align:top;">${item.total}</td>
+      <td style="padding:10px; vertical-align:top;">
         <button class="btn sm" onclick="saveManualScore('${item.name.replace(/'/g, "\\'")}')">수정 반영</button>
       </td>
     `;
@@ -2425,6 +2611,7 @@ window.setInstEventFilter = setInstEventFilter;
 window.setInstListSort = setInstListSort;
 window.toggleCertCategories = toggleCertCategories;
 window._updateCertCatLabel = _updateCertCatLabel;
+window.toggleLoginNotices = toggleLoginNotices;
 window.approveInstructor = approveInstructor;
 window.rejectInstructor = rejectInstructor;
 window.chMon = chMon;
