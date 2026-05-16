@@ -560,60 +560,122 @@ async function changeInstPw() {
   }
 }
 
+// 강사 화면 일정 필터 상태 ('upcoming' | 'past' | 'all'). 페이지 이동에도 유지됨.
+let _instEventFilter = 'upcoming';
+
+function _instTodayStr() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function setInstEventFilter(mode) {
+  _instEventFilter = mode;
+  renderInstEvents();
+}
+
 function renderInstEvents() {
   const list = document.getElementById('instEvList');
   const myApp = document.getElementById('myApps');
   const u = S.instructors[S.currentUser];
   if (!u) { list.innerHTML = ''; myApp.innerHTML = ''; return; }
+
+  const todayStr = _instTodayStr();
+
+  // ─── 일정 정렬: 날짜+시작시간 오름차순 ───
+  const sortedEvents = [...S.events].sort((a, b) => {
+    const ka = (a.date || '') + 'T' + (a.startTime || '00:00');
+    const kb = (b.date || '') + 'T' + (b.startTime || '00:00');
+    return ka.localeCompare(kb);
+  });
+
+  // ─── 필터 적용 ───
+  const upcomingCnt = sortedEvents.filter(ev => ev.date >= todayStr).length;
+  const pastCnt = sortedEvents.filter(ev => ev.date < todayStr).length;
+  const totalCnt = sortedEvents.length;
+  const filtered = sortedEvents.filter(ev => {
+    if (_instEventFilter === 'upcoming') return ev.date >= todayStr;
+    if (_instEventFilter === 'past') return ev.date < todayStr;
+    return true;
+  });
+
+  // ─── 필터 토글 UI ───
+  const filterBar = `
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn sm ${_instEventFilter==='upcoming'?'primary':''}" onclick="setInstEventFilter('upcoming')">앞으로 예정 (${upcomingCnt})</button>
+      <button class="btn sm ${_instEventFilter==='past'?'primary':''}" onclick="setInstEventFilter('past')">지난 일정 (${pastCnt})</button>
+      <button class="btn sm ${_instEventFilter==='all'?'primary':''}" onclick="setInstEventFilter('all')">전체 (${totalCnt})</button>
+    </div>`;
+
   if (!S.events.length) {
-    list.innerHTML = '<p class="empty-msg">등록된 공지가 없습니다.</p>';
+    list.innerHTML = '<p class="empty-msg">등록된 일정이 없습니다.</p>';
     myApp.innerHTML = '';
     return;
   }
-  list.innerHTML = '';
-  S.events.forEach((ev) => {
-    const evId = ev._id;
-    const applied = u.applications && u.applications[evId];
-    const timeStr = fmtTime(ev.startTime, ev.endTime);
-    const d = document.createElement('div');
-    d.className = 'ev-item';
-    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-      <div style="display:flex;align-items:flex-start;flex:1;min-width:0;">
-        <span class="type-stripe ${typeCls(ev.type)}"></span>
-        <div style="flex:1;min-width:0;">
-          <div class="ev-title">[${ev.type}] ${ev.title}</div>
-          <div class="ev-meta">${ev.date}${timeStr ? ' · ' + timeStr : ''} &middot; ${ev.place}</div>
-          <div class="ev-desc">${ev.desc || ''}</div>
+
+  if (!filtered.length) {
+    list.innerHTML = filterBar + '<p class="empty-msg">해당 조건의 일정이 없습니다.</p>';
+  } else {
+    list.innerHTML = filterBar;
+    filtered.forEach((ev) => {
+      const evId = ev._id;
+      const applied = u.applications && u.applications[evId];
+      const isPast = ev.date < todayStr;
+      const timeStr = fmtTime(ev.startTime, ev.endTime);
+      const d = document.createElement('div');
+      d.className = 'ev-item';
+      if (isPast) d.style.opacity = '0.55';
+      d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="display:flex;align-items:flex-start;flex:1;min-width:0;">
+          <span class="type-stripe ${typeCls(ev.type)}"></span>
+          <div style="flex:1;min-width:0;">
+            <div class="ev-title">[${ev.type}] ${ev.title}${isPast ? ' <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(종료)</span>' : ''}</div>
+            <div class="ev-meta">${ev.date}${timeStr ? ' · ' + timeStr : ''} &middot; ${ev.place}</div>
+            <div class="ev-desc">${ev.desc || ''}</div>
+          </div>
         </div>
-      </div>
-      <div style="flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
-        ${applied
-          ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>
-             <button class="btn sm danger" onclick="cancelApp('${evId}')">신청 취소</button>`
-          : `<button class="btn sm primary" onclick="applyEv('${evId}')">신청</button>`}
-      </div>
-    </div>`;
-    list.appendChild(d);
-  });
+        <div style="flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
+          ${applied
+            ? `<span class="badge ${applied}">${applied==='pending'?'신청중':applied==='approved'?'승인됨':'거절됨'}</span>
+               ${isPast ? '' : `<button class="btn sm danger" onclick="cancelApp('${evId}')">신청 취소</button>`}`
+            : (isPast
+                ? `<span class="badge" style="background:var(--bg);color:var(--text-hint);">종료</span>`
+                : `<button class="btn sm primary" onclick="applyEv('${evId}')">신청</button>`)}
+        </div>
+      </div>`;
+      list.appendChild(d);
+    });
+  }
+
+  // ─── 내 신청 현황 (날짜+시간 오름차순 정렬, 지난 일정은 옅게) ───
   const items = Object.entries(u.applications || {}).filter(([,v]) => v);
   if (!items.length) {
     myApp.innerHTML = '<p class="empty-msg">신청한 항목이 없습니다.</p>';
     return;
   }
+  const myItems = items
+    .map(([evId, status]) => ({ evId, status, ev: S.events.find(e => e._id === evId) }))
+    .filter(x => x.ev)
+    .sort((a, b) => {
+      const ka = (a.ev.date || '') + 'T' + (a.ev.startTime || '00:00');
+      const kb = (b.ev.date || '') + 'T' + (b.ev.startTime || '00:00');
+      return ka.localeCompare(kb);
+    });
+
   myApp.innerHTML = '';
-  items.forEach(([evId, status]) => {
-    const ev = S.events.find(e => e._id === evId);
-    if (!ev) return;
+  myItems.forEach(({ evId, status, ev }) => {
     const timeStr = fmtTime(ev.startTime, ev.endTime);
+    const isPast = ev.date < todayStr;
     const d = document.createElement('div'); d.className = 'ev-item';
+    if (isPast) d.style.opacity = '0.55';
     d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="display:flex;align-items:center;flex:1;min-width:0;">
         <span class="type-stripe ${typeCls(ev.type)}"></span>
-        <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span></span>
+        <span style="overflow:hidden;text-overflow:ellipsis;">[${ev.type}] ${ev.title} <span style="color:var(--text-sub);">${ev.date}${timeStr ? ' ' + timeStr : ''}</span>${isPast ? ' <span style="font-size:11px;color:var(--text-hint);">(종료)</span>' : ''}</span>
       </span>
       <div class="btn-grp">
         <span class="badge ${status}">${status==='pending'?'검토중':status==='approved'?'승인됨':'거절됨'}</span>
-        <button class="btn sm danger" onclick="cancelApp('${evId}')">취소</button>
+        ${isPast ? '' : `<button class="btn sm danger" onclick="cancelApp('${evId}')">취소</button>`}
       </div>
     </div>`;
     myApp.appendChild(d);
@@ -2151,6 +2213,7 @@ window.saveProfile = saveProfile;
 window.changeInstPw = changeInstPw;
 window.applyEv = applyEv;
 window.cancelApp = cancelApp;
+window.setInstEventFilter = setInstEventFilter;
 window.approveInstructor = approveInstructor;
 window.rejectInstructor = rejectInstructor;
 window.chMon = chMon;
