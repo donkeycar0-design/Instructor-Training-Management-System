@@ -214,14 +214,13 @@
     <div class="login-card">
       <div id="ltInst">
         <div class="info-box" style="font-size:11.5px;line-height:1.55;">
-          💡 <b>신규 강사 안내</b><br>
-          • 이름과 비밀번호를 입력하면 <b>가입 신청</b>이 접수됩니다.<br>
-          • <b>관리자 승인 후</b> 정상 로그인이 가능합니다.<br>
-          • 기존 강사는 등록한 비밀번호로 바로 로그인됩니다.
+          💡 <b>강사 로그인 안내</b><br>
+          • <b>기존 강사</b>: 이름과 비밀번호 입력 후 로그인<br>
+          • <b>처음이신가요?</b> <a href="javascript:void(0)" onclick="openSignupModal()" style="color:var(--blue);font-weight:700;text-decoration:none;border-bottom:1px solid var(--blue);">가입 신청하기 →</a>
         </div>
         <div class="form-group"><label>이름</label><input id="iName" type="text" placeholder="홍길동" onkeypress="if(event.key==='Enter')document.getElementById('iPw').focus();"/></div>
         <div class="form-group"><label>비밀번호</label><input id="iPw" type="password" placeholder="비밀번호 입력" onkeypress="if(event.key==='Enter')loginInst();"/></div>
-        <button class="btn primary full login-submit" onclick="loginInst()">로그인 / 가입 신청</button>
+        <button class="btn primary full login-submit" onclick="loginInst()">로그인</button>
       </div>
 
       <div id="loginErr" class="err-msg"></div>
@@ -244,7 +243,7 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2
+      티치포퓨처 강사 플랫폼 V2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -469,7 +468,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2
+      티치포퓨처 강사 플랫폼 V2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -744,6 +743,62 @@
     <div class="modal-footer">
       <button class="btn primary" onclick="loginAdmin()">로그인</button>
       <button class="btn" onclick="closeAdminLoginModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 신규 강사 가입 신청 모달 -->
+<div class="modal-bg" id="signupModal">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="display:flex;align-items:center;gap:8px;">📝 신규 강사 가입 신청</h3>
+    <div class="info-box" style="font-size:11.5px;line-height:1.55;margin-bottom:14px;">
+      💡 가입 신청 후 <b>관리자 승인</b>을 거치면 로그인할 수 있습니다.<br>
+      • 비밀번호는 본인이 정하고, 분실 시 관리자가 재설정할 수 있습니다.
+    </div>
+    <div class="form-group"><label>이름 <span class="req-star">*</span></label><input id="suName" type="text" placeholder="홍길동"/></div>
+    <div class="form-group"><label>비밀번호 <span class="req-star">*</span></label><input id="suPw" type="password" placeholder="6자 이상"/></div>
+    <div class="form-group"><label>비밀번호 확인 <span class="req-star">*</span></label><input id="suPw2" type="password" placeholder="다시 입력" onkeypress="if(event.key==='Enter')submitSignup();"/></div>
+    <div id="signupErr" class="err-msg"></div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="submitSignup()">가입 신청</button>
+      <button class="btn" onclick="closeModal('signupModal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 동명이인 식별자 요청 모달 (가입 시) -->
+<div class="modal-bg" id="identifierModal">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="display:flex;align-items:center;gap:8px;">👥 같은 이름의 강사가 계세요</h3>
+    <div class="info-box" style="font-size:12px;line-height:1.55;margin-bottom:14px;background:var(--amber-light);color:var(--amber);">
+      <b id="idmsgName">'홍길동'</b> 강사가 이미 등록되어 있어요.<br>
+      구분을 위해 짧은 식별 정보를 하나만 알려주세요.<br>
+      <span style="font-size:11px;color:var(--text-sub);">(예: 소속 학교, 별명, 연락처 끝 4자리 등)</span>
+    </div>
+    <div class="form-group">
+      <label>식별자 <span class="req-star">*</span></label>
+      <input id="idValue" type="text" placeholder="예: 상록초 / 영어전공 / 1234" onkeypress="if(event.key==='Enter')submitSignupWithIdentifier();" maxlength="20"/>
+      <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">📝 표시 예: <span id="idPreview">홍길동 (...)</span></div>
+    </div>
+    <div id="identifierErr" class="err-msg"></div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="submitSignupWithIdentifier()">가입 신청</button>
+      <button class="btn" onclick="closeModal('identifierModal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 로그인 시 동명이인 선택 모달 -->
+<div class="modal-bg" id="pickInstructorModal">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="display:flex;align-items:center;gap:8px;">👥 어느 분이신가요?</h3>
+    <div class="info-box" style="font-size:12px;line-height:1.55;margin-bottom:14px;">
+      <b id="pickMsgName">'홍길동'</b> 이름으로 등록된 강사가 여러 명 있습니다.<br>
+      본인을 선택해 주세요.
+    </div>
+    <div id="pickInstructorList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('pickInstructorModal')">취소</button>
     </div>
   </div>
 </div>

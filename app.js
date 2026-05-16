@@ -233,6 +233,31 @@ function showErr(msg, type) {
   e.style.display = 'block';
 }
 
+// ══════════════════════════════════════════════════════════════════
+// 강사 로그인/가입 헬퍼
+// ══════════════════════════════════════════════════════════════════
+
+// baseName(본 이름)이 일치하는 강사 PK 목록 반환
+function _findInstructorPKsByName(baseName) {
+  const target = (baseName || '').trim();
+  if (!target) return [];
+  const pks = [];
+  Object.keys(S.instructors).forEach(pk => {
+    const u = S.instructors[pk];
+    const bn = (u.baseName || u.name || pk).trim();
+    if (bn === target) pks.push(pk);
+  });
+  return pks;
+}
+
+// PK 만들기: 동명이인 없으면 이름 그대로, 있으면 이름_식별자
+function _makeInstructorPK(name, identifier) {
+  if (!identifier) return name;
+  // 식별자에 PK로 안전하지 않은 문자 제거
+  const safe = identifier.replace(/[\s\/\\'"`]/g, '_');
+  return `${name}_${safe}`;
+}
+
 async function loginInst() {
   if (!S.initialized) { showErr('아직 초기화 중입니다. 잠시 후 다시 시도하세요.'); return; }
   const name = document.getElementById('iName').value.trim();
@@ -243,66 +268,219 @@ async function loginInst() {
   try {
     const hashedPw = await hashPw(pw);
 
-    if (S.instructors[name]) {
-      if (S.instructors[name].pw !== hashedPw) {
-        hideLoading();
-        showErr('비밀번호가 틀렸습니다.');
-        return;
-      }
-      const status = S.instructors[name].status || 'approved';
-      if (status === 'pending') {
-        hideLoading();
-        showErr(
-          '🕐 관리자 승인 대기 중입니다.\n' +
-          '신청이 정상 접수되었으니 관리자의 승인을 기다려 주세요.\n' +
-          '승인이 완료되면 입력하신 비밀번호로 바로 로그인할 수 있습니다.',
-          'warn'
-        );
-        return;
-      }
-      if (status === 'rejected') {
-        hideLoading();
-        showErr('❌ 가입 신청이 거절되었습니다.\n자세한 사항은 관리자에게 문의해 주세요.');
-        return;
-      }
-    } else {
-      const newProfile = {
-        pw: hashedPw, name, email:'', phone:'', addr:'', subject:'',
-        eduLevel: '', isMajor: '', manualScore: 0,
-        edu: ['','',''], career: ['','','','',''], certs: ['','','','',''],
-        days: {}, carOwn: '', appeal: '', applications: {},
-        status: 'pending', registeredAt: new Date().toISOString()
-      };
-      await window.DB.signIn();
-      await window.DB.saveInstructor(name, newProfile);
-      S.instructors[name] = newProfile;
-      try { localStorage.setItem('tff_last_user', name); } catch(e) {}
+    // 동일 baseName의 강사 PK들 찾기
+    const matchingPKs = _findInstructorPKsByName(name);
+
+    if (matchingPKs.length === 0) {
+      // 등록되지 않은 이름 → 가입 안내
       hideLoading();
-      document.getElementById('iName').value = '';
-      document.getElementById('iPw').value = '';
       showErr(
-        '✅ 가입 신청이 접수되었습니다!\n' +
-        `'${name}' 님의 신청이 관리자에게 전달되었습니다.\n` +
-        '관리자가 승인하면 등록하신 비밀번호로 로그인할 수 있습니다.',
-        'success'
+        '❌ 등록되지 않은 이름입니다.\n' +
+        '신규 강사이신가요? 위의 [가입 신청하기 →] 링크를 눌러 가입을 먼저 진행해 주세요.',
+        'warn'
       );
       return;
     }
 
-    await window.DB.signIn();
+    if (matchingPKs.length === 1) {
+      // 단일 강사 - 비번 확인
+      const pk = matchingPKs[0];
+      await _finalizeLoginInst(pk, hashedPw);
+      return;
+    }
 
-    document.getElementById('loginErr').style.display = 'none';
-    S.currentUser = name; S.isAdmin = false;
-    // 다음 방문 시 로그인 화면 알림에서 "내가 참여한 항목" 필터링에 사용
-    try { localStorage.setItem('tff_last_user', name); } catch(e) {}
+    // 동명이인 - 선택 모달
     hideLoading();
-    showScreen('instScreen');
-    loadInstProfile();
-    renderInstNotices();
-    renderInstEvents();
+    _openPickInstructorModal(name, matchingPKs, hashedPw);
   } catch(e) {
     hideLoading();
     showErr('로그인 실패: ' + e.message);
+  }
+}
+
+// 비번 검증 + 로그인 완료 처리 (PK 기준)
+async function _finalizeLoginInst(pk, hashedPw) {
+  const u = S.instructors[pk];
+  if (!u) { hideLoading(); showErr('강사 정보를 찾을 수 없습니다.'); return; }
+  if (u.pw !== hashedPw) {
+    hideLoading();
+    showErr('비밀번호가 틀렸습니다.');
+    return;
+  }
+  const status = u.status || 'approved';
+  if (status === 'pending') {
+    hideLoading();
+    showErr(
+      '🕐 관리자 승인 대기 중입니다.\n' +
+      '신청이 정상 접수되었으니 관리자의 승인을 기다려 주세요.\n' +
+      '승인이 완료되면 입력하신 비밀번호로 바로 로그인할 수 있습니다.',
+      'warn'
+    );
+    return;
+  }
+  if (status === 'rejected') {
+    hideLoading();
+    showErr('❌ 가입 신청이 거절되었습니다.\n자세한 사항은 관리자에게 문의해 주세요.');
+    return;
+  }
+
+  await window.DB.signIn();
+  document.getElementById('loginErr').style.display = 'none';
+  S.currentUser = pk;
+  S.isAdmin = false;
+  try { localStorage.setItem('tff_last_user', pk); } catch(e) {}
+  hideLoading();
+  showScreen('instScreen');
+  loadInstProfile();
+  renderInstNotices();
+  renderInstEvents();
+}
+
+// 동명이인 선택 모달 열기
+function _openPickInstructorModal(name, pks, hashedPw) {
+  document.getElementById('pickMsgName').textContent = `'${name}'`;
+  const list = document.getElementById('pickInstructorList');
+  list.innerHTML = '';
+  pks.forEach(pk => {
+    const u = S.instructors[pk];
+    const displayName = u.displayName || u.name || pk;
+    const ident = u.identifier ? `식별: ${u.identifier}` : '식별 없음';
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.style.cssText = 'width:100%;text-align:left;padding:12px 14px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;border:1px solid var(--border);background:var(--surface);';
+    btn.innerHTML = `<span style="font-weight:700;font-size:14px;">${_escapeHtml(displayName)}</span>
+      <span style="font-size:11px;color:var(--text-hint);">${_escapeHtml(ident)}</span>`;
+    btn.onclick = async () => {
+      closeModal('pickInstructorModal');
+      showLoading('확인 중...');
+      await _finalizeLoginInst(pk, hashedPw);
+    };
+    list.appendChild(btn);
+  });
+  openModal('pickInstructorModal');
+}
+
+// 신규 가입 모달 열기
+function openSignupModal() {
+  ['suName', 'suPw', 'suPw2'].forEach(id => { document.getElementById(id).value = ''; });
+  const errEl = document.getElementById('signupErr');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+  openModal('signupModal');
+  setTimeout(() => document.getElementById('suName').focus(), 100);
+}
+
+function _showSignupErr(msg) {
+  const el = document.getElementById('signupErr');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// 가입 신청 처리 (1단계) — 동명이인 확인 후 분기
+async function submitSignup() {
+  if (!S.initialized) { _showSignupErr('아직 초기화 중입니다. 잠시 후 다시 시도하세요.'); return; }
+  const name = document.getElementById('suName').value.trim();
+  const pw = document.getElementById('suPw').value.trim();
+  const pw2 = document.getElementById('suPw2').value.trim();
+
+  if (!name) { _showSignupErr('이름을 입력하세요.'); return; }
+  if (!pw) { _showSignupErr('비밀번호를 입력하세요.'); return; }
+  if (pw.length < 6) { _showSignupErr('비밀번호는 6자 이상으로 입력하세요.'); return; }
+  if (pw !== pw2) { _showSignupErr('비밀번호 확인이 일치하지 않습니다.'); return; }
+
+  // 동명이인 체크
+  const existing = _findInstructorPKsByName(name);
+  if (existing.length > 0) {
+    // 식별자 요청 모달로 분기 (pw는 임시 저장)
+    S._pendingSignup = { name, pw };
+    closeModal('signupModal');
+    _openIdentifierModal(name);
+    return;
+  }
+
+  // 동명이인 없음 → 바로 가입
+  await _createInstructor(name, pw, '');
+}
+
+function _openIdentifierModal(name) {
+  document.getElementById('idmsgName').textContent = `'${name}'`;
+  document.getElementById('idValue').value = '';
+  document.getElementById('idPreview').textContent = `${name} (...)`;
+  const errEl = document.getElementById('identifierErr');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+  // 입력에 따라 미리보기 갱신
+  const input = document.getElementById('idValue');
+  input.oninput = () => {
+    const v = input.value.trim();
+    document.getElementById('idPreview').textContent = v ? `${name} (${v})` : `${name} (...)`;
+  };
+  openModal('identifierModal');
+  setTimeout(() => input.focus(), 100);
+}
+
+// 가입 신청 처리 (2단계) — 식별자 함께 등록
+async function submitSignupWithIdentifier() {
+  const pending = S._pendingSignup;
+  if (!pending) { closeModal('identifierModal'); return; }
+  const ident = document.getElementById('idValue').value.trim();
+  if (!ident) {
+    document.getElementById('identifierErr').textContent = '식별자를 입력하세요.';
+    document.getElementById('identifierErr').style.display = 'block';
+    return;
+  }
+  // PK 충돌 한 번 더 검사 (혹시 같은 식별자로 또 가입했을 경우)
+  const candidatePK = _makeInstructorPK(pending.name, ident);
+  if (S.instructors[candidatePK]) {
+    document.getElementById('identifierErr').textContent = `이미 같은 식별자로 등록된 강사가 있습니다. 다른 식별자를 사용해 주세요.`;
+    document.getElementById('identifierErr').style.display = 'block';
+    return;
+  }
+  await _createInstructor(pending.name, pending.pw, ident);
+}
+
+// 실제 강사 생성 (동명이인 유무 관계없이 공통)
+async function _createInstructor(name, pw, identifier) {
+  showLoading('가입 신청 중...');
+  try {
+    const hashedPw = await hashPw(pw);
+    const pk = _makeInstructorPK(name, identifier);
+    const displayName = identifier ? `${name} (${identifier})` : name;
+    const newProfile = {
+      pw: hashedPw,
+      name: pk,            // PK를 name 필드에도 (기존 호환)
+      baseName: name,      // 검색용 본 이름
+      identifier: identifier,
+      displayName: displayName,
+      email: '', phone: '', addr: '', subject: '',
+      eduLevel: '', isMajor: '', manualScore: 0,
+      edu: ['','',''], career: ['','','','',''], certs: ['','','','',''],
+      certCategories: [], days: {}, carOwn: '', appeal: '',
+      applications: {}, status: 'pending',
+      registeredAt: new Date().toISOString()
+    };
+    await window.DB.signIn();
+    await window.DB.saveInstructor(pk, newProfile);
+    S.instructors[pk] = newProfile;
+    try { localStorage.setItem('tff_last_user', pk); } catch(e) {}
+    S._pendingSignup = null;
+    closeModal('signupModal');
+    closeModal('identifierModal');
+    hideLoading();
+    showErr(
+      '✅ 가입 신청이 접수되었습니다!\n' +
+      `'${displayName}' 님의 신청이 관리자에게 전달되었습니다.\n` +
+      '관리자가 승인하면 등록하신 비밀번호로 로그인할 수 있습니다.',
+      'success'
+    );
+  } catch(e) {
+    hideLoading();
+    if (document.getElementById('identifierModal').classList.contains('open')) {
+      document.getElementById('identifierErr').textContent = '가입 실패: ' + e.message;
+      document.getElementById('identifierErr').style.display = 'block';
+    } else {
+      _showSignupErr('가입 실패: ' + e.message);
+    }
   }
 }
 
@@ -453,6 +631,10 @@ function getProfile(u) {
   if (typeof u.manualScore !== 'number') u.manualScore = 0;
   if (!u.ssn1) u.ssn1 = '';
   if (!u.ssn2) u.ssn2 = '';
+  // 동명이인 처리용 필드 (기존 강사는 이름 = PK = displayName)
+  if (!u.baseName) u.baseName = u.name || '';
+  if (!u.identifier) u.identifier = '';
+  if (!u.displayName) u.displayName = u.baseName + (u.identifier ? ` (${u.identifier})` : '');
   return u;
 }
 
@@ -476,7 +658,7 @@ function _updateCertCatLabel() {
 
 function loadInstProfile() {
   const u = getProfile(S.instructors[S.currentUser]);
-  document.getElementById('instTopName').textContent = S.currentUser + '님';
+  document.getElementById('instTopName').textContent = (u.displayName || u.name || S.currentUser) + '님';
   document.getElementById('pName').value = u.name || S.currentUser;
   document.getElementById('pSsn1').value = u.ssn1 || '';
   document.getElementById('pSsn2').value = u.ssn2 || '';
@@ -924,15 +1106,17 @@ function renderApprovalList() {
     pendingDiv.innerHTML = '';
     pending.forEach(({ name, u }) => {
       const time = u.registeredAt ? new Date(u.registeredAt).toLocaleString('ko-KR') : '-';
+      const display = u.displayName || u.baseName || name;
+      const avatarChar = (u.baseName || name).slice(0,1);
       const row = document.createElement('div');
       row.className = 'row-item';
       row.style.flexWrap = 'wrap';
       row.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-          <div class="avatar" style="background:var(--amber-light);color:var(--amber);">${_escapeHtml(name.slice(0,1))}</div>
+          <div class="avatar" style="background:var(--amber-light);color:var(--amber);">${_escapeHtml(avatarChar)}</div>
           <div class="inst-info">
             <div class="inst-name">
-              ${_escapeHtml(name)}
+              ${_escapeHtml(display)}
               <span class="badge pending" style="margin-left:6px;">대기중</span>
             </div>
             <div class="inst-sub">📅 신청 시각: ${time}</div>
@@ -953,15 +1137,17 @@ function renderApprovalList() {
     rejectedDiv.innerHTML = '';
     rejected.forEach(({ name, u }) => {
       const rTime = u.rejectedAt ? new Date(u.rejectedAt).toLocaleString('ko-KR') : '-';
+      const display = u.displayName || u.baseName || name;
+      const avatarChar = (u.baseName || name).slice(0,1);
       const row = document.createElement('div');
       row.className = 'row-item';
       row.style.flexWrap = 'wrap';
       row.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-          <div class="avatar" style="background:var(--red-light);color:var(--red);">${_escapeHtml(name.slice(0,1))}</div>
+          <div class="avatar" style="background:var(--red-light);color:var(--red);">${_escapeHtml(avatarChar)}</div>
           <div class="inst-info">
             <div class="inst-name">
-              ${_escapeHtml(name)}
+              ${_escapeHtml(display)}
               <span class="badge rejected" style="margin-left:6px;">거절됨</span>
             </div>
             <div class="inst-sub">📅 거절 시각: ${rTime}${u.rejectedBy ? ' · 처리자: ' + _escapeHtml(u.rejectedBy) : ''}</div>
@@ -1575,11 +1761,13 @@ function renderInstList() {
   names.forEach(name => {
     const u = getProfile(S.instructors[name]);
     const regDate = _fmtRegDate(u.registeredAt);
+    const display = u.displayName || u.baseName || name;
+    const avatarChar = (u.baseName || name).slice(0,1);
     const row = document.createElement('div'); row.className = 'row-item';
     row.innerHTML = `
-      <div class="avatar">${name.slice(0,1)}</div>
+      <div class="avatar">${avatarChar}</div>
       <div class="inst-info">
-        <div class="inst-name">${name} <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span></div>
+        <div class="inst-name">${_escapeHtml(display)} <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span></div>
         <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
       </div>
       <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
@@ -2713,6 +2901,9 @@ window.setInstEventFilter = setInstEventFilter;
 window.setInstListSort = setInstListSort;
 window.toggleCertCategories = toggleCertCategories;
 window._updateCertCatLabel = _updateCertCatLabel;
+window.openSignupModal = openSignupModal;
+window.submitSignup = submitSignup;
+window.submitSignupWithIdentifier = submitSignupWithIdentifier;
 window.approveInstructor = approveInstructor;
 window.rejectInstructor = rejectInstructor;
 window.chMon = chMon;
