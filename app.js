@@ -31,12 +31,17 @@ let S = {
   events: [],
   admins: { admin: null },
   notices: [],
+  visits: [],
   currentUser: null,
   isAdmin: false,
   currentAdminName: null,
   currentNoticeId: null,
+  currentReviewVisitId: null,
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
+  instCalYear: new Date().getFullYear(),
+  instCalMonth: new Date().getMonth(),
+  visitFilter: 'pending',
   dayFilter: {},
   editingEventIdx: null,
   editingNoticeId: null,
@@ -44,6 +49,7 @@ let S = {
   unsubEv: null,
   unsubAdm: null,
   unsubNotices: null,
+  unsubVisits: null,
   initialized: false
 };
 
@@ -140,6 +146,12 @@ async function initApp() {
     S.events = await window.DB.getAllEvents();
     S.admins = await window.DB.getAllAdmins();
     S.notices = await window.DB.getAllNotices();
+    try {
+      S.visits = await window.DB.getAllVisits();
+    } catch(visitErr) {
+      console.warn('[officeVisits] 권한 없음 — 사무실 방문 기능이 비활성화됩니다. Firestore 보안 규칙에 officeVisits 컬렉션을 추가하세요.', visitErr && visitErr.message);
+      S.visits = [];
+    }
 
     await ensureDefaultAdmin();
     S.admins = await window.DB.getAllAdmins();
@@ -160,6 +172,14 @@ async function initApp() {
       S.notices = data;
       onDataChanged('notices');
     });
+    try {
+      S.unsubVisits = window.DB.onVisitsChange((data) => {
+        S.visits = data;
+        onDataChanged('visits');
+      });
+    } catch(e) {
+      console.warn('[officeVisits] 실시간 구독 실패 — 보안 규칙 확인 필요.', e && e.message);
+    }
 
     window.DB.onConnectionChange((online) => {
       if (online) setConnStatus('online', 'Firebase 연결됨');
@@ -195,9 +215,12 @@ function onDataChanged(source) {
     if (evPage && evPage.classList.contains('active')) renderInstEvents();
     const ntPage = document.getElementById('ipNotices');
     if (ntPage && ntPage.classList.contains('active')) renderInstNotices();
+    const calPageI = document.getElementById('ipCalendar');
+    if (calPageI && calPageI.classList.contains('active')) renderInstCal();
   }
   if (adminActive) {
     if (source === 'instructors') updatePendingBadge();
+    if (source === 'visits' || source === 'instructors') updateVisitBadge();
 
     const calPage = document.getElementById('apCalendar');
     if (calPage && calPage.classList.contains('active')) renderCal();
@@ -215,6 +238,8 @@ function onDataChanged(source) {
     if (notPage && notPage.classList.contains('active')) renderAdminNotices();
     const apprPage = document.getElementById('apApproval');
     if (apprPage && apprPage.classList.contains('active')) renderApprovalList();
+    const visitsPage = document.getElementById('apVisits');
+    if (visitsPage && visitsPage.classList.contains('active')) renderAdminVisits();
   }
 
   if (source === 'notices' && S.currentNoticeId) {
@@ -576,6 +601,7 @@ function showIP(id, btn) {
   if (id === 'Profile') loadInstProfile();
   if (id === 'Settings') loadInstSettings();
   if (id === 'Notices') renderInstNotices();
+  if (id === 'Calendar') renderInstCal();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -597,6 +623,7 @@ function showAP(id, btn) {
   if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
   if (id === 'Notices') renderAdminNotices();
   if (id === 'Approval') renderApprovalList();
+  if (id === 'Visits') renderAdminVisits();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1250,6 +1277,28 @@ function renderCal() {
       more.onclick = (e) => { e.stopPropagation(); openEvDetail(dayEvs[2]._id); };
       more.style.cursor = 'pointer';
       cell.appendChild(more);
+    }
+    // ─── 사무실 방문 신청 표시 (관리자 = 전체 강사) ───
+    const dayVisits = (S.visits || []).filter(v => v.date === ds);
+    dayVisits.slice(0, 2).forEach(v => {
+      const vdot = document.createElement('span');
+      vdot.className = 'visit-dot ' + (v.status || 'pending');
+      vdot.textContent = `🏢 ${v.time || ''} ${v.instructor}`;
+      vdot.onclick = (e) => { e.stopPropagation(); openVisitReview(v._id); };
+      vdot.style.cursor = 'pointer';
+      cell.appendChild(vdot);
+    });
+    if (dayVisits.length > 2) {
+      const vmore = document.createElement('span');
+      vmore.className = 'visit-dot pending';
+      vmore.textContent = `+ 방문 ${dayVisits.length - 2}건`;
+      vmore.onclick = (e) => {
+        e.stopPropagation();
+        const btn = document.querySelector('#adminNav .nav-btn[onclick*="Visits"]');
+        showAP('Visits', btn);
+      };
+      vmore.style.cursor = 'pointer';
+      cell.appendChild(vmore);
     }
     cell.onclick = () => {
       const isMobile = window.innerWidth <= 600;
@@ -2942,6 +2991,504 @@ window.closeModal = closeModal;
 window.renderGradeTab = renderGradeTab;
 window.saveGradingWeights = saveGradingWeights;
 window.saveManualScore = saveManualScore;
+
+// ══════════════════════════════════════════════════════════════════
+// 🏢 사무실 방문 신청 시스템
+// ══════════════════════════════════════════════════════════════════
+
+// ─── 강사 캘린더 ────────────────────────────────────────────────
+function chMonInst(d) {
+  S.instCalMonth += d;
+  if (S.instCalMonth > 11) { S.instCalMonth = 0; S.instCalYear++; }
+  if (S.instCalMonth < 0)  { S.instCalMonth = 11; S.instCalYear--; }
+  renderInstCal();
+}
+
+function renderInstCal() {
+  const titleEl = document.getElementById('instCalTitle');
+  const grid = document.getElementById('instCalGrid');
+  if (!titleEl || !grid) return;
+
+  titleEl.textContent = `${S.instCalYear}년 ${MON[S.instCalMonth]}`;
+  grid.innerHTML = '';
+  ['일','월','화','수','목','금','토'].forEach(d => {
+    const h = document.createElement('div'); h.className = 'cal-day-hdr'; h.textContent = d; grid.appendChild(h);
+  });
+
+  const first = new Date(S.instCalYear, S.instCalMonth, 1).getDay();
+  const days = new Date(S.instCalYear, S.instCalMonth + 1, 0).getDate();
+  for (let i = 0; i < first; i++) {
+    const empty = document.createElement('div'); empty.className = 'cal-day other-month'; grid.appendChild(empty);
+  }
+  const today = new Date();
+  const myName = S.currentUser;
+
+  for (let d = 1; d <= days; d++) {
+    const cell = document.createElement('div'); cell.className = 'cal-day';
+    if (d === today.getDate() && S.instCalMonth === today.getMonth() && S.instCalYear === today.getFullYear())
+      cell.classList.add('today');
+    cell.innerHTML = `<div class="day-num">${d}</div>`;
+    const ds = `${S.instCalYear}-${String(S.instCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+    // 강의/연수 일정 (읽기 전용, 강사 전용 정보 모달)
+    const dayEvs = S.events.filter(e => e.date === ds);
+    dayEvs.slice(0, 2).forEach(ev => {
+      const dot = document.createElement('span');
+      dot.className = 'ev-dot ' + typeCls(ev.type);
+      dot.textContent = `[${ev.type}] ${ev.title}`;
+      dot.onclick = (e) => { e.stopPropagation(); openInstEvInfo(ev._id); };
+      dot.style.cursor = 'pointer';
+      cell.appendChild(dot);
+    });
+    if (dayEvs.length > 2) {
+      const more = document.createElement('span');
+      more.className = 'ev-dot type-etc';
+      more.textContent = `+${dayEvs.length - 2}건 더`;
+      more.onclick = (e) => { e.stopPropagation(); openInstEvInfo(dayEvs[2]._id); };
+      more.style.cursor = 'pointer';
+      cell.appendChild(more);
+    }
+
+    // 내 방문 신청만 표시
+    const myVisits = (S.visits || []).filter(v => v.date === ds && v.instructor === myName);
+    myVisits.forEach(v => {
+      const vdot = document.createElement('span');
+      vdot.className = 'visit-dot ' + (v.status || 'pending');
+      const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
+      vdot.textContent = `${icon} ${v.time || ''} 방문`;
+      vdot.onclick = (e) => { e.stopPropagation(); openInstVisitDetail(v._id); };
+      vdot.style.cursor = 'pointer';
+      cell.appendChild(vdot);
+    });
+
+    // 날짜 클릭 → 모바일은 일목 표시, 데스크톱은 곧바로 신청 모달
+    cell.onclick = () => {
+      const isMobile = window.innerWidth <= 600;
+      if (isMobile) {
+        showInstMobileDay(ds, dayEvs, myVisits);
+      } else {
+        openVisitModal(ds);
+      }
+    };
+    grid.appendChild(cell);
+  }
+
+  renderInstVisitList();
+}
+
+function showInstMobileDay(ds, dayEvs, myVisits) {
+  const wrap = document.getElementById('instMobileDayEvents');
+  const titleEl = document.getElementById('instMobileDayEventsTitle');
+  const listEl = document.getElementById('instMobileDayEventsList');
+  if (!wrap || !titleEl || !listEl) return;
+
+  const dt = new Date(ds + 'T00:00:00');
+  const dayLabel = ['일','월','화','수','목','금','토'][dt.getDay()];
+  titleEl.textContent = `📅 ${ds} (${dayLabel})`;
+
+  let html = '';
+  if (dayEvs.length) {
+    html += '<div style="font-size:11px;color:var(--text-sub);margin:6px 0;">강의/연수 일정</div>';
+    dayEvs.forEach(ev => {
+      html += `<div class="notice-card" onclick="openInstEvInfo('${ev._id}')" style="cursor:pointer;">
+        <div class="notice-title-row">
+          <span class="badge ${typeCls(ev.type)}" style="font-size:10px;">${ev.type}</span>
+          <span class="notice-title">${_escapeHtml(ev.title)}</span>
+        </div>
+        <div class="notice-meta">${ev.startTime ? '🕒 ' + fmtTime(ev.startTime, ev.endTime) : ''} 📍 ${_escapeHtml(ev.place || '-')}</div>
+      </div>`;
+    });
+  }
+  if (myVisits.length) {
+    html += '<div style="font-size:11px;color:var(--text-sub);margin:10px 0 6px;">내 방문 신청</div>';
+    myVisits.forEach(v => {
+      const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
+      const label = v.status === 'approved' ? '승인' : v.status === 'rejected' ? '거절' : '대기';
+      html += `<div class="notice-card" onclick="openInstVisitDetail('${v._id}')" style="cursor:pointer;">
+        <div class="notice-title-row"><span class="notice-title">${icon} ${v.time || ''} · ${label}</span></div>
+        <div class="notice-meta">${_escapeHtml(v.purpose || '')}</div>
+      </div>`;
+    });
+  }
+  if (!dayEvs.length && !myVisits.length) {
+    html += '<p class="empty-msg" style="margin-bottom:10px;">이 날짜에 일정이 없습니다.</p>';
+  }
+  html += `<button class="btn primary" style="width:100%;margin-top:10px;" onclick="openVisitModal('${ds}')">+ 이 날짜에 방문 신청</button>`;
+  listEl.innerHTML = html;
+  wrap.classList.add('show');
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+}
+
+// ─── 강사: 내 방문 신청 목록 ─────────────────────────────────────
+function renderInstVisitList() {
+  const div = document.getElementById('instVisitList');
+  if (!div) return;
+  const myName = S.currentUser;
+  const mine = (S.visits || [])
+    .filter(v => v.instructor === myName)
+    .sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')));
+
+  if (!mine.length) {
+    div.innerHTML = '<p class="empty-msg">신청 내역이 없습니다. 캘린더에서 날짜를 선택해 신청해 보세요.</p>';
+    return;
+  }
+
+  div.innerHTML = mine.map(v => {
+    const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
+    const label = v.status === 'approved' ? '승인됨' : v.status === 'rejected' ? '거절됨' : '대기 중';
+    const borderColor = v.status === 'approved' ? '#34A853' : v.status === 'rejected' ? '#DC3545' : '#FF9800';
+    const canCancel = v.status === 'pending';
+    return `
+      <div class="notice-card" style="border-left-color:${borderColor};">
+        <div class="notice-title-row">
+          <span class="notice-title">${icon} ${v.date} ${v.time || ''} — ${label}</span>
+        </div>
+        <div class="notice-meta">📝 ${_escapeHtml(v.purpose || '')}</div>
+        ${v.reviewComment ? `<div class="notice-meta" style="color:var(--text);">💬 관리자: ${_escapeHtml(v.reviewComment)}</div>` : ''}
+        ${canCancel ? `<div style="margin-top:8px;"><button class="btn sm" onclick="cancelMyVisit('${v._id}')">신청 취소</button></div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ─── 강사: 방문 신청 모달 ────────────────────────────────────────
+function _todayStrForVisit() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function openVisitModal(preDate) {
+  if (!S.currentUser) { toast('로그인이 필요합니다.', 'error'); return; }
+  document.getElementById('vrDate').value = preDate || _todayStrForVisit();
+  document.getElementById('vrTime').value = '';
+  document.getElementById('vrPurpose').value = '';
+  openModal('visitRequestModal');
+}
+
+let _savingVisit = false;
+async function saveVisitRequest() {
+  if (_savingVisit) return;  // 더블 클릭 방지
+
+  const date = document.getElementById('vrDate').value;
+  const time = document.getElementById('vrTime').value.trim();
+  const purpose = document.getElementById('vrPurpose').value.trim();
+
+  if (!date) { toast('방문 일자를 선택하세요.', 'error'); return; }
+  if (!time) { toast('방문 시간을 입력하세요.', 'error'); return; }
+  if (!purpose) { toast('용무를 입력하세요.', 'error'); return; }
+  if (date < _todayStrForVisit()) { toast('과거 날짜로는 신청할 수 없습니다.', 'error'); return; }
+
+  // ─── 중복 방지: 동일 강사·날짜·시간이 이미 있으면 차단 ───
+  const dup = (S.visits || []).find(v =>
+    v.instructor === S.currentUser &&
+    v.date === date &&
+    v.time === time &&
+    (v.status === 'pending' || v.status === 'approved')
+  );
+  if (dup) {
+    const lbl = dup.status === 'approved' ? '승인된' : '대기 중인';
+    toast(`이미 ${date} ${time}에 ${lbl} 신청이 있습니다.`, 'error');
+    return;
+  }
+
+  const data = {
+    instructor: S.currentUser,
+    date, time, purpose,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewComment: ''
+  };
+
+  _savingVisit = true;
+  // 신청 버튼 비활성화
+  const submitBtn = document.querySelector('#visitRequestModal .btn.primary');
+  if (submitBtn) submitBtn.disabled = true;
+
+  showLoading('신청 중...');
+  try {
+    const newId = await window.DB.addVisit(data);
+    // 낙관적 UI 갱신 (중복 _id 방지)
+    if (!(S.visits || []).some(v => v._id === newId)) {
+      S.visits = [...(S.visits || []), { _id: newId, ...data }];
+    }
+    hideLoading();
+    closeModal('visitRequestModal');
+    toast('✓ 방문 신청이 접수되었습니다. 관리자 승인 대기 중입니다.', 'success');
+    renderInstCal();
+  } catch (e) {
+    hideLoading();
+    toast('신청 실패: ' + e.message, 'error');
+  } finally {
+    _savingVisit = false;
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function openInstVisitDetail(visitId) {
+  const v = (S.visits || []).find(x => x._id === visitId);
+  if (!v) return;
+  const label = v.status === 'approved' ? '✅ 승인됨' : v.status === 'rejected' ? '🚫 거절됨' : '⏳ 대기 중';
+  let msg = `📅 ${v.date}  🕒 ${v.time}\n📝 ${v.purpose}\n\n상태: ${label}`;
+  if (v.reviewComment) msg += `\n관리자 메시지: ${v.reviewComment}`;
+  alert(msg);
+}
+
+async function cancelMyVisit(visitId) {
+  if (!confirm('이 방문 신청을 취소하시겠습니까?')) return;
+  showLoading('취소 중...');
+  try {
+    await window.DB.deleteVisit(visitId);
+    // ─── 낙관적 UI 갱신 ───
+    S.visits = (S.visits || []).filter(x => x._id !== visitId);
+    hideLoading();
+    toast('취소되었습니다.', 'success');
+    renderInstCal();
+  } catch (e) {
+    hideLoading();
+    toast('취소 실패: ' + e.message, 'error');
+  }
+}
+
+// ─── 관리자: 방문 신청 관리 ─────────────────────────────────────
+function renderAdminVisits() {
+  const div = document.getElementById('adminVisitList');
+  const bar = document.getElementById('visitFilterBar');
+  if (!div || !bar) return;
+
+  const visits = S.visits || [];
+  const pendingCnt  = visits.filter(v => (v.status || 'pending') === 'pending').length;
+  const approvedCnt = visits.filter(v => v.status === 'approved').length;
+  const rejectedCnt = visits.filter(v => v.status === 'rejected').length;
+
+  const filter = S.visitFilter || 'pending';
+  bar.innerHTML = `
+    <button class="btn sm ${filter==='pending'?'primary':''}" onclick="setVisitFilter('pending')">⏳ 대기 (${pendingCnt})</button>
+    <button class="btn sm ${filter==='approved'?'primary':''}" onclick="setVisitFilter('approved')">✅ 승인 (${approvedCnt})</button>
+    <button class="btn sm ${filter==='rejected'?'primary':''}" onclick="setVisitFilter('rejected')">🚫 거절 (${rejectedCnt})</button>
+    <button class="btn sm ${filter==='all'?'primary':''}" onclick="setVisitFilter('all')">전체 (${visits.length})</button>
+  `;
+
+  const filtered = filter === 'all' ? [...visits] : visits.filter(v => (v.status || 'pending') === filter);
+  filtered.sort((a, b) => {
+    if (filter === 'pending') {
+      // 대기 중은 빠른 날짜순 (처리 우선순)
+      return (a.date + 'T' + (a.time || '00:00')).localeCompare(b.date + 'T' + (b.time || '00:00'));
+    }
+    // 나머지는 최근 등록순
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
+  });
+
+  if (!filtered.length) {
+    div.innerHTML = '<p class="empty-msg">해당하는 신청이 없습니다.</p>';
+    return;
+  }
+
+  div.innerHTML = filtered.map(v => {
+    const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
+    const label = v.status === 'approved' ? '승인' : v.status === 'rejected' ? '거절' : '대기';
+    const borderColor = v.status === 'approved' ? '#34A853' : v.status === 'rejected' ? '#DC3545' : '#FF9800';
+    return `
+      <div class="notice-card" style="border-left-color:${borderColor};cursor:pointer;" onclick="openVisitReview('${v._id}')">
+        <div class="notice-title-row">
+          <span class="notice-title">${icon} ${v.date} ${v.time || ''} — ${_escapeHtml(v.instructor)} (${label})</span>
+        </div>
+        <div class="notice-meta">📝 ${_escapeHtml(v.purpose || '')}</div>
+        ${v.reviewComment ? `<div class="notice-meta">💬 ${_escapeHtml(v.reviewComment)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function setVisitFilter(mode) {
+  S.visitFilter = mode;
+  renderAdminVisits();
+}
+
+function openVisitReview(visitId) {
+  const v = (S.visits || []).find(x => x._id === visitId);
+  if (!v) return;
+  S.currentReviewVisitId = visitId;
+  const label = v.status === 'approved' ? '✅ 승인됨' : v.status === 'rejected' ? '🚫 거절됨' : '⏳ 대기 중';
+  document.getElementById('visitReviewBody').innerHTML = `
+    <div><b>강사:</b> ${_escapeHtml(v.instructor)}</div>
+    <div><b>일자:</b> ${v.date}</div>
+    <div><b>시간:</b> ${v.time || '-'}</div>
+    <div><b>용무:</b> ${_escapeHtml(v.purpose || '')}</div>
+    <div style="margin-top:8px;"><b>현재 상태:</b> ${label}</div>
+    ${v.reviewedBy ? `<div style="font-size:11px;color:var(--text-sub);margin-top:4px;">처리자: ${_escapeHtml(v.reviewedBy)} (${(v.reviewedAt || '').slice(0,16).replace('T',' ')})</div>` : ''}
+  `;
+  document.getElementById('vrReviewComment').value = v.reviewComment || '';
+  openModal('visitReviewModal');
+}
+
+async function approveVisit() {
+  const id = S.currentReviewVisitId;
+  if (!id) return;
+  const v = (S.visits || []).find(x => x._id === id);
+  if (!v) return;
+  const comment = document.getElementById('vrReviewComment').value.trim();
+  showLoading('처리 중...');
+  try {
+    const { _id, ...rest } = v;
+    const updated = {
+      ...rest,
+      status: 'approved',
+      reviewedBy: S.currentAdminName || 'admin',
+      reviewedAt: new Date().toISOString(),
+      reviewComment: comment
+    };
+    await window.DB.updateVisit(id, updated);
+    // ─── 낙관적 UI 갱신: onSnapshot 응답 대기 없이 즉시 반영 ───
+    Object.assign(v, updated);
+    hideLoading();
+    closeModal('visitReviewModal');
+    toast('✓ 승인되었습니다.', 'success');
+    renderAdminVisits();
+    updateVisitBadge();
+    // 관리자 캘린더가 열려 있으면 점 색상도 즉시 갱신
+    const calPage = document.getElementById('apCalendar');
+    if (calPage && calPage.classList.contains('active')) renderCal();
+  } catch (e) {
+    hideLoading();
+    toast('처리 실패: ' + e.message, 'error');
+  }
+}
+
+async function rejectVisit() {
+  const id = S.currentReviewVisitId;
+  if (!id) return;
+  const v = (S.visits || []).find(x => x._id === id);
+  if (!v) return;
+  if (!confirm('이 방문 신청을 거절하시겠습니까?')) return;
+  const comment = document.getElementById('vrReviewComment').value.trim();
+  showLoading('처리 중...');
+  try {
+    const { _id, ...rest } = v;
+    const updated = {
+      ...rest,
+      status: 'rejected',
+      reviewedBy: S.currentAdminName || 'admin',
+      reviewedAt: new Date().toISOString(),
+      reviewComment: comment
+    };
+    await window.DB.updateVisit(id, updated);
+    // ─── 낙관적 UI 갱신 ───
+    Object.assign(v, updated);
+    hideLoading();
+    closeModal('visitReviewModal');
+    toast('거절 처리되었습니다.', 'success');
+    renderAdminVisits();
+    updateVisitBadge();
+    const calPage = document.getElementById('apCalendar');
+    if (calPage && calPage.classList.contains('active')) renderCal();
+  } catch (e) {
+    hideLoading();
+    toast('처리 실패: ' + e.message, 'error');
+  }
+}
+
+// ─── 관리자: 방문 배지 (대기 건수) ───────────────────────────────
+function updateVisitBadge() {
+  const badge = document.getElementById('visitBadge');
+  if (!badge) return;
+  const cnt = (S.visits || []).filter(v => (v.status || 'pending') === 'pending').length;
+  if (cnt > 0) {
+    badge.textContent = cnt;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 강사 캘린더 → 강의/연수 일정 클릭 시 강사 전용 정보 모달
+// (다른 강사 신청 정보 일체 노출 X)
+// ══════════════════════════════════════════════════════════════════
+function openInstEvInfo(evId) {
+  const ev = S.events.find(e => e._id === evId);
+  if (!ev) return;
+
+  document.getElementById('iemTitle').textContent = `[${ev.type}] ${ev.title}`;
+  const timeStr = fmtTime(ev.startTime, ev.endTime);
+  document.getElementById('iemInfo').textContent = `${ev.date}${timeStr ? ' · ' + timeStr : ''} · ${ev.place || '-'}`;
+  document.getElementById('iemDesc').textContent = ev.desc || '';
+
+  const u = S.instructors[S.currentUser];
+  const myStatus = (u && u.applications) ? u.applications[evId] : null;
+  const isClosed = ev.status === 'closed';
+  const isPast = ev.date < _todayStrForVisit();
+
+  let statusHtml = '';
+  if (isClosed) {
+    statusHtml = '🔒 <b>모집 마감된 일정입니다.</b>';
+    if (myStatus === 'approved')      statusHtml += '<br>내 신청 상태: <span style="color:#1A6B36;font-weight:600;">✅ 승인됨</span>';
+    else if (myStatus === 'pending')  statusHtml += '<br>내 신청 상태: <span style="color:#B85C00;">⏳ 미처리</span>';
+    else if (myStatus === 'rejected') statusHtml += '<br>내 신청 상태: <span style="color:var(--text-sub);">✨ 다음 기회에</span>';
+  } else if (isPast) {
+    statusHtml = '📅 이미 종료된 일정입니다.';
+    if (myStatus === 'approved') statusHtml += '<br>내 신청 상태: <span style="color:#1A6B36;font-weight:600;">✅ 승인됨</span>';
+  } else if (myStatus === 'pending') {
+    statusHtml = '⏳ <b>신청 중</b> — 관리자 검토를 기다리고 있습니다.';
+  } else if (myStatus === 'approved') {
+    statusHtml = '✅ <b style="color:#1A6B36;">승인되었습니다.</b>';
+  } else if (myStatus === 'rejected') {
+    statusHtml = '✨ 다음 기회에 — 이번에는 다른 강사가 배정되었습니다.';
+  } else {
+    statusHtml = '아직 신청하지 않았습니다.';
+  }
+  document.getElementById('iemStatus').innerHTML = statusHtml;
+
+  // 액션 버튼
+  let footerHtml = '';
+  if (!isClosed && !isPast) {
+    if (myStatus === 'pending' || myStatus === 'approved') {
+      footerHtml += `<button class="btn danger" onclick="cancelAppFromCal('${evId}')">신청 취소</button>`;
+    } else if (!myStatus) {
+      footerHtml += `<button class="btn primary" onclick="applyEvFromCal('${evId}')">신청</button>`;
+    }
+  }
+  footerHtml += `<button class="btn" onclick="closeModal('instEvInfoModal')">닫기</button>`;
+  document.getElementById('iemFooter').innerHTML = footerHtml;
+
+  openModal('instEvInfoModal');
+}
+
+async function applyEvFromCal(evId) {
+  await applyEv(evId);
+  closeModal('instEvInfoModal');
+  renderInstCal();
+  toast('신청되었습니다.', 'success');
+}
+
+async function cancelAppFromCal(evId) {
+  const u = S.instructors[S.currentUser];
+  const before = u && u.applications ? u.applications[evId] : null;
+  await cancelApp(evId);  // 안에 confirm 있음
+  const after = u && u.applications ? u.applications[evId] : null;
+  // confirm 취소했으면 그대로 둠 (변동 없음)
+  if (before !== after) {
+    closeModal('instEvInfoModal');
+    renderInstCal();
+  }
+}
+
+// 전역 노출
+window.chMonInst = chMonInst;
+window.renderInstCal = renderInstCal;
+window.openVisitModal = openVisitModal;
+window.saveVisitRequest = saveVisitRequest;
+window.openInstVisitDetail = openInstVisitDetail;
+window.cancelMyVisit = cancelMyVisit;
+window.renderAdminVisits = renderAdminVisits;
+window.setVisitFilter = setVisitFilter;
+window.openVisitReview = openVisitReview;
+window.approveVisit = approveVisit;
+window.rejectVisit = rejectVisit;
+window.updateVisitBadge = updateVisitBadge;
+window.openInstEvInfo = openInstEvInfo;
+window.applyEvFromCal = applyEvFromCal;
+window.cancelAppFromCal = cancelAppFromCal;
 
 window.addEventListener('DOMContentLoaded', () => {
   initApp();

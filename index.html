@@ -35,8 +35,9 @@
   const app = initializeApp(firebaseConfig);
   const fdb = getFirestore(app);
   const auth = getAuth(app);
-// 실시간 즉각 반영을 위해 오프라인 캐시 기능을 비활성화합니다.
-// try { enableIndexedDbPersistence(fdb); } catch(e) {}
+
+ // 실시간 즉각 반영을 위해 오프라인 캐시 기능을 비활성화합니다.
+ // try { enableIndexedDbPersistence(fdb); } catch(e) {}
 
   let _online = navigator.onLine;
   const onlineListeners = [];
@@ -144,6 +145,31 @@
       }, (err) => console.error('notices listener error:', err));
     },
 
+    // ─── 사무실 방문 신청 ───
+    async getAllVisits() {
+      const snap = await getDocs(collection(fdb, 'officeVisits'));
+      const result = [];
+      snap.forEach(d => { result.push({ _id: d.id, ...d.data() }); });
+      return result;
+    },
+    async addVisit(data) {
+      const ref = await addDoc(collection(fdb, 'officeVisits'), data);
+      return ref.id;
+    },
+    async updateVisit(id, data) {
+      await setDoc(doc(fdb, 'officeVisits', id), data);
+    },
+    async deleteVisit(id) {
+      await deleteDoc(doc(fdb, 'officeVisits', id));
+    },
+    onVisitsChange(callback) {
+      return onSnapshot(collection(fdb, 'officeVisits'), (snap) => {
+        const result = [];
+        snap.forEach(d => { result.push({ _id: d.id, ...d.data() }); });
+        callback(result);
+      }, (err) => console.error('visits listener error:', err));
+    },
+
     async getGradingConfig() {
       const snap = await getDoc(doc(fdb, 'settings', 'grading'));
       return snap.exists() ? snap.data() : {
@@ -243,7 +269,7 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2
+      티치포퓨처 강사 플랫폼 V2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -254,6 +280,7 @@
   </div>
   <div class="nav" id="instNav">
     <button class="nav-btn active" onclick="showIP('Notices',this)">📢 공지사항</button>
+    <button class="nav-btn" onclick="showIP('Calendar',this)">🗓️ 캘린더</button>
     <button class="nav-btn" onclick="showIP('Events',this)">📅 강의/연수신청</button>
     <button class="nav-btn" onclick="showIP('Profile',this)">👤 내 프로필</button>
     <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
@@ -411,6 +438,35 @@
       </div>
     </div>
 
+    <div id="ipCalendar" class="page">
+      <div class="card">
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button onclick="chMonInst(-1)">&#9664;</button>
+            <span class="cal-month" id="instCalTitle"></span>
+            <button onclick="chMonInst(1)">&#9654;</button>
+          </div>
+          <button class="btn sm primary" onclick="openVisitModal()">+ 사무실 방문 신청</button>
+        </div>
+        <div class="info-box" style="font-size:12px;line-height:1.6;">
+          📅 강의/연수 일정 + 내 사무실 방문 신청을 한눈에 봅니다.<br>
+          🟠 대기 &nbsp; 🟢 승인 &nbsp; 🔴 거절 &nbsp; <span style="color:var(--blue);">●</span> 강의/연수<br>
+          💡 빈 날짜를 클릭하면 사무실 방문 신청 모달이 열립니다.
+        </div>
+        <div class="cal-grid" id="instCalGrid"></div>
+        <div class="mobile-day-events" id="instMobileDayEvents">
+          <div class="mobile-day-events-title" id="instMobileDayEventsTitle"></div>
+          <div id="instMobileDayEventsList"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">🏢 내 사무실 방문 신청 현황</div>
+        </div>
+        <div id="instVisitList"></div>
+      </div>
+    </div>
+
     <div id="ipEvents" class="page">
       <div class="card">
         <div class="section-title" style="margin-bottom:12px;">공지된 수업 / 세미나 / 연수</div>
@@ -468,7 +524,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2
+      티치포퓨처 강사 플랫폼 V2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -481,6 +537,7 @@
     <button class="nav-btn active" onclick="showAP('Notices',this)">📢 공지사항</button>
     <button class="nav-btn" onclick="showAP('Calendar',this)">📅 캘린더</button>
     <button class="nav-btn" onclick="showAP('Schedule',this)">📋 강의/연수일정</button>
+    <button class="nav-btn" onclick="showAP('Visits',this)">🏢 방문 신청<span id="visitBadge" class="pending-badge" style="display:none;"></span></button>
     <button class="nav-btn" onclick="showAP('Approval',this)">✅ 강사 승인<span id="pendingBadge" class="pending-badge" style="display:none;"></span></button>
     <button class="nav-btn" onclick="showAP('Instructors',this)">👥 강사 목록</button>
     <button class="nav-btn" onclick="showAP('Search',this)">🔍 강사 검색</button>
@@ -575,6 +632,17 @@
 
         <div id="adminScheduleSummary" style="font-size:12px;color:var(--text-sub);margin-bottom:10px;"></div>
         <div id="adminScheduleList"></div>
+      </div>
+    </div>
+
+    <div id="apVisits" class="page">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">🏢 사무실 방문 신청 관리</div>
+        </div>
+        <div class="info-box">강사가 신청한 사무실 방문을 검토하고 승인 또는 거절합니다.</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;" id="visitFilterBar"></div>
+        <div id="adminVisitList"></div>
       </div>
     </div>
 
@@ -799,6 +867,51 @@
     <div id="pickInstructorList" style="display:flex;flex-direction:column;gap:8px;"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('pickInstructorModal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="instEvInfoModal">
+  <div class="modal">
+    <h3 id="iemTitle"></h3>
+    <div id="iemInfo" style="font-size:13px;color:var(--text-sub);margin-bottom:4px;"></div>
+    <div id="iemDesc" style="font-size:13px;margin-bottom:14px;"></div>
+    <div id="iemStatus" style="padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm);font-size:13px;line-height:1.7;margin-bottom:14px;"></div>
+    <div class="modal-footer" id="iemFooter"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="visitRequestModal">
+  <div class="modal">
+    <h3>🏢 사무실 방문 신청</h3>
+    <div class="info-box" style="font-size:12px;line-height:1.6;">
+      방문 일자·시간·용무를 작성해 주세요. 관리자 승인 후 확정됩니다.
+    </div>
+    <div class="form-group"><label>방문 일자 <span class="req-star">*</span></label><input id="vrDate" type="date"/></div>
+    <div class="form-group"><label>방문 시간 <span class="req-star">*</span></label><input id="vrTime" type="time"/></div>
+    <div class="form-group">
+      <label>용무 <span class="req-star">*</span></label>
+      <textarea id="vrPurpose" rows="4" placeholder="예: 강의 자료 수령, 차기 일정 협의 등"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="saveVisitRequest()">신청</button>
+      <button class="btn" onclick="closeModal('visitRequestModal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="visitReviewModal">
+  <div class="modal">
+    <h3>🏢 사무실 방문 신청 검토</h3>
+    <div id="visitReviewBody" style="font-size:13px;line-height:1.8;"></div>
+    <div class="form-group" style="margin-top:12px;">
+      <label>안내사항 / 거절 사유 (선택)</label>
+      <textarea id="vrReviewComment" rows="3" placeholder="강사에게 전달할 메시지 (선택)"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="approveVisit()">승인</button>
+      <button class="btn" style="background:#DC3545;color:#fff;border-color:#DC3545;" onclick="rejectVisit()">거절</button>
+      <button class="btn" onclick="closeModal('visitReviewModal')">닫기</button>
     </div>
   </div>
 </div>
