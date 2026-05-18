@@ -44,6 +44,7 @@ let S = {
   visitFilter: 'pending',
   instVisitFilter: 'all',
   instStatusFilter: 'approved',  // 강사 관리 페이지: 기본 = 승인 강사
+  gradingConfig: null,            // 가중치 설정 캐시 (점수 계산용)
   currentCancelVisitId: null,
   dayFilter: {},
   editingEventIdx: null,
@@ -154,6 +155,13 @@ async function initApp() {
     } catch(visitErr) {
       console.warn('[officeVisits] 권한 없음 — 사무실 방문 기능이 비활성화됩니다. Firestore 보안 규칙에 officeVisits 컬렉션을 추가하세요.', visitErr && visitErr.message);
       S.visits = [];
+    }
+    // 강사 등급 가중치 캐시 (강사 관리 페이지에서 점수 표시·정렬용)
+    try {
+      S.gradingConfig = await _loadGradingConfigWithDefaults();
+    } catch(cfgErr) {
+      console.warn('[gradingConfig] 로드 실패 — 기본값 사용', cfgErr && cfgErr.message);
+      S.gradingConfig = _gradingDefaults();
     }
 
     await ensureDefaultAdmin();
@@ -1761,11 +1769,28 @@ function renderInstList() {
       return true;
     });
 
+  // ─── 점수 캐시 (승인 강사만, 등급순 정렬 및 표시용) ───
+  const scoreCache = {};
+  if (S.gradingConfig) {
+    names.forEach(name => {
+      const sc = _calcInstructorScore(S.instructors[name], S.gradingConfig);
+      if (sc) scoreCache[name] = sc;
+    });
+  }
+
   // ─── 정렬 ──────────────────────────────────────
   if (_instListSort === 'name') {
     names.sort((a, b) => a.localeCompare(b, 'ko'));
+  } else if (_instListSort === 'score') {
+    // 강사등급순 (점수 내림차순). 점수가 없는 강사(승인 안 됨)는 맨 뒤
+    names.sort((a, b) => {
+      const sa = scoreCache[a] ? scoreCache[a].total : -Infinity;
+      const sb = scoreCache[b] ? scoreCache[b].total : -Infinity;
+      if (sa === sb) return a.localeCompare(b, 'ko');
+      return sb - sa;
+    });
   } else {
-    // 최근 등록순 - registeredAt 우선, 대기 상태인 경우 빠른 처리 위해 오래된 것 먼저
+    // 최근 등록순 - registeredAt 내림차순. 없는 강사는 맨 뒤
     names.sort((a, b) => {
       const ra = S.instructors[a].registeredAt || '';
       const rb = S.instructors[b].registeredAt || '';
@@ -1789,6 +1814,7 @@ function renderInstList() {
       <span style="font-size:12px;color:var(--text-sub);margin-right:4px;">정렬:</span>
       <button class="btn sm ${_instListSort==='recent'?'primary':''}" onclick="setInstListSort('recent')">최근 등록순</button>
       <button class="btn sm ${_instListSort==='name'?'primary':''}" onclick="setInstListSort('name')">가나다순</button>
+      <button class="btn sm ${_instListSort==='score'?'primary':''}" onclick="setInstListSort('score')">강사등급순</button>
       <span style="font-size:12px;color:${hasQuery?'var(--green)':'var(--text-hint)'};font-weight:${hasQuery?'600':'400'};margin-left:auto;">${countLabel}</span>
     </div>`;
 
@@ -1809,6 +1835,7 @@ function renderInstList() {
     const display = u.displayName || u.baseName || name;
     const avatarChar = (u.baseName || name).slice(0,1);
     const safeName = name.replace(/'/g, "\\'");
+    const score = scoreCache[name];
 
     // 상태별 아바타 색 + 배지 + 액션 버튼
     let avatarStyle = '';
@@ -1817,7 +1844,6 @@ function renderInstList() {
     if (status === 'pending') {
       avatarStyle = 'background:var(--amber-light);color:var(--amber);';
       statusBadge = `<span class="badge pending" style="margin-left:6px;">대기중</span>`;
-      const time = u.registeredAt ? new Date(u.registeredAt).toLocaleString('ko-KR') : '-';
       actionBtns = `
         <button class="btn sm green" onclick="approveInstructor('${safeName}')">✓ 승인</button>
         <button class="btn sm danger" onclick="rejectInstructor('${safeName}')">✗ 거절</button>
@@ -1857,13 +1883,22 @@ function renderInstList() {
       metaLine = `${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}`;
     }
 
+    // 승인 강사: 이름 옆에 등록일 + 총점 표시
+    let nameMeta = '';
+    if (status === 'approved') {
+      nameMeta = ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span>`;
+      if (score) {
+        nameMeta += ` <span style="font-size:11px;color:#B45309;background:#FEF3C7;padding:1px 6px;border-radius:9px;font-weight:600;margin-left:4px;">🏆 ${score.total}점</span>`;
+      }
+    }
+
     const row = document.createElement('div'); row.className = 'row-item';
     row.style.flexWrap = 'wrap';
     row.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
         <div class="avatar" style="${avatarStyle}">${_escapeHtml(avatarChar)}</div>
         <div class="inst-info">
-          <div class="inst-name">${_escapeHtml(display)}${statusBadge}${status==='approved' ? ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span>` : ''}</div>
+          <div class="inst-name">${_escapeHtml(display)}${statusBadge}${nameMeta}</div>
           <div class="inst-sub">${metaLine}</div>
           ${dayTagsHtml}
         </div>
@@ -2794,26 +2829,105 @@ function renderManual() {
 // 강사 등급 시스템 (계산 및 UI 렌더링)
 // ══════════════════════════════════════════════════════════════════
 
+// 가중치 기본값
+function _gradingDefaults() {
+  return {
+    wHigh: 0, wCollege: 5, wUni: 10, wGrad: 20,
+    wCar: 5, wMajor: 15, wClass: 2,
+    wCertTeacher: 15, wCertLifelong: 12, wCertYouth: 8,
+    wCertNational: 5, wCertOther: 2
+  };
+}
+
+// DB에서 가중치 로드하여 기본값과 병합
+async function _loadGradingConfigWithDefaults() {
+  const cfgRaw = (await window.DB.getGradingConfig()) || {};
+  const def = _gradingDefaults();
+  return {
+    wHigh: cfgRaw.wHigh ?? def.wHigh,
+    wCollege: cfgRaw.wCollege ?? def.wCollege,
+    wUni: cfgRaw.wUni ?? def.wUni,
+    wGrad: cfgRaw.wGrad ?? def.wGrad,
+    wCar: cfgRaw.wCar ?? def.wCar,
+    wMajor: cfgRaw.wMajor ?? def.wMajor,
+    wClass: cfgRaw.wClass ?? def.wClass,
+    wCertTeacher: cfgRaw.wCertTeacher ?? def.wCertTeacher,
+    wCertLifelong: cfgRaw.wCertLifelong ?? def.wCertLifelong,
+    wCertYouth: cfgRaw.wCertYouth ?? def.wCertYouth,
+    wCertNational: cfgRaw.wCertNational ?? def.wCertNational,
+    wCertOther: cfgRaw.wCertOther ?? def.wCertOther
+  };
+}
+
+// 강사 한 명 점수 계산 — config 인자로 받음. 승인 강사 외에는 null 반환
+function _calcInstructorScore(rawU, config) {
+  if (!rawU || !config) return null;
+  const u = getProfile(rawU);
+  if (u.status && u.status !== 'approved') return null;
+
+  const OTHER_CERTS = ['운전면허','민간자격증','기타자격증'];
+  const classCount = Object.values(u.applications || {}).filter(st => st === 'approved').length;
+  const breakdown = [];
+
+  // 학력
+  if (u.eduLevel) {
+    let s = 0;
+    if (u.eduLevel === '고졸') s = Number(config.wHigh);
+    else if (u.eduLevel === '전문대졸') s = Number(config.wCollege);
+    else if (u.eduLevel === '대졸') s = Number(config.wUni);
+    else if (u.eduLevel === '대학원졸') s = Number(config.wGrad);
+    breakdown.push({ label: '학력', reason: u.eduLevel, score: s });
+  }
+
+  // 관련 전공
+  if (u.isMajor === true || u.isMajor === false) {
+    const s = u.isMajor === true ? Number(config.wMajor) : 0;
+    breakdown.push({ label: '관련 전공', reason: u.isMajor === true ? '전공자' : '비전공자', score: s });
+  }
+
+  // 차량
+  if (u.carOwn) {
+    const s = u.carOwn === '있음' ? Number(config.wCar) : 0;
+    breakdown.push({ label: '차량보유', reason: u.carOwn, score: s });
+  }
+
+  // 수업 참여
+  breakdown.push({
+    label: '수업 참여',
+    reason: `${classCount}회 × ${config.wClass}`,
+    score: classCount * Number(config.wClass)
+  });
+
+  // 자격증
+  const cats = Array.isArray(u.certCategories) ? u.certCategories : [];
+  if (cats.includes('교원자격'))     breakdown.push({ label: '교원자격', reason: '보유', score: Number(config.wCertTeacher) });
+  if (cats.includes('평생교육사'))   breakdown.push({ label: '평생교육사', reason: '보유', score: Number(config.wCertLifelong) });
+  if (cats.includes('청소년지도사')) breakdown.push({ label: '청소년지도사', reason: '보유', score: Number(config.wCertYouth) });
+  const hasNational = cats.includes('국가기술자격(기사,기능사)')
+                   || cats.includes('국가기술자격증')
+                   || cats.includes('국가기능사자격증');
+  if (hasNational) breakdown.push({ label: '국가기술자격', reason: '기사·기능사', score: Number(config.wCertNational) });
+  const otherCount = cats.filter(c => OTHER_CERTS.includes(c)).length;
+  if (otherCount > 0) {
+    breakdown.push({
+      label: '기타 자격증',
+      reason: `${otherCount}개 × ${config.wCertOther}`,
+      score: otherCount * Number(config.wCertOther)
+    });
+  }
+
+  const sysScore = breakdown.reduce((sum, b) => sum + Number(b.score || 0), 0);
+  const total = sysScore + (Number(u.manualScore) || 0);
+  return { sysScore, total, breakdown, classCount, manualScore: u.manualScore || 0 };
+}
+
 async function renderGradeTab() {
   const tbody = document.getElementById('gradingTableBody');
   if (!tbody) return;
 
-  // 1. 가중치 설정 불러오기 (없는 키는 기본값으로 보정)
-  const cfgRaw = await window.DB.getGradingConfig();
-  const config = {
-    wHigh: cfgRaw.wHigh ?? 0,
-    wCollege: cfgRaw.wCollege ?? 5,
-    wUni: cfgRaw.wUni ?? 10,
-    wGrad: cfgRaw.wGrad ?? 20,
-    wCar: cfgRaw.wCar ?? 5,
-    wMajor: cfgRaw.wMajor ?? 15,
-    wClass: cfgRaw.wClass ?? 2,
-    wCertTeacher: cfgRaw.wCertTeacher ?? 15,
-    wCertLifelong: cfgRaw.wCertLifelong ?? 12,
-    wCertYouth: cfgRaw.wCertYouth ?? 8,
-    wCertNational: cfgRaw.wCertNational ?? 5,
-    wCertOther: cfgRaw.wCertOther ?? 2
-  };
+  // 1. 가중치 설정 불러오기 (없는 키는 기본값으로 보정) + 캐시 갱신
+  const config = await _loadGradingConfigWithDefaults();
+  S.gradingConfig = config;
   document.getElementById('wHigh').value = config.wHigh;
   document.getElementById('wCollege').value = config.wCollege;
   document.getElementById('wUni').value = config.wUni;
@@ -2827,88 +2941,17 @@ async function renderGradeTab() {
   document.getElementById('wCertNational').value = config.wCertNational;
   document.getElementById('wCertOther').value = config.wCertOther;
 
-  // 기타 자격증 — 운전면허·민간자격증·기타자격증만 (국가기술/기능사는 별도 항목으로 분리)
-  const OTHER_CERTS = ['운전면허','민간자격증','기타자격증'];
-
-  // 2. 승인된 강사 목록 가져오기 및 점수 계산
+  // 2. 승인된 강사 목록 가져오기 및 점수 계산 (헬퍼 함수 사용)
   let list = [];
   Object.keys(S.instructors).forEach(name => {
-    const u = getProfile(S.instructors[name]);
-    if (u.status !== 'approved') return;
-
-    // 참여 횟수 계산 ('approved' 된 수업만 카운트)
-    const classCount = Object.values(u.applications || {}).filter(st => st === 'approved').length;
-
-    // 자동 점수 항목별 breakdown — { label, reason, score }
-    const breakdown = [];
-
-    // 학력
-    if (u.eduLevel) {
-      let s = 0;
-      if (u.eduLevel === '고졸') s = Number(config.wHigh);
-      else if (u.eduLevel === '전문대졸') s = Number(config.wCollege);
-      else if (u.eduLevel === '대졸') s = Number(config.wUni);
-      else if (u.eduLevel === '대학원졸') s = Number(config.wGrad);
-      breakdown.push({ label: '학력', reason: u.eduLevel, score: s });
-    }
-
-    // 관련 전공
-    if (u.isMajor === true || u.isMajor === false) {
-      const s = u.isMajor === true ? Number(config.wMajor) : 0;
-      breakdown.push({ label: '관련 전공', reason: u.isMajor === true ? '전공자' : '비전공자', score: s });
-    }
-
-    // 차량
-    if (u.carOwn) {
-      const s = u.carOwn === '있음' ? Number(config.wCar) : 0;
-      breakdown.push({ label: '차량보유', reason: u.carOwn, score: s });
-    }
-
-    // 수업 참여 (항상 표시)
-    breakdown.push({
-      label: '수업 참여',
-      reason: `${classCount}회 × ${config.wClass}`,
-      score: classCount * Number(config.wClass)
-    });
-
-    // 자격증
-    const cats = Array.isArray(u.certCategories) ? u.certCategories : [];
-    if (cats.includes('교원자격')) {
-      breakdown.push({ label: '교원자격', reason: '보유', score: Number(config.wCertTeacher) });
-    }
-    if (cats.includes('평생교육사')) {
-      breakdown.push({ label: '평생교육사', reason: '보유', score: Number(config.wCertLifelong) });
-    }
-    if (cats.includes('청소년지도사')) {
-      breakdown.push({ label: '청소년지도사', reason: '보유', score: Number(config.wCertYouth) });
-    }
-    // 국가기술자격(기사,기능사) — 신항목 + 구항목('국가기술자격증','국가기능사자격증') 호환
-    const hasNational = cats.includes('국가기술자격(기사,기능사)')
-                     || cats.includes('국가기술자격증')
-                     || cats.includes('국가기능사자격증');
-    if (hasNational) {
-      breakdown.push({ label: '국가기술자격', reason: '기사·기능사', score: Number(config.wCertNational) });
-    }
-    const otherCount = cats.filter(c => OTHER_CERTS.includes(c)).length;
-    if (otherCount > 0) {
-      breakdown.push({
-        label: '기타 자격증',
-        reason: `${otherCount}개 × ${config.wCertOther}`,
-        score: otherCount * Number(config.wCertOther)
-      });
-    }
-
-    // 자동 합계 = breakdown 합
-    const sysScore = breakdown.reduce((sum, b) => sum + Number(b.score || 0), 0);
-
-    const total = sysScore + (Number(u.manualScore) || 0);
-
+    const score = _calcInstructorScore(S.instructors[name], config);
+    if (!score) return;
     list.push({
       name: name,
-      breakdown: breakdown,
-      sysScore: sysScore,
-      manualScore: u.manualScore || 0,
-      total: total
+      breakdown: score.breakdown,
+      sysScore: score.sysScore,
+      manualScore: score.manualScore,
+      total: score.total
     });
   });
 
@@ -2980,9 +3023,13 @@ async function saveGradingWeights() {
   showLoading('가중치 저장 중...');
   try {
     await window.DB.saveGradingConfig(config);
+    S.gradingConfig = config;  // 캐시 갱신 (강사 관리 페이지 점수 재계산용)
     hideLoading();
     toast('가중치가 저장되고 점수가 재계산되었습니다.', 'success');
     renderGradeTab();
+    // 강사 관리 페이지가 열려 있으면 점수 갱신
+    const instListPage = document.getElementById('apInstructors');
+    if (instListPage && instListPage.classList.contains('active')) renderInstList();
   } catch(e) {
     hideLoading();
     toast('저장 실패: ' + e.message, 'error');
