@@ -42,6 +42,8 @@ let S = {
   instCalYear: new Date().getFullYear(),
   instCalMonth: new Date().getMonth(),
   visitFilter: 'pending',
+  instVisitFilter: 'all',
+  currentCancelVisitId: null,
   dayFilter: {},
   editingEventIdx: null,
   editingNoticeId: null,
@@ -217,6 +219,8 @@ function onDataChanged(source) {
     if (ntPage && ntPage.classList.contains('active')) renderInstNotices();
     const calPageI = document.getElementById('ipCalendar');
     if (calPageI && calPageI.classList.contains('active')) renderInstCal();
+    const visitsPageI = document.getElementById('ipVisits');
+    if (visitsPageI && visitsPageI.classList.contains('active')) renderInstVisits();
   }
   if (adminActive) {
     if (source === 'instructors') updatePendingBadge();
@@ -228,8 +232,6 @@ function onDataChanged(source) {
     if (schPage && schPage.classList.contains('active')) renderAdminSchedule();
     const instListPage = document.getElementById('apInstructors');
     if (instListPage && instListPage.classList.contains('active')) renderInstList();
-    const searchPage = document.getElementById('apSearch');
-    if (searchPage && searchPage.classList.contains('active')) searchInst();
     const gradePage = document.getElementById('apGrade');
     if (gradePage && gradePage.classList.contains('active')) renderGradeTab();
     const settingsPage = document.getElementById('apSettings');
@@ -602,6 +604,7 @@ function showIP(id, btn) {
   if (id === 'Settings') loadInstSettings();
   if (id === 'Notices') renderInstNotices();
   if (id === 'Calendar') renderInstCal();
+  if (id === 'Visits') renderInstVisits();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -617,7 +620,7 @@ function showAP(id, btn) {
   if (id === 'Calendar') { renderCal(); renderMonthList(); }
   if (id === 'Schedule') renderAdminSchedule();
   if (id === 'Instructors') renderInstList();
-  if (id === 'Search') searchInst();
+  if (id === 'Search') { showAP('Instructors', document.querySelector('#adminNav .nav-btn[onclick*="Instructors"]')); return; }
   if (id === 'Grade') renderGradeTab();
   if (id === 'Settings') renderAdminList();
   if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
@@ -997,7 +1000,7 @@ function renderInstEvents() {
           <div style="flex:1;min-width:0;">
             <div class="ev-title">[${ev.type}] ${ev.title}${titleSuffix}</div>
             <div class="ev-meta">${ev.date}${timeStr ? ' · ' + timeStr : ''} &middot; ${ev.place}</div>
-            <div class="ev-desc">${ev.desc || ''}</div>
+            <div class="ev-desc">${_escapeHtml(ev.desc || '')}</div>
           </div>
         </div>
         <div style="flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
@@ -1774,10 +1777,34 @@ function setInstListSort(mode) {
 
 function renderInstList() {
   const div = document.getElementById('instListAdmin');
-  let names = Object.keys(S.instructors)
-    .filter(name => (S.instructors[name].status || 'approved') === 'approved');
+  if (!div) return;
 
-  // 정렬 적용
+  // ─── 검색 조건 수집 ─────────────────────────────
+  const qName = (document.getElementById('sName')?.value || '').trim().toLowerCase();
+  const qSubj = (document.getElementById('sSubject')?.value || '').trim().toLowerCase();
+  const qEdu  = (document.getElementById('sEdu')?.value || '').trim().toLowerCase();
+  const qCert = (document.getElementById('sCert')?.value || '').trim().toLowerCase();
+  const activeDays = Object.keys(S.dayFilter || {}).filter(k => S.dayFilter[k]);
+  const hasQuery = !!(qName || qSubj || qEdu || qCert || activeDays.length);
+
+  // ─── 강사 필터 ─────────────────────────────────
+  let names = Object.keys(S.instructors)
+    .filter(name => (S.instructors[name].status || 'approved') === 'approved')
+    .filter(name => {
+      if (!hasQuery) return true;
+      const u = getProfile(S.instructors[name]);
+      if (qName && !name.toLowerCase().includes(qName)) return false;
+      if (qSubj && !(u.subject||'').toLowerCase().includes(qSubj)) return false;
+      if (qEdu  && !u.edu.some(e => e.toLowerCase().includes(qEdu))) return false;
+      if (qCert && !u.certs.some(c => c.toLowerCase().includes(qCert))) return false;
+      if (activeDays.length) {
+        const hasDay = activeDays.every(key => u.days && u.days[key]);
+        if (!hasDay) return false;
+      }
+      return true;
+    });
+
+  // ─── 정렬 ──────────────────────────────────────
   if (_instListSort === 'name') {
     names.sort((a, b) => a.localeCompare(b, 'ko'));
   } else {
@@ -1792,17 +1819,20 @@ function renderInstList() {
     });
   }
 
-  // 정렬 토글 + 인원수 표시
+  // ─── 정렬 토글 + 인원수 ────────────────────────
+  const countLabel = hasQuery
+    ? `검색 결과 ${names.length}명`
+    : `총 ${names.length}명`;
   const sortBar = `
     <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:12px;color:var(--text-sub);margin-right:4px;">정렬:</span>
       <button class="btn sm ${_instListSort==='recent'?'primary':''}" onclick="setInstListSort('recent')">최근 등록순</button>
       <button class="btn sm ${_instListSort==='name'?'primary':''}" onclick="setInstListSort('name')">가나다순</button>
-      <span style="font-size:12px;color:var(--text-hint);margin-left:auto;">총 ${names.length}명</span>
+      <span style="font-size:12px;color:${hasQuery?'var(--green)':'var(--text-hint)'};font-weight:${hasQuery?'600':'400'};margin-left:auto;">${countLabel}</span>
     </div>`;
 
   if (!names.length) {
-    div.innerHTML = sortBar + '<p class="empty-msg">등록된 강사가 없습니다.</p>';
+    div.innerHTML = sortBar + `<p class="empty-msg">${hasQuery ? '검색 결과가 없습니다.' : '등록된 강사가 없습니다.'}</p>`;
     return;
   }
 
@@ -1812,16 +1842,47 @@ function renderInstList() {
     const regDate = _fmtRegDate(u.registeredAt);
     const display = u.displayName || u.baseName || name;
     const avatarChar = (u.baseName || name).slice(0,1);
+
+    // 요일 태그는 요일 검색 조건이 있을 때만 표시
+    let dayTagsHtml = '';
+    if (activeDays.length) {
+      const tags = DAYS.flatMap(d => {
+        const ts = [];
+        if (u.days[d.key+'_am']) ts.push(`<span class="badge" style="background:#E1F1E8;color:#186E48;margin-right:3px;font-size:10px;">${d.label} 오전</span>`);
+        if (u.days[d.key+'_pm']) ts.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin-right:3px;font-size:10px;">${d.label} 오후</span>`);
+        return ts;
+      }).join('');
+      if (tags) dayTagsHtml = `<div style="margin-top:4px;">${tags}</div>`;
+    }
+
     const row = document.createElement('div'); row.className = 'row-item';
+    row.style.flexWrap = 'wrap';
     row.innerHTML = `
-      <div class="avatar">${avatarChar}</div>
-      <div class="inst-info">
-        <div class="inst-name">${_escapeHtml(display)} <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span></div>
-        <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+        <div class="avatar">${avatarChar}</div>
+        <div class="inst-info">
+          <div class="inst-name">${_escapeHtml(display)} <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span></div>
+          <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
+          ${dayTagsHtml}
+        </div>
       </div>
       <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
     div.appendChild(row);
   });
+}
+
+// 검색 조건 초기화
+function resetInstSearch() {
+  ['sName','sSubject','sEdu','sCert'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  S.dayFilter = {};
+  // 요일 버튼 시각 초기화
+  document.querySelectorAll('#dayFilterBtns .day-filter-btn').forEach(b => {
+    b.className = 'day-filter-btn';
+  });
+  renderInstList();
 }
 
 function initDayFilter() {
@@ -1832,7 +1893,7 @@ function initDayFilter() {
     ['오전','오후'].forEach(t => {
       const key = d.key + (t === '오전' ? '_am' : '_pm');
       const btn = document.createElement('button');
-      btn.className = 'day-filter-btn';
+      btn.className = 'day-filter-btn' + (S.dayFilter && S.dayFilter[key] ? ' active-' + (t === '오전' ? 'am' : 'pm') : '');
       btn.textContent = `${d.label} ${t}`;
       btn.dataset.key = key;
       btn.dataset.type = t === '오전' ? 'am' : 'pm';
@@ -1850,58 +1911,12 @@ function toggleDayFilter(key, btn) {
     S.dayFilter[key] = true;
     btn.className = 'day-filter-btn active-' + btn.dataset.type;
   }
-  searchInst();
+  renderInstList();
 }
 
+// 기존 호출 호환용 — 강사 검색이 강사 목록으로 통합됨
 function searchInst() {
-  const qName = document.getElementById('sName').value.trim().toLowerCase();
-  const qSubj = document.getElementById('sSubject').value.trim().toLowerCase();
-  const qEdu  = document.getElementById('sEdu').value.trim().toLowerCase();
-  const qCert = document.getElementById('sCert').value.trim().toLowerCase();
-  const activeDays = Object.keys(S.dayFilter).filter(k => S.dayFilter[k]);
-
-  const div = document.getElementById('searchResults');
-  const hasQuery = qName || qSubj || qEdu || qCert || activeDays.length;
-  if (!hasQuery) { div.innerHTML = '<p class="empty-msg">검색어를 입력하거나 요일을 선택하세요.</p>'; return; }
-
-  const matches = Object.keys(S.instructors).filter(name => {
-    const u = getProfile(S.instructors[name]);
-    if (u.status !== 'approved') return false;
-    if (qName && !name.toLowerCase().includes(qName)) return false;
-    if (qSubj && !(u.subject||'').toLowerCase().includes(qSubj)) return false;
-    if (qEdu && !u.edu.some(e => e.toLowerCase().includes(qEdu))) return false;
-    if (qCert && !u.certs.some(c => c.toLowerCase().includes(qCert))) return false;
-    if (activeDays.length) {
-      const hasDay = activeDays.every(key => u.days && u.days[key]);
-      if (!hasDay) return false;
-    }
-    return true;
-  });
-
-  if (!matches.length) { div.innerHTML = '<p class="empty-msg">검색 결과가 없습니다.</p>'; return; }
-  div.innerHTML = `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">검색 결과 ${matches.length}명</div>`;
-  matches.forEach(name => {
-    const u = getProfile(S.instructors[name]);
-    const dayTags = DAYS.flatMap(d => {
-      const tags = [];
-      if (u.days[d.key+'_am']) tags.push(`<span class="badge" style="background:#E1F1E8;color:#186E48;margin-right:3px;">${d.label} 오전</span>`);
-      if (u.days[d.key+'_pm']) tags.push(`<span class="badge" style="background:var(--teal-light);color:var(--teal);margin-right:3px;">${d.label} 오후</span>`);
-      return tags;
-    }).join('');
-    const row = document.createElement('div'); row.className = 'row-item';
-    row.style.flexWrap = 'wrap';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-        <div class="avatar">${name.slice(0,1)}</div>
-        <div class="inst-info">
-          <div class="inst-name">${name}</div>
-          <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
-          ${dayTags ? `<div style="margin-top:4px;">${dayTags}</div>` : ''}
-        </div>
-      </div>
-      <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
-    div.appendChild(row);
-  });
+  renderInstList();
 }
 
 function formatList(arr) {
@@ -1977,8 +1992,6 @@ async function deleteInst(name) {
     if (apprPage && apprPage.classList.contains('active')) renderApprovalList();
     const instListPage = document.getElementById('apInstructors');
     if (instListPage && instListPage.classList.contains('active')) renderInstList();
-    const searchPage = document.getElementById('apSearch');
-    if (searchPage && searchPage.classList.contains('active')) searchInst();
     updatePendingBadge();
   } catch(e) {
     hideLoading();
@@ -2986,6 +2999,7 @@ window.cancelRestore = cancelRestore;
 window.executeRestore = executeRestore;
 window.toggleManual = toggleManual;
 window.searchInst = searchInst;
+window.resetInstSearch = resetInstSearch;
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.renderGradeTab = renderGradeTab;
@@ -3049,12 +3063,15 @@ function renderInstCal() {
       cell.appendChild(more);
     }
 
-    // 내 방문 신청만 표시
+    // 내 방문 신청만 표시 (취소된 것도 회색으로 이력 표시)
     const myVisits = (S.visits || []).filter(v => v.date === ds && v.instructor === myName);
     myVisits.forEach(v => {
       const vdot = document.createElement('span');
       vdot.className = 'visit-dot ' + (v.status || 'pending');
-      const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
+      const icon = v.status === 'approved' ? '🟢'
+                 : v.status === 'rejected' ? '🔴'
+                 : v.status === 'cancelled' ? '⚫'
+                 : '🟠';
       vdot.textContent = `${icon} ${v.time || ''} 방문`;
       vdot.onclick = (e) => { e.stopPropagation(); openInstVisitDetail(v._id); };
       vdot.style.cursor = 'pointer';
@@ -3102,8 +3119,14 @@ function showInstMobileDay(ds, dayEvs, myVisits) {
   if (myVisits.length) {
     html += '<div style="font-size:11px;color:var(--text-sub);margin:10px 0 6px;">내 방문 신청</div>';
     myVisits.forEach(v => {
-      const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
-      const label = v.status === 'approved' ? '승인' : v.status === 'rejected' ? '거절' : '대기';
+      const icon = v.status === 'approved' ? '🟢'
+                 : v.status === 'rejected' ? '🔴'
+                 : v.status === 'cancelled' ? '⚫'
+                 : '🟠';
+      const label = v.status === 'approved' ? '승인'
+                  : v.status === 'rejected' ? '거절'
+                  : v.status === 'cancelled' ? '취소됨'
+                  : '대기';
       html += `<div class="notice-card" onclick="openInstVisitDetail('${v._id}')" style="cursor:pointer;">
         <div class="notice-title-row"><span class="notice-title">${icon} ${v.time || ''} · ${label}</span></div>
         <div class="notice-meta">${_escapeHtml(v.purpose || '')}</div>
@@ -3133,21 +3156,38 @@ function renderInstVisitList() {
     return;
   }
 
-  div.innerHTML = mine.map(v => {
-    const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
-    const label = v.status === 'approved' ? '승인됨' : v.status === 'rejected' ? '거절됨' : '대기 중';
-    const borderColor = v.status === 'approved' ? '#34A853' : v.status === 'rejected' ? '#DC3545' : '#FF9800';
-    const canCancel = v.status === 'pending';
-    return `
-      <div class="notice-card" style="border-left-color:${borderColor};">
-        <div class="notice-title-row">
-          <span class="notice-title">${icon} ${v.date} ${v.time || ''} — ${label}</span>
-        </div>
-        <div class="notice-meta">📝 ${_escapeHtml(v.purpose || '')}</div>
-        ${v.reviewComment ? `<div class="notice-meta" style="color:var(--text);">💬 관리자: ${_escapeHtml(v.reviewComment)}</div>` : ''}
-        ${canCancel ? `<div style="margin-top:8px;"><button class="btn sm" onclick="cancelMyVisit('${v._id}')">신청 취소</button></div>` : ''}
-      </div>`;
-  }).join('');
+  div.innerHTML = mine.map(v => _renderInstVisitCard(v)).join('');
+}
+
+// 강사 방문 신청 카드 HTML 생성 (캘린더 페이지와 방문신청 탭에서 공용)
+function _renderInstVisitCard(v) {
+  const icon = v.status === 'approved' ? '🟢'
+             : v.status === 'rejected' ? '🔴'
+             : v.status === 'cancelled' ? '⚫'
+             : '🟠';
+  const label = v.status === 'approved' ? '승인됨'
+              : v.status === 'rejected' ? '거절됨'
+              : v.status === 'cancelled' ? '취소됨'
+              : '대기 중';
+  const borderColor = v.status === 'approved' ? '#34A853'
+                    : v.status === 'rejected' ? '#DC3545'
+                    : v.status === 'cancelled' ? '#999'
+                    : '#FF9800';
+  // 취소 가능: 대기 또는 승인 (거절/취소는 불가)
+  const canCancel = (v.status === 'pending' || v.status === 'approved');
+  const opacity = (v.status === 'cancelled' || v.status === 'rejected') ? '0.7' : '1';
+
+  return `
+    <div class="notice-card" style="border-left-color:${borderColor};opacity:${opacity};">
+      <div class="notice-title-row">
+        <span class="notice-title">${icon} ${v.date} ${v.time || ''} — ${label}</span>
+      </div>
+      <div class="notice-meta">📝 ${_escapeHtml(v.purpose || '')}</div>
+      ${v.reviewComment ? `<div class="notice-meta" style="color:var(--text);">💬 관리자: ${_escapeHtml(v.reviewComment)}</div>` : ''}
+      ${v.cancelReason ? `<div class="notice-meta" style="color:#666;">❌ 취소 사유: ${_escapeHtml(v.cancelReason)}</div>` : ''}
+      ${v.cancelledAt ? `<div class="notice-meta" style="font-size:11px;color:var(--text-hint);">취소 시각: ${(v.cancelledAt).slice(0,16).replace('T',' ')}</div>` : ''}
+      ${canCancel ? `<div style="margin-top:8px;"><button class="btn sm" onclick="openCancelVisitModal('${v._id}')">방문 취소</button></div>` : ''}
+    </div>`;
 }
 
 // ─── 강사: 방문 신청 모달 ────────────────────────────────────────
@@ -3178,7 +3218,7 @@ async function saveVisitRequest() {
   if (!purpose) { toast('용무를 입력하세요.', 'error'); return; }
   if (date < _todayStrForVisit()) { toast('과거 날짜로는 신청할 수 없습니다.', 'error'); return; }
 
-  // ─── 중복 방지: 동일 강사·날짜·시간이 이미 있으면 차단 ───
+  // ─── 중복 방지: 동일 강사·날짜·시간이 이미 있으면 차단 (단, 취소·거절된 건은 제외) ───
   const dup = (S.visits || []).find(v =>
     v.instructor === S.currentUser &&
     v.date === date &&
@@ -3229,26 +3269,108 @@ async function saveVisitRequest() {
 function openInstVisitDetail(visitId) {
   const v = (S.visits || []).find(x => x._id === visitId);
   if (!v) return;
-  const label = v.status === 'approved' ? '✅ 승인됨' : v.status === 'rejected' ? '🚫 거절됨' : '⏳ 대기 중';
+  const label = v.status === 'approved' ? '✅ 승인됨'
+              : v.status === 'rejected' ? '🚫 거절됨'
+              : v.status === 'cancelled' ? '⚫ 취소됨'
+              : '⏳ 대기 중';
   let msg = `📅 ${v.date}  🕒 ${v.time}\n📝 ${v.purpose}\n\n상태: ${label}`;
   if (v.reviewComment) msg += `\n관리자 메시지: ${v.reviewComment}`;
+  if (v.cancelReason)  msg += `\n취소 사유: ${v.cancelReason}`;
   alert(msg);
 }
 
-async function cancelMyVisit(visitId) {
-  if (!confirm('이 방문 신청을 취소하시겠습니까?')) return;
-  showLoading('취소 중...');
+// ─── 강사: 방문 취소 모달 ─────────────────────────────────────
+function openCancelVisitModal(visitId) {
+  const v = (S.visits || []).find(x => x._id === visitId);
+  if (!v) return;
+  if (v.status !== 'pending' && v.status !== 'approved') {
+    toast('이미 처리된 신청은 취소할 수 없습니다.', 'error');
+    return;
+  }
+  S.currentCancelVisitId = visitId;
+  const statusLabel = v.status === 'approved' ? '✅ 승인됨' : '⏳ 대기 중';
+  document.getElementById('vcInfo').innerHTML = `
+    <b>${v.date} ${v.time || ''}</b> · ${_escapeHtml(v.purpose || '')}<br>
+    <span style="font-size:12px;">현재 상태: ${statusLabel}</span>
+  `;
+  document.getElementById('vcReason').value = '';
+  openModal('visitCancelModal');
+}
+
+async function confirmCancelVisit() {
+  const id = S.currentCancelVisitId;
+  if (!id) return;
+  const v = (S.visits || []).find(x => x._id === id);
+  if (!v) return;
+  const reason = document.getElementById('vcReason').value.trim();
+
+  showLoading('취소 처리 중...');
   try {
-    await window.DB.deleteVisit(visitId);
-    // ─── 낙관적 UI 갱신 ───
-    S.visits = (S.visits || []).filter(x => x._id !== visitId);
+    const { _id, ...rest } = v;
+    const updated = {
+      ...rest,
+      status: 'cancelled',
+      cancelReason: reason,
+      cancelledAt: new Date().toISOString()
+    };
+    await window.DB.updateVisit(id, updated);
+    Object.assign(v, updated);  // 낙관적 UI
     hideLoading();
-    toast('취소되었습니다.', 'success');
+    closeModal('visitCancelModal');
+    toast('방문 신청이 취소되었습니다.', 'success');
+    // 두 곳 모두 갱신
     renderInstCal();
+    const visitsTab = document.getElementById('ipVisits');
+    if (visitsTab && visitsTab.classList.contains('active')) renderInstVisits();
   } catch (e) {
     hideLoading();
     toast('취소 실패: ' + e.message, 'error');
   }
+}
+
+// 호환성: 기존 cancelMyVisit 호출이 남아있을 경우를 위한 래퍼
+function cancelMyVisit(visitId) {
+  openCancelVisitModal(visitId);
+}
+
+// ─── 강사: 방문신청 탭 렌더 ─────────────────────────────────────
+function renderInstVisits() {
+  const div = document.getElementById('instVisitTabList');
+  const bar = document.getElementById('instVisitFilterBar');
+  if (!div || !bar) return;
+
+  const myName = S.currentUser;
+  const mine = (S.visits || []).filter(v => v.instructor === myName);
+
+  const pendingCnt   = mine.filter(v => (v.status || 'pending') === 'pending').length;
+  const approvedCnt  = mine.filter(v => v.status === 'approved').length;
+  const rejectedCnt  = mine.filter(v => v.status === 'rejected').length;
+  const cancelledCnt = mine.filter(v => v.status === 'cancelled').length;
+
+  const filter = S.instVisitFilter || 'all';
+  bar.innerHTML = `
+    <button class="btn sm ${filter==='all'?'primary':''}" onclick="setInstVisitFilter('all')">전체 (${mine.length})</button>
+    <button class="btn sm ${filter==='pending'?'primary':''}" onclick="setInstVisitFilter('pending')">⏳ 대기 (${pendingCnt})</button>
+    <button class="btn sm ${filter==='approved'?'primary':''}" onclick="setInstVisitFilter('approved')">✅ 승인 (${approvedCnt})</button>
+    <button class="btn sm ${filter==='rejected'?'primary':''}" onclick="setInstVisitFilter('rejected')">🚫 거절 (${rejectedCnt})</button>
+    <button class="btn sm ${filter==='cancelled'?'primary':''}" onclick="setInstVisitFilter('cancelled')">⚫ 취소 (${cancelledCnt})</button>
+  `;
+
+  const filtered = filter === 'all' ? mine : mine.filter(v => (v.status || 'pending') === filter);
+  // 최근 신청 우선 (날짜·시간 내림차순)
+  filtered.sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')));
+
+  if (!filtered.length) {
+    div.innerHTML = '<p class="empty-msg">해당하는 신청이 없습니다.</p>';
+    return;
+  }
+
+  div.innerHTML = filtered.map(v => _renderInstVisitCard(v)).join('');
+}
+
+function setInstVisitFilter(mode) {
+  S.instVisitFilter = mode;
+  renderInstVisits();
 }
 
 // ─── 관리자: 방문 신청 관리 ─────────────────────────────────────
@@ -3258,15 +3380,17 @@ function renderAdminVisits() {
   if (!div || !bar) return;
 
   const visits = S.visits || [];
-  const pendingCnt  = visits.filter(v => (v.status || 'pending') === 'pending').length;
-  const approvedCnt = visits.filter(v => v.status === 'approved').length;
-  const rejectedCnt = visits.filter(v => v.status === 'rejected').length;
+  const pendingCnt   = visits.filter(v => (v.status || 'pending') === 'pending').length;
+  const approvedCnt  = visits.filter(v => v.status === 'approved').length;
+  const rejectedCnt  = visits.filter(v => v.status === 'rejected').length;
+  const cancelledCnt = visits.filter(v => v.status === 'cancelled').length;
 
   const filter = S.visitFilter || 'pending';
   bar.innerHTML = `
     <button class="btn sm ${filter==='pending'?'primary':''}" onclick="setVisitFilter('pending')">⏳ 대기 (${pendingCnt})</button>
     <button class="btn sm ${filter==='approved'?'primary':''}" onclick="setVisitFilter('approved')">✅ 승인 (${approvedCnt})</button>
     <button class="btn sm ${filter==='rejected'?'primary':''}" onclick="setVisitFilter('rejected')">🚫 거절 (${rejectedCnt})</button>
+    <button class="btn sm ${filter==='cancelled'?'primary':''}" onclick="setVisitFilter('cancelled')">⚫ 취소 (${cancelledCnt})</button>
     <button class="btn sm ${filter==='all'?'primary':''}" onclick="setVisitFilter('all')">전체 (${visits.length})</button>
   `;
 
@@ -3286,16 +3410,27 @@ function renderAdminVisits() {
   }
 
   div.innerHTML = filtered.map(v => {
-    const icon = v.status === 'approved' ? '🟢' : v.status === 'rejected' ? '🔴' : '🟠';
-    const label = v.status === 'approved' ? '승인' : v.status === 'rejected' ? '거절' : '대기';
-    const borderColor = v.status === 'approved' ? '#34A853' : v.status === 'rejected' ? '#DC3545' : '#FF9800';
+    const icon = v.status === 'approved' ? '🟢'
+               : v.status === 'rejected' ? '🔴'
+               : v.status === 'cancelled' ? '⚫'
+               : '🟠';
+    const label = v.status === 'approved' ? '승인'
+                : v.status === 'rejected' ? '거절'
+                : v.status === 'cancelled' ? '취소됨(강사)'
+                : '대기';
+    const borderColor = v.status === 'approved' ? '#34A853'
+                      : v.status === 'rejected' ? '#DC3545'
+                      : v.status === 'cancelled' ? '#999'
+                      : '#FF9800';
+    const opacity = v.status === 'cancelled' ? '0.75' : '1';
     return `
-      <div class="notice-card" style="border-left-color:${borderColor};cursor:pointer;" onclick="openVisitReview('${v._id}')">
+      <div class="notice-card" style="border-left-color:${borderColor};cursor:pointer;opacity:${opacity};" onclick="openVisitReview('${v._id}')">
         <div class="notice-title-row">
           <span class="notice-title">${icon} ${v.date} ${v.time || ''} — ${_escapeHtml(v.instructor)} (${label})</span>
         </div>
         <div class="notice-meta">📝 ${_escapeHtml(v.purpose || '')}</div>
         ${v.reviewComment ? `<div class="notice-meta">💬 ${_escapeHtml(v.reviewComment)}</div>` : ''}
+        ${v.cancelReason ? `<div class="notice-meta" style="color:#666;">❌ 취소 사유: ${_escapeHtml(v.cancelReason)}</div>` : ''}
       </div>`;
   }).join('');
 }
@@ -3309,7 +3444,10 @@ function openVisitReview(visitId) {
   const v = (S.visits || []).find(x => x._id === visitId);
   if (!v) return;
   S.currentReviewVisitId = visitId;
-  const label = v.status === 'approved' ? '✅ 승인됨' : v.status === 'rejected' ? '🚫 거절됨' : '⏳ 대기 중';
+  const label = v.status === 'approved' ? '✅ 승인됨'
+              : v.status === 'rejected' ? '🚫 거절됨'
+              : v.status === 'cancelled' ? '⚫ 강사가 취소함'
+              : '⏳ 대기 중';
   document.getElementById('visitReviewBody').innerHTML = `
     <div><b>강사:</b> ${_escapeHtml(v.instructor)}</div>
     <div><b>일자:</b> ${v.date}</div>
@@ -3317,8 +3455,26 @@ function openVisitReview(visitId) {
     <div><b>용무:</b> ${_escapeHtml(v.purpose || '')}</div>
     <div style="margin-top:8px;"><b>현재 상태:</b> ${label}</div>
     ${v.reviewedBy ? `<div style="font-size:11px;color:var(--text-sub);margin-top:4px;">처리자: ${_escapeHtml(v.reviewedBy)} (${(v.reviewedAt || '').slice(0,16).replace('T',' ')})</div>` : ''}
+    ${v.cancelReason ? `<div style="margin-top:8px;padding:8px 12px;background:#F5F5F5;border-radius:6px;font-size:12px;"><b>❌ 강사 취소 사유:</b> ${_escapeHtml(v.cancelReason)}</div>` : ''}
+    ${v.cancelledAt && !v.cancelReason ? `<div style="margin-top:8px;font-size:11px;color:var(--text-sub);">취소 시각: ${v.cancelledAt.slice(0,16).replace('T',' ')} (사유 미입력)</div>` : ''}
   `;
   document.getElementById('vrReviewComment').value = v.reviewComment || '';
+
+  // 취소된 건은 승인/거절 비활성화
+  const isCancelled = v.status === 'cancelled';
+  const modal = document.getElementById('visitReviewModal');
+  const buttons = modal.querySelectorAll('.modal-footer .btn');
+  buttons.forEach(btn => {
+    const txt = btn.textContent.trim();
+    if (txt === '승인' || txt === '거절') {
+      btn.disabled = isCancelled;
+      btn.style.opacity = isCancelled ? '0.4' : '1';
+      btn.style.cursor = isCancelled ? 'not-allowed' : 'pointer';
+    }
+  });
+  const commentTextarea = document.getElementById('vrReviewComment');
+  if (commentTextarea) commentTextarea.disabled = isCancelled;
+
   openModal('visitReviewModal');
 }
 
@@ -3327,6 +3483,10 @@ async function approveVisit() {
   if (!id) return;
   const v = (S.visits || []).find(x => x._id === id);
   if (!v) return;
+  if (v.status === 'cancelled') {
+    toast('강사가 취소한 신청은 처리할 수 없습니다.', 'error');
+    return;
+  }
   const comment = document.getElementById('vrReviewComment').value.trim();
   showLoading('처리 중...');
   try {
@@ -3360,6 +3520,10 @@ async function rejectVisit() {
   if (!id) return;
   const v = (S.visits || []).find(x => x._id === id);
   if (!v) return;
+  if (v.status === 'cancelled') {
+    toast('강사가 취소한 신청은 처리할 수 없습니다.', 'error');
+    return;
+  }
   if (!confirm('이 방문 신청을 거절하시겠습니까?')) return;
   const comment = document.getElementById('vrReviewComment').value.trim();
   showLoading('처리 중...');
@@ -3489,6 +3653,10 @@ window.updateVisitBadge = updateVisitBadge;
 window.openInstEvInfo = openInstEvInfo;
 window.applyEvFromCal = applyEvFromCal;
 window.cancelAppFromCal = cancelAppFromCal;
+window.openCancelVisitModal = openCancelVisitModal;
+window.confirmCancelVisit = confirmCancelVisit;
+window.renderInstVisits = renderInstVisits;
+window.setInstVisitFilter = setInstVisitFilter;
 
 window.addEventListener('DOMContentLoaded', () => {
   initApp();

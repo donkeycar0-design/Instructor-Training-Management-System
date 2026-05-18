@@ -539,6 +539,7 @@ button.invalid {
 .visit-dot.pending  { background: #FFF3E0; color: #B85C00; }
 .visit-dot.approved { background: #E6F4EA; color: #1A6B36; }
 .visit-dot.rejected { background: #FDECEA; color: #B12318; }
+.visit-dot.cancelled { background: #ECECEC; color: #777; text-decoration: line-through; }
 
 .type-stripe {
   display: inline-block; width: 4px; height: 14px;
@@ -555,7 +556,7 @@ button.invalid {
 .ev-item:last-child { border-bottom: none; }
 .ev-title { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
 .ev-meta { font-size: 12px; color: var(--text-sub); }
-.ev-desc { font-size: 12px; color: var(--text-hint); margin-top: 3px; }
+.ev-desc { font-size: 12px; color: var(--text-hint); margin-top: 3px; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
 
 .search-panel {
   background: var(--bg); border-radius: var(--radius-sm);
@@ -914,3 +915,12 @@ button.invalid {
   outline: none; resize: vertical; min-height: 60px;
 }
 .comment-form textarea:focus { border-color: var(--blue); }
+
+/* ─── 본문 줄바꿈 보존 (textarea 입력 그대로 표시) ─── */
+#ndContent,
+#edDesc,
+#iemDesc {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}

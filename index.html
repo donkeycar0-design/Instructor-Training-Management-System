@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>티치포퓨처 강사 플랫폼 V2</title>
+<title>티치포퓨처 강사 플랫폼 V2.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- 1. 외부 CSS 파일 불러오기 -->
@@ -222,7 +222,7 @@
           <path d="M5 9.5 Q9.5 8 14 9.5 L14.5 20 H4.5 Z" fill="currentColor"/>
         </svg>
       </div>
-      <h1>티치포퓨처 강사 플랫폼<span class="login-version">V2</span></h1>
+      <h1>티치포퓨처 강사 플랫폼<span class="login-version">V2.1</span></h1>
       <p class="sub">Teach for Future — Instructor Management</p>
     </div>
 
@@ -269,7 +269,7 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2
+      강사 플랫폼 V2.1
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -282,6 +282,7 @@
     <button class="nav-btn active" onclick="showIP('Notices',this)">📢 공지사항</button>
     <button class="nav-btn" onclick="showIP('Calendar',this)">🗓️ 캘린더</button>
     <button class="nav-btn" onclick="showIP('Events',this)">📅 강의/연수신청</button>
+    <button class="nav-btn" onclick="showIP('Visits',this)">🏢 방문신청</button>
     <button class="nav-btn" onclick="showIP('Profile',this)">👤 내 프로필</button>
     <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
   </div>
@@ -478,6 +479,21 @@
       </div>
     </div>
 
+    <div id="ipVisits" class="page">
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">🏢 사무실 방문 신청</div>
+          <button class="btn sm primary" onclick="openVisitModal()">+ 새 방문 신청</button>
+        </div>
+        <div class="info-box" style="font-size:12px;line-height:1.6;">
+          🟠 대기 &nbsp; 🟢 승인 &nbsp; 🔴 거절 &nbsp; ⚫ 취소<br>
+          💡 신청을 취소하시려면 <b>[방문 취소]</b> 버튼을 누르고 사유를 입력하세요 (사유는 선택).
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;" id="instVisitFilterBar"></div>
+        <div id="instVisitTabList"></div>
+      </div>
+    </div>
+
     <div id="ipSettings" class="page">
       <div class="card">
         <div class="section-title" style="margin-bottom:6px;">🔒 비밀번호 변경</div>
@@ -524,7 +540,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2
+      강사 플랫폼 V2.1
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -540,7 +556,6 @@
     <button class="nav-btn" onclick="showAP('Visits',this)">🏢 방문 신청<span id="visitBadge" class="pending-badge" style="display:none;"></span></button>
     <button class="nav-btn" onclick="showAP('Approval',this)">✅ 강사 승인<span id="pendingBadge" class="pending-badge" style="display:none;"></span></button>
     <button class="nav-btn" onclick="showAP('Instructors',this)">👥 강사 목록</button>
-    <button class="nav-btn" onclick="showAP('Search',this)">🔍 강사 검색</button>
     <button class="nav-btn" onclick="showAP('Grade',this)">⭐ 강사등급</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">👤 관리자 설정</button>
     <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템설정</button>
@@ -663,28 +678,25 @@
           <div class="section-title">👥 전체 강사 목록 <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(승인된 강사만)</span></div>
           <button class="btn sm green" onclick="exportInstExcel()">강사 목록 엑셀</button>
         </div>
-        <div id="instListAdmin"></div>
-      </div>
-    </div>
-
-    <div id="apSearch" class="page">
-      <div class="card">
-        <div class="section-title" style="margin-bottom:12px;">🔍 강사 검색 <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(승인된 강사만)</span></div>
         <div class="search-panel">
-          <div class="search-row">
-            <input id="sName" type="text" placeholder="이름" oninput="searchInst()"/>
-            <input id="sSubject" type="text" placeholder="과목 / 전공" oninput="searchInst()"/>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;">🔍 조건별 검색</div>
+            <button class="btn sm" onclick="resetInstSearch()">초기화</button>
           </div>
           <div class="search-row">
-            <input id="sEdu" type="text" placeholder="학력" oninput="searchInst()"/>
-            <input id="sCert" type="text" placeholder="자격증" oninput="searchInst()"/>
+            <input id="sName" type="text" placeholder="이름" oninput="renderInstList()"/>
+            <input id="sSubject" type="text" placeholder="과목 / 전공" oninput="renderInstList()"/>
+          </div>
+          <div class="search-row">
+            <input id="sEdu" type="text" placeholder="학력" oninput="renderInstList()"/>
+            <input id="sCert" type="text" placeholder="자격증" oninput="renderInstList()"/>
           </div>
           <div style="margin-top:8px;">
-            <div style="font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">수업 가능 요일 검색</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">수업 가능 요일</div>
             <div class="day-filter" id="dayFilterBtns"></div>
           </div>
         </div>
-        <div id="searchResults"></div>
+        <div id="instListAdmin"></div>
       </div>
     </div>
 
@@ -867,6 +879,24 @@
     <div id="pickInstructorList" style="display:flex;flex-direction:column;gap:8px;"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('pickInstructorModal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="visitCancelModal">
+  <div class="modal">
+    <h3>🏢 방문 신청 취소</h3>
+    <div id="vcInfo" style="font-size:13px;color:var(--text-sub);margin-bottom:10px;"></div>
+    <div class="info-box" style="font-size:12px;line-height:1.6;">
+      취소 후에는 이력이 회색으로 보존되며 다시 활성화할 수 없습니다. 같은 시간에 다시 방문하시려면 새로 신청하세요.
+    </div>
+    <div class="form-group">
+      <label>취소 사유 <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(선택)</span></label>
+      <textarea id="vcReason" rows="3" placeholder="예: 일정 변경, 사무실 방문 불가 등 (비워둬도 됩니다)"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn danger" onclick="confirmCancelVisit()">방문 취소</button>
+      <button class="btn" onclick="closeModal('visitCancelModal')">닫기</button>
     </div>
   </div>
 </div>
