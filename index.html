@@ -282,7 +282,6 @@
     <button class="nav-btn active" onclick="showIP('Notices',this)">📢 공지사항</button>
     <button class="nav-btn" onclick="showIP('Calendar',this)">🗓️ 캘린더</button>
     <button class="nav-btn" onclick="showIP('Events',this)">📅 강의/연수신청</button>
-    <button class="nav-btn" onclick="showIP('Visits',this)">🏢 방문신청</button>
     <button class="nav-btn" onclick="showIP('Profile',this)">👤 내 프로필</button>
     <button class="nav-btn" onclick="showIP('Settings',this)">⚙️ 설정</button>
   </div>
@@ -463,6 +462,7 @@
         <div class="card-header">
           <div class="section-title">🏢 내 사무실 방문 신청 현황</div>
         </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;" id="instVisitFilterBar"></div>
         <div id="instVisitList"></div>
       </div>
     </div>
@@ -475,21 +475,6 @@
       <div class="card">
         <div class="section-title" style="margin-bottom:12px;">내 신청 현황</div>
         <div id="myApps"></div>
-      </div>
-    </div>
-
-    <div id="ipVisits" class="page">
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">🏢 사무실 방문 신청</div>
-          <button class="btn sm primary" onclick="openVisitModal()">+ 새 방문 신청</button>
-        </div>
-        <div class="info-box" style="font-size:12px;line-height:1.6;">
-          🟠 대기 &nbsp; 🟢 승인 &nbsp; 🔴 거절 &nbsp; ⚫ 취소<br>
-          💡 신청을 취소하시려면 <b>[방문 취소]</b> 버튼을 누르고 사유를 입력하세요 (사유는 선택).
-        </div>
-        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;" id="instVisitFilterBar"></div>
-        <div id="instVisitTabList"></div>
       </div>
     </div>
 
@@ -553,38 +538,12 @@
     <button class="nav-btn" onclick="showAP('Calendar',this)">📅 캘린더</button>
     <button class="nav-btn" onclick="showAP('Schedule',this)">📋 강의/연수일정</button>
     <button class="nav-btn" onclick="showAP('Visits',this)">🏢 방문 신청<span id="visitBadge" class="pending-badge" style="display:none;"></span></button>
-    <button class="nav-btn" onclick="showAP('Approval',this)">✅ 강사 승인<span id="pendingBadge" class="pending-badge" style="display:none;"></span></button>
-    <button class="nav-btn" onclick="showAP('Instructors',this)">👥 강사 목록</button>
+    <button class="nav-btn" onclick="showAP('Instructors',this)">👥 강사 관리<span id="pendingBadge" class="pending-badge" style="display:none;"></span></button>
     <button class="nav-btn" onclick="showAP('Grade',this)">⭐ 강사등급</button>
     <button class="nav-btn" onclick="showAP('Settings',this)">👤 관리자 설정</button>
     <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템설정</button>
   </div>
   <div class="content">
-
-    <div id="apApproval" class="page">
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">⏳ 승인 대기 중인 신규 강사</div>
-          <span id="pendingCountText" style="font-size:12px;color:var(--text-sub);font-weight:500;"></span>
-        </div>
-        <div class="info-box">
-          🆕 신규 강사가 가입 신청한 내역입니다. 신청 정보를 확인하고 승인 또는 거절하세요.<br>
-          ✅ <b>승인된 강사만</b> 로그인하여 시스템을 사용할 수 있습니다.
-        </div>
-        <div id="pendingInstList"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">🚫 거절된 신청 내역</div>
-          <span id="rejectedCountText" style="font-size:12px;color:var(--text-sub);font-weight:500;"></span>
-        </div>
-        <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;line-height:1.7;">
-          거절된 신청도 다시 승인하거나 완전히 삭제할 수 있습니다.
-        </div>
-        <div id="rejectedInstList"></div>
-      </div>
-    </div>
 
     <div id="apCalendar" class="page">
       <div class="card">
@@ -674,7 +633,7 @@
     <div id="apInstructors" class="page">
       <div class="card">
         <div class="card-header">
-          <div class="section-title">👥 전체 강사 목록 <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(승인된 강사만)</span></div>
+          <div class="section-title">👥 강사 관리</div>
           <button class="btn sm green" onclick="exportInstExcel()">강사 목록 엑셀</button>
         </div>
         <div class="search-panel">
@@ -695,6 +654,7 @@
             <div class="day-filter" id="dayFilterBtns"></div>
           </div>
         </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;" id="instStatusFilterBar"></div>
         <div id="instListAdmin"></div>
       </div>
     </div>

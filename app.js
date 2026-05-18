@@ -43,6 +43,7 @@ let S = {
   instCalMonth: new Date().getMonth(),
   visitFilter: 'pending',
   instVisitFilter: 'all',
+  instStatusFilter: 'approved',  // 강사 관리 페이지: 기본 = 승인 강사
   currentCancelVisitId: null,
   dayFilter: {},
   editingEventIdx: null,
@@ -219,8 +220,6 @@ function onDataChanged(source) {
     if (ntPage && ntPage.classList.contains('active')) renderInstNotices();
     const calPageI = document.getElementById('ipCalendar');
     if (calPageI && calPageI.classList.contains('active')) renderInstCal();
-    const visitsPageI = document.getElementById('ipVisits');
-    if (visitsPageI && visitsPageI.classList.contains('active')) renderInstVisits();
   }
   if (adminActive) {
     if (source === 'instructors') updatePendingBadge();
@@ -238,8 +237,6 @@ function onDataChanged(source) {
     if (settingsPage && settingsPage.classList.contains('active')) renderAdminList();
     const notPage = document.getElementById('apNotices');
     if (notPage && notPage.classList.contains('active')) renderAdminNotices();
-    const apprPage = document.getElementById('apApproval');
-    if (apprPage && apprPage.classList.contains('active')) renderApprovalList();
     const visitsPage = document.getElementById('apVisits');
     if (visitsPage && visitsPage.classList.contains('active')) renderAdminVisits();
   }
@@ -604,7 +601,12 @@ function showIP(id, btn) {
   if (id === 'Settings') loadInstSettings();
   if (id === 'Notices') renderInstNotices();
   if (id === 'Calendar') renderInstCal();
-  if (id === 'Visits') renderInstVisits();
+  // 방문신청 탭이 캘린더에 통합됨 — 호환용 리다이렉트
+  if (id === 'Visits') {
+    const calBtn = document.querySelector('#instNav .nav-btn[onclick*="Calendar"]');
+    showIP('Calendar', calBtn);
+    return;
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -621,11 +623,11 @@ function showAP(id, btn) {
   if (id === 'Schedule') renderAdminSchedule();
   if (id === 'Instructors') renderInstList();
   if (id === 'Search') { showAP('Instructors', document.querySelector('#adminNav .nav-btn[onclick*="Instructors"]')); return; }
+  if (id === 'Approval') { showAP('Instructors', document.querySelector('#adminNav .nav-btn[onclick*="Instructors"]')); S.instStatusFilter = 'pending'; renderInstList(); return; }
   if (id === 'Grade') renderGradeTab();
   if (id === 'Settings') renderAdminList();
   if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
   if (id === 'Notices') renderAdminNotices();
-  if (id === 'Approval') renderApprovalList();
   if (id === 'Visits') renderAdminVisits();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1109,90 +1111,9 @@ function updatePendingBadge() {
   }
 }
 
+// 강사 승인 페이지가 강사 관리에 통합됨 — 호환용 alias
 function renderApprovalList() {
-  const pendingDiv = document.getElementById('pendingInstList');
-  const rejectedDiv = document.getElementById('rejectedInstList');
-  const pendingCountText = document.getElementById('pendingCountText');
-  const rejectedCountText = document.getElementById('rejectedCountText');
-  if (!pendingDiv || !rejectedDiv) return;
-
-  const pending = [];
-  const rejected = [];
-  Object.entries(S.instructors).forEach(([name, rawU]) => {
-    const u = getProfile(rawU);
-    if (u.status === 'pending') pending.push({ name, u });
-    if (u.status === 'rejected') rejected.push({ name, u });
-  });
-
-  pending.sort((a, b) => (a.u.registeredAt || '').localeCompare(b.u.registeredAt || ''));
-  rejected.sort((a, b) => (b.u.rejectedAt || '').localeCompare(a.u.rejectedAt || ''));
-
-  pendingCountText.textContent = pending.length ? `${pending.length}건 대기 중` : '';
-  rejectedCountText.textContent = rejected.length ? `${rejected.length}건` : '';
-
-  if (!pending.length) {
-    pendingDiv.innerHTML = '<p class="empty-msg">✨ 승인 대기 중인 신청이 없습니다.</p>';
-  } else {
-    pendingDiv.innerHTML = '';
-    pending.forEach(({ name, u }) => {
-      const time = u.registeredAt ? new Date(u.registeredAt).toLocaleString('ko-KR') : '-';
-      const display = u.displayName || u.baseName || name;
-      const avatarChar = (u.baseName || name).slice(0,1);
-      const row = document.createElement('div');
-      row.className = 'row-item';
-      row.style.flexWrap = 'wrap';
-      row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-          <div class="avatar" style="background:var(--amber-light);color:var(--amber);">${_escapeHtml(avatarChar)}</div>
-          <div class="inst-info">
-            <div class="inst-name">
-              ${_escapeHtml(display)}
-              <span class="badge pending" style="margin-left:6px;">대기중</span>
-            </div>
-            <div class="inst-sub">📅 신청 시각: ${time}</div>
-          </div>
-        </div>
-        <div class="btn-grp">
-          <button class="btn sm green" onclick="approveInstructor('${name.replace(/'/g, "\\'")}')">✓ 승인</button>
-          <button class="btn sm danger" onclick="rejectInstructor('${name.replace(/'/g, "\\'")}')">✗ 거절</button>
-        </div>
-      `;
-      pendingDiv.appendChild(row);
-    });
-  }
-
-  if (!rejected.length) {
-    rejectedDiv.innerHTML = '<p class="empty-msg">거절된 신청이 없습니다.</p>';
-  } else {
-    rejectedDiv.innerHTML = '';
-    rejected.forEach(({ name, u }) => {
-      const rTime = u.rejectedAt ? new Date(u.rejectedAt).toLocaleString('ko-KR') : '-';
-      const display = u.displayName || u.baseName || name;
-      const avatarChar = (u.baseName || name).slice(0,1);
-      const row = document.createElement('div');
-      row.className = 'row-item';
-      row.style.flexWrap = 'wrap';
-      row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-          <div class="avatar" style="background:var(--red-light);color:var(--red);">${_escapeHtml(avatarChar)}</div>
-          <div class="inst-info">
-            <div class="inst-name">
-              ${_escapeHtml(display)}
-              <span class="badge rejected" style="margin-left:6px;">거절됨</span>
-            </div>
-            <div class="inst-sub">📅 거절 시각: ${rTime}${u.rejectedBy ? ' · 처리자: ' + _escapeHtml(u.rejectedBy) : ''}</div>
-          </div>
-        </div>
-        <div class="btn-grp">
-          <button class="btn sm green" onclick="approveInstructor('${name.replace(/'/g, "\\'")}')">↻ 다시 승인</button>
-          <button class="btn sm danger" onclick="deleteInst('${name.replace(/'/g, "\\'")}')">🗑 완전 삭제</button>
-        </div>
-      `;
-      rejectedDiv.appendChild(row);
-    });
-  }
-
-  updatePendingBadge();
+  renderInstList();
 }
 
 async function approveInstructor(name) {
@@ -1793,6 +1714,24 @@ function renderInstList() {
   const div = document.getElementById('instListAdmin');
   if (!div) return;
 
+  // ─── 상태 필터 토글 ─────────────────────────────
+  const statusBar = document.getElementById('instStatusFilterBar');
+  const allInst = Object.entries(S.instructors);
+  const pendingCnt = allInst.filter(([_, u]) => (u.status || 'approved') === 'pending').length;
+  const approvedCnt = allInst.filter(([_, u]) => (u.status || 'approved') === 'approved').length;
+  const rejectedCnt = allInst.filter(([_, u]) => u.status === 'rejected').length;
+  const totalCnt = allInst.length;
+  const statusFilter = S.instStatusFilter || 'approved';
+  if (statusBar) {
+    statusBar.innerHTML = `
+      <span style="font-size:12px;color:var(--text-sub);margin-right:4px;">상태:</span>
+      <button class="btn sm ${statusFilter==='approved'?'primary':''}" onclick="setInstStatusFilter('approved')">✅ 승인 (${approvedCnt})</button>
+      <button class="btn sm ${statusFilter==='pending'?'primary':''}" onclick="setInstStatusFilter('pending')">⏳ 대기 ${pendingCnt > 0 ? `<span class="pending-badge" style="position:static;display:inline-flex;margin-left:4px;">${pendingCnt}</span>` : `(${pendingCnt})`}</button>
+      <button class="btn sm ${statusFilter==='rejected'?'primary':''}" onclick="setInstStatusFilter('rejected')">🚫 거절 (${rejectedCnt})</button>
+      <button class="btn sm ${statusFilter==='all'?'primary':''}" onclick="setInstStatusFilter('all')">전체 (${totalCnt})</button>
+    `;
+  }
+
   // ─── 검색 조건 수집 ─────────────────────────────
   const qName = (document.getElementById('sName')?.value || '').trim().toLowerCase();
   const qSubj = (document.getElementById('sSubject')?.value || '').trim().toLowerCase();
@@ -1801,9 +1740,13 @@ function renderInstList() {
   const activeDays = Object.keys(S.dayFilter || {}).filter(k => S.dayFilter[k]);
   const hasQuery = !!(qName || qSubj || qEdu || qCert || activeDays.length);
 
-  // ─── 강사 필터 ─────────────────────────────────
+  // ─── 강사 필터 (상태 + 검색) ────────────────────
   let names = Object.keys(S.instructors)
-    .filter(name => (S.instructors[name].status || 'approved') === 'approved')
+    .filter(name => {
+      const st = S.instructors[name].status || 'approved';
+      if (statusFilter === 'all') return true;
+      return st === statusFilter;
+    })
     .filter(name => {
       if (!hasQuery) return true;
       const u = getProfile(S.instructors[name]);
@@ -1822,7 +1765,7 @@ function renderInstList() {
   if (_instListSort === 'name') {
     names.sort((a, b) => a.localeCompare(b, 'ko'));
   } else {
-    // 최근 등록순 (registeredAt 내림차순). registeredAt 없는 강사는 맨 뒤로.
+    // 최근 등록순 - registeredAt 우선, 대기 상태인 경우 빠른 처리 위해 오래된 것 먼저
     names.sort((a, b) => {
       const ra = S.instructors[a].registeredAt || '';
       const rb = S.instructors[b].registeredAt || '';
@@ -1834,9 +1777,13 @@ function renderInstList() {
   }
 
   // ─── 정렬 토글 + 인원수 ────────────────────────
+  let statusLabel = '';
+  if (statusFilter === 'pending') statusLabel = '대기 ';
+  else if (statusFilter === 'approved') statusLabel = '승인 ';
+  else if (statusFilter === 'rejected') statusLabel = '거절 ';
   const countLabel = hasQuery
     ? `검색 결과 ${names.length}명`
-    : `총 ${names.length}명`;
+    : `${statusLabel}${names.length}명`;
   const sortBar = `
     <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:12px;color:var(--text-sub);margin-right:4px;">정렬:</span>
@@ -1846,16 +1793,45 @@ function renderInstList() {
     </div>`;
 
   if (!names.length) {
-    div.innerHTML = sortBar + `<p class="empty-msg">${hasQuery ? '검색 결과가 없습니다.' : '등록된 강사가 없습니다.'}</p>`;
+    const emptyMsg = hasQuery ? '검색 결과가 없습니다.'
+      : statusFilter === 'pending' ? '✨ 승인 대기 중인 신청이 없습니다.'
+      : statusFilter === 'rejected' ? '거절된 신청이 없습니다.'
+      : '등록된 강사가 없습니다.';
+    div.innerHTML = sortBar + `<p class="empty-msg">${emptyMsg}</p>`;
     return;
   }
 
   div.innerHTML = sortBar;
   names.forEach(name => {
     const u = getProfile(S.instructors[name]);
+    const status = u.status || 'approved';
     const regDate = _fmtRegDate(u.registeredAt);
     const display = u.displayName || u.baseName || name;
     const avatarChar = (u.baseName || name).slice(0,1);
+    const safeName = name.replace(/'/g, "\\'");
+
+    // 상태별 아바타 색 + 배지 + 액션 버튼
+    let avatarStyle = '';
+    let statusBadge = '';
+    let actionBtns = '';
+    if (status === 'pending') {
+      avatarStyle = 'background:var(--amber-light);color:var(--amber);';
+      statusBadge = `<span class="badge pending" style="margin-left:6px;">대기중</span>`;
+      const time = u.registeredAt ? new Date(u.registeredAt).toLocaleString('ko-KR') : '-';
+      actionBtns = `
+        <button class="btn sm green" onclick="approveInstructor('${safeName}')">✓ 승인</button>
+        <button class="btn sm danger" onclick="rejectInstructor('${safeName}')">✗ 거절</button>
+        <button class="btn sm" onclick="openProfile('${safeName}')">프로필</button>`;
+    } else if (status === 'rejected') {
+      avatarStyle = 'background:var(--red-light);color:var(--red);';
+      statusBadge = `<span class="badge rejected" style="margin-left:6px;">거절됨</span>`;
+      actionBtns = `
+        <button class="btn sm green" onclick="approveInstructor('${safeName}')">↻ 다시 승인</button>
+        <button class="btn sm danger" onclick="deleteInst('${safeName}')">🗑 완전 삭제</button>
+        <button class="btn sm" onclick="openProfile('${safeName}')">프로필</button>`;
+    } else {
+      actionBtns = `<button class="btn sm" onclick="openProfile('${safeName}')">프로필</button>`;
+    }
 
     // 요일 태그는 요일 검색 조건이 있을 때만 표시
     let dayTagsHtml = '';
@@ -1869,20 +1845,39 @@ function renderInstList() {
       if (tags) dayTagsHtml = `<div style="margin-top:4px;">${tags}</div>`;
     }
 
+    // 메타 줄: 대기/거절은 시각 정보, 승인은 과목·연락처
+    let metaLine = '';
+    if (status === 'pending') {
+      const time = u.registeredAt ? new Date(u.registeredAt).toLocaleString('ko-KR') : '-';
+      metaLine = `📅 신청 시각: ${time}`;
+    } else if (status === 'rejected') {
+      const rTime = u.rejectedAt ? new Date(u.rejectedAt).toLocaleString('ko-KR') : '-';
+      metaLine = `📅 거절 시각: ${rTime}${u.rejectedBy ? ' · 처리자: ' + _escapeHtml(u.rejectedBy) : ''}`;
+    } else {
+      metaLine = `${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}`;
+    }
+
     const row = document.createElement('div'); row.className = 'row-item';
     row.style.flexWrap = 'wrap';
     row.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-        <div class="avatar">${avatarChar}</div>
+        <div class="avatar" style="${avatarStyle}">${_escapeHtml(avatarChar)}</div>
         <div class="inst-info">
-          <div class="inst-name">${_escapeHtml(display)} <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span></div>
-          <div class="inst-sub">${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}</div>
+          <div class="inst-name">${_escapeHtml(display)}${statusBadge}${status==='approved' ? ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span>` : ''}</div>
+          <div class="inst-sub">${metaLine}</div>
           ${dayTagsHtml}
         </div>
       </div>
-      <button class="btn sm" onclick="openProfile('${name.replace(/'/g, "\\'")}')">프로필</button>`;
+      <div class="btn-grp">${actionBtns}</div>`;
     div.appendChild(row);
   });
+
+  updatePendingBadge();
+}
+
+function setInstStatusFilter(mode) {
+  S.instStatusFilter = mode;
+  renderInstList();
 }
 
 // 검색 조건 초기화
@@ -2002,8 +1997,6 @@ async function deleteInst(name) {
     delete S.instructors[name];
     hideLoading();
     closeModal('profileModal');
-    const apprPage = document.getElementById('apApproval');
-    if (apprPage && apprPage.classList.contains('active')) renderApprovalList();
     const instListPage = document.getElementById('apInstructors');
     if (instListPage && instListPage.classList.contains('active')) renderInstList();
     updatePendingBadge();
@@ -3066,6 +3059,7 @@ window.executeRestore = executeRestore;
 window.toggleManual = toggleManual;
 window.searchInst = searchInst;
 window.resetInstSearch = resetInstSearch;
+window.setInstStatusFilter = setInstStatusFilter;
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.renderGradeTab = renderGradeTab;
@@ -3211,21 +3205,44 @@ function showInstMobileDay(ds, dayEvs, myVisits) {
 // ─── 강사: 내 방문 신청 목록 ─────────────────────────────────────
 function renderInstVisitList() {
   const div = document.getElementById('instVisitList');
+  const bar = document.getElementById('instVisitFilterBar');
   if (!div) return;
-  const myName = S.currentUser;
-  const mine = (S.visits || [])
-    .filter(v => v.instructor === myName)
-    .sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')));
 
-  if (!mine.length) {
-    div.innerHTML = '<p class="empty-msg">신청 내역이 없습니다. 캘린더에서 날짜를 선택해 신청해 보세요.</p>';
+  const myName = S.currentUser;
+  const mine = (S.visits || []).filter(v => v.instructor === myName);
+
+  // ─── 필터 토글 (캘린더 페이지에 통합) ───
+  if (bar) {
+    const pendingCnt   = mine.filter(v => (v.status || 'pending') === 'pending').length;
+    const approvedCnt  = mine.filter(v => v.status === 'approved').length;
+    const rejectedCnt  = mine.filter(v => v.status === 'rejected').length;
+    const cancelledCnt = mine.filter(v => v.status === 'cancelled').length;
+    const filter = S.instVisitFilter || 'all';
+    bar.innerHTML = `
+      <button class="btn sm ${filter==='all'?'primary':''}" onclick="setInstVisitFilter('all')">전체 (${mine.length})</button>
+      <button class="btn sm ${filter==='pending'?'primary':''}" onclick="setInstVisitFilter('pending')">⏳ 대기 (${pendingCnt})</button>
+      <button class="btn sm ${filter==='approved'?'primary':''}" onclick="setInstVisitFilter('approved')">✅ 승인 (${approvedCnt})</button>
+      <button class="btn sm ${filter==='rejected'?'primary':''}" onclick="setInstVisitFilter('rejected')">🚫 거절 (${rejectedCnt})</button>
+      <button class="btn sm ${filter==='cancelled'?'primary':''}" onclick="setInstVisitFilter('cancelled')">⚫ 취소 (${cancelledCnt})</button>
+    `;
+  }
+
+  // ─── 필터 적용 + 최신순 정렬 ───
+  const filter = S.instVisitFilter || 'all';
+  const filtered = filter === 'all' ? mine : mine.filter(v => (v.status || 'pending') === filter);
+  filtered.sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')));
+
+  if (!filtered.length) {
+    div.innerHTML = filter === 'all'
+      ? '<p class="empty-msg">신청 내역이 없습니다. 캘린더에서 날짜를 선택해 신청해 보세요.</p>'
+      : '<p class="empty-msg">해당하는 신청이 없습니다.</p>';
     return;
   }
 
-  div.innerHTML = mine.map(v => _renderInstVisitCard(v)).join('');
+  div.innerHTML = filtered.map(v => _renderInstVisitCard(v)).join('');
 }
 
-// 강사 방문 신청 카드 HTML 생성 (캘린더 페이지와 방문신청 탭에서 공용)
+// 강사 방문 신청 카드 HTML 생성
 function _renderInstVisitCard(v) {
   const icon = v.status === 'approved' ? '🟢'
              : v.status === 'rejected' ? '🔴'
@@ -3384,10 +3401,8 @@ async function confirmCancelVisit() {
     hideLoading();
     closeModal('visitCancelModal');
     toast('방문 신청이 취소되었습니다.', 'success');
-    // 두 곳 모두 갱신
+    // 캘린더 + 방문 목록 모두 renderInstCal에서 처리됨
     renderInstCal();
-    const visitsTab = document.getElementById('ipVisits');
-    if (visitsTab && visitsTab.classList.contains('active')) renderInstVisits();
   } catch (e) {
     hideLoading();
     toast('취소 실패: ' + e.message, 'error');
@@ -3399,44 +3414,14 @@ function cancelMyVisit(visitId) {
   openCancelVisitModal(visitId);
 }
 
-// ─── 강사: 방문신청 탭 렌더 ─────────────────────────────────────
+// ─── 강사: 방문신청 탭 (현재는 캘린더에 통합) ─── 호환용 alias
 function renderInstVisits() {
-  const div = document.getElementById('instVisitTabList');
-  const bar = document.getElementById('instVisitFilterBar');
-  if (!div || !bar) return;
-
-  const myName = S.currentUser;
-  const mine = (S.visits || []).filter(v => v.instructor === myName);
-
-  const pendingCnt   = mine.filter(v => (v.status || 'pending') === 'pending').length;
-  const approvedCnt  = mine.filter(v => v.status === 'approved').length;
-  const rejectedCnt  = mine.filter(v => v.status === 'rejected').length;
-  const cancelledCnt = mine.filter(v => v.status === 'cancelled').length;
-
-  const filter = S.instVisitFilter || 'all';
-  bar.innerHTML = `
-    <button class="btn sm ${filter==='all'?'primary':''}" onclick="setInstVisitFilter('all')">전체 (${mine.length})</button>
-    <button class="btn sm ${filter==='pending'?'primary':''}" onclick="setInstVisitFilter('pending')">⏳ 대기 (${pendingCnt})</button>
-    <button class="btn sm ${filter==='approved'?'primary':''}" onclick="setInstVisitFilter('approved')">✅ 승인 (${approvedCnt})</button>
-    <button class="btn sm ${filter==='rejected'?'primary':''}" onclick="setInstVisitFilter('rejected')">🚫 거절 (${rejectedCnt})</button>
-    <button class="btn sm ${filter==='cancelled'?'primary':''}" onclick="setInstVisitFilter('cancelled')">⚫ 취소 (${cancelledCnt})</button>
-  `;
-
-  const filtered = filter === 'all' ? mine : mine.filter(v => (v.status || 'pending') === filter);
-  // 최근 신청 우선 (날짜·시간 내림차순)
-  filtered.sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')));
-
-  if (!filtered.length) {
-    div.innerHTML = '<p class="empty-msg">해당하는 신청이 없습니다.</p>';
-    return;
-  }
-
-  div.innerHTML = filtered.map(v => _renderInstVisitCard(v)).join('');
+  renderInstCal();
 }
 
 function setInstVisitFilter(mode) {
   S.instVisitFilter = mode;
-  renderInstVisits();
+  renderInstVisitList();
 }
 
 // ─── 관리자: 방문 신청 관리 ─────────────────────────────────────
