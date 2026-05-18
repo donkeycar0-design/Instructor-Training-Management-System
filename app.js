@@ -1578,11 +1578,19 @@ async function saveEvent() {
   try {
     if (S.editingEventIdx !== null) {
       await window.DB.updateEvent(S.editingEventIdx, data);
+      // 낙관적 UI 갱신 (수정 — 기존 필드 보존)
+      const idx = S.events.findIndex(e => e._id === S.editingEventIdx);
+      if (idx >= 0) S.events[idx] = { ...S.events[idx], ...data };
     } else {
-      await window.DB.addEvent(data);
+      const newId = await window.DB.addEvent(data);
+      // 낙관적 UI 갱신 (신규 추가)
+      if (newId && !S.events.some(e => e._id === newId)) {
+        S.events.push({ _id: newId, ...data });
+      }
     }
     hideLoading();
     closeAddEvModal();
+    onDataChanged('events');
   } catch(e) {
     hideLoading();
     toast('일정 저장 실패: ' + e.message, 'error');
@@ -1746,11 +1754,17 @@ async function deleteEvent(evId) {
         const apps = { ...u.applications };
         delete apps[evId];
         await window.DB.updateInstructor(name, { applications: apps });
+        u.applications = apps;  // 낙관적 UI
       }
     }
     await window.DB.deleteEvent(evId);
+    // 낙관적 UI 갱신
+    S.events = S.events.filter(e => e._id !== evId);
     hideLoading();
     closeModal('evDetailModal');
+    toast('일정이 삭제되었습니다.', 'success');
+    onDataChanged('events');
+    onDataChanged('instructors');
   } catch(e) {
     hideLoading();
     toast('삭제 실패: ' + e.message, 'error');
@@ -2050,11 +2064,14 @@ async function addAdmin() {
   try {
     const hashed = await hashPw(pw);
     await window.DB.setAdmin(name, hashed);
+    // 낙관적 UI 갱신
+    S.admins = { ...S.admins, [name]: hashed };
     closeModal('addAdminModal');
     document.getElementById('newAName').value = '';
     document.getElementById('newAPw').value = '';
     err.style.display = 'none';
     toast('관리자가 추가되었습니다', 'success');
+    onDataChanged('admins');
   } catch(e) {
     err.textContent = '추가 실패: ' + e.message;
     err.style.display = 'block';
@@ -2066,7 +2083,12 @@ async function deleteAdmin(name) {
   if (!confirm(`'${name}' 관리자를 삭제하시겠습니까?`)) return;
   try {
     await window.DB.deleteAdmin(name);
+    // 낙관적 UI 갱신
+    const newAdmins = { ...S.admins };
+    delete newAdmins[name];
+    S.admins = newAdmins;
     toast('삭제되었습니다', 'success');
+    onDataChanged('admins');
   } catch(e) {
     toast('삭제 실패: ' + e.message, 'error');
   }
@@ -2226,6 +2248,9 @@ async function saveNotice() {
       };
       delete data._id;
       await window.DB.updateNotice(S.editingNoticeId, data);
+      // 낙관적 UI 갱신
+      const idx = S.notices.findIndex(n => n._id === S.editingNoticeId);
+      if (idx >= 0) S.notices[idx] = { _id: S.editingNoticeId, ...data };
     } else {
       const data = {
         title, content, priority,
@@ -2233,11 +2258,16 @@ async function saveNotice() {
         createdAt: new Date().toISOString(),
         comments: []
       };
-      await window.DB.addNotice(data);
+      const newId = await window.DB.addNotice(data);
+      // 낙관적 UI 갱신
+      if (newId && !S.notices.some(n => n._id === newId)) {
+        S.notices.push({ _id: newId, ...data });
+      }
     }
     hideLoading();
     closeNoticeForm();
     toast(S.editingNoticeId ? '수정되었습니다' : '공지가 등록되었습니다', 'success');
+    onDataChanged('notices');  // 활성 페이지 일괄 갱신
   } catch(e) {
     hideLoading();
     toast('저장 실패: ' + e.message, 'error');
@@ -2319,10 +2349,13 @@ async function deleteCurrentNotice() {
   showLoading('삭제 중...');
   try {
     await window.DB.deleteNotice(S.currentNoticeId);
+    // 낙관적 UI 갱신
+    S.notices = S.notices.filter(x => x._id !== S.currentNoticeId);
     S.currentNoticeId = null;
     hideLoading();
     closeModal('noticeDetailModal');
     toast('삭제되었습니다', 'success');
+    onDataChanged('notices');
   } catch(e) {
     hideLoading();
     toast('삭제 실패: ' + e.message, 'error');
@@ -2348,6 +2381,14 @@ async function submitComment() {
   try {
     await window.DB.updateNotice(S.currentNoticeId, data);
     input.value = '';
+    // 낙관적 UI 갱신
+    const idx = S.notices.findIndex(x => x._id === S.currentNoticeId);
+    if (idx >= 0) {
+      S.notices[idx] = { _id: S.currentNoticeId, ...data };
+      // 열려 있는 모달도 즉시 갱신
+      renderNoticeDetail(S.notices[idx]);
+    }
+    onDataChanged('notices');
   } catch(e) {
     toast('댓글 등록 실패: ' + e.message, 'error');
   }
@@ -2364,6 +2405,13 @@ async function deleteComment(idx) {
   delete data._id;
   try {
     await window.DB.updateNotice(S.currentNoticeId, data);
+    // 낙관적 UI 갱신
+    const idx = S.notices.findIndex(x => x._id === S.currentNoticeId);
+    if (idx >= 0) {
+      S.notices[idx] = { _id: S.currentNoticeId, ...data };
+      renderNoticeDetail(S.notices[idx]);
+    }
+    onDataChanged('notices');
   } catch(e) {
     toast('삭제 실패: ' + e.message, 'error');
   }
