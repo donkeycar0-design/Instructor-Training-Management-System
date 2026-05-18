@@ -344,8 +344,7 @@
             <label class="cert-cat-item"><input type="checkbox" data-cert-cat="교원자격" onchange="_updateCertCatLabel()"/> 교원자격</label>
             <label class="cert-cat-item"><input type="checkbox" data-cert-cat="평생교육사" onchange="_updateCertCatLabel()"/> 평생교육사</label>
             <label class="cert-cat-item"><input type="checkbox" data-cert-cat="청소년지도사" onchange="_updateCertCatLabel()"/> 청소년지도사</label>
-            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="국가기술자격증" onchange="_updateCertCatLabel()"/> 국가기술자격증</label>
-            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="국가기능사자격증" onchange="_updateCertCatLabel()"/> 국가기능사자격증</label>
+            <label class="cert-cat-item"><input type="checkbox" data-cert-cat="국가기술자격(기사,기능사)" onchange="_updateCertCatLabel()"/> 국가기술자격<br><span style="font-size:11px;color:var(--text-sub);">(기사,기능사)</span></label>
             <label class="cert-cat-item"><input type="checkbox" data-cert-cat="민간자격증" onchange="_updateCertCatLabel()"/> 민간자격증</label>
             <label class="cert-cat-item"><input type="checkbox" data-cert-cat="기타자격증" onchange="_updateCertCatLabel()"/> 기타자격증</label>
           </div>
@@ -709,6 +708,8 @@
         <div class="info-box">아래 배점을 변경하고 저장하면 강사들의 점수와 순위가 즉시 재계산됩니다.</div>
         <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:6px 0 8px;">📚 기본 항목</div>
         <div class="search-panel" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin-bottom:14px;">
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">고졸 점수</label><input id="wHigh" type="number" value="0" style="width:100%;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">전문대졸 점수</label><input id="wCollege" type="number" value="5" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">대졸 점수</label><input id="wUni" type="number" value="10" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">대학원졸 점수</label><input id="wGrad" type="number" value="20" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">차량보유 점수</label><input id="wCar" type="number" value="5" style="width:100%;"></div>
@@ -720,9 +721,10 @@
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">교원자격</label><input id="wCertTeacher" type="number" value="15" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">평생교육사</label><input id="wCertLifelong" type="number" value="12" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">청소년지도사</label><input id="wCertYouth" type="number" value="8" style="width:100%;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">국가기술자격<br><span style="font-weight:400;color:var(--text-hint);">(기사,기능사)</span></label><input id="wCertNational" type="number" value="5" style="width:100%;"></div>
           <div><label style="font-size:11px;font-weight:700;color:var(--text-sub);">기타 자격증 1개당</label><input id="wCertOther" type="number" value="2" style="width:100%;"></div>
         </div>
-        <div style="font-size:11px;color:var(--text-hint);margin-top:8px;line-height:1.6;">※ "기타 자격증"은 운전면허·국가기술·국가기능사·민간자격증·기타자격증을 의미합니다.</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:8px;line-height:1.6;">※ "기타 자격증"은 운전면허·민간자격증·기타자격증을 의미합니다.</div>
       </div>
 
       <div class="card">

@@ -2808,6 +2808,8 @@ async function renderGradeTab() {
   // 1. 가중치 설정 불러오기 (없는 키는 기본값으로 보정)
   const cfgRaw = await window.DB.getGradingConfig();
   const config = {
+    wHigh: cfgRaw.wHigh ?? 0,
+    wCollege: cfgRaw.wCollege ?? 5,
     wUni: cfgRaw.wUni ?? 10,
     wGrad: cfgRaw.wGrad ?? 20,
     wCar: cfgRaw.wCar ?? 5,
@@ -2816,8 +2818,11 @@ async function renderGradeTab() {
     wCertTeacher: cfgRaw.wCertTeacher ?? 15,
     wCertLifelong: cfgRaw.wCertLifelong ?? 12,
     wCertYouth: cfgRaw.wCertYouth ?? 8,
+    wCertNational: cfgRaw.wCertNational ?? 5,
     wCertOther: cfgRaw.wCertOther ?? 2
   };
+  document.getElementById('wHigh').value = config.wHigh;
+  document.getElementById('wCollege').value = config.wCollege;
   document.getElementById('wUni').value = config.wUni;
   document.getElementById('wGrad').value = config.wGrad;
   document.getElementById('wCar').value = config.wCar;
@@ -2826,10 +2831,11 @@ async function renderGradeTab() {
   document.getElementById('wCertTeacher').value = config.wCertTeacher;
   document.getElementById('wCertLifelong').value = config.wCertLifelong;
   document.getElementById('wCertYouth').value = config.wCertYouth;
+  document.getElementById('wCertNational').value = config.wCertNational;
   document.getElementById('wCertOther').value = config.wCertOther;
 
-  // 기타 자격증 5종
-  const OTHER_CERTS = ['운전면허','국가기술자격증','국가기능사자격증','민간자격증','기타자격증'];
+  // 기타 자격증 — 운전면허·민간자격증·기타자격증만 (국가기술/기능사는 별도 항목으로 분리)
+  const OTHER_CERTS = ['운전면허','민간자격증','기타자격증'];
 
   // 2. 승인된 강사 목록 가져오기 및 점수 계산
   let list = [];
@@ -2846,7 +2852,9 @@ async function renderGradeTab() {
     // 학력
     if (u.eduLevel) {
       let s = 0;
-      if (u.eduLevel === '대졸') s = Number(config.wUni);
+      if (u.eduLevel === '고졸') s = Number(config.wHigh);
+      else if (u.eduLevel === '전문대졸') s = Number(config.wCollege);
+      else if (u.eduLevel === '대졸') s = Number(config.wUni);
       else if (u.eduLevel === '대학원졸') s = Number(config.wGrad);
       breakdown.push({ label: '학력', reason: u.eduLevel, score: s });
     }
@@ -2880,6 +2888,13 @@ async function renderGradeTab() {
     }
     if (cats.includes('청소년지도사')) {
       breakdown.push({ label: '청소년지도사', reason: '보유', score: Number(config.wCertYouth) });
+    }
+    // 국가기술자격(기사,기능사) — 신항목 + 구항목('국가기술자격증','국가기능사자격증') 호환
+    const hasNational = cats.includes('국가기술자격(기사,기능사)')
+                     || cats.includes('국가기술자격증')
+                     || cats.includes('국가기능사자격증');
+    if (hasNational) {
+      breakdown.push({ label: '국가기술자격', reason: '기사·기능사', score: Number(config.wCertNational) });
     }
     const otherCount = cats.filter(c => OTHER_CERTS.includes(c)).length;
     if (otherCount > 0) {
@@ -2955,6 +2970,8 @@ async function renderGradeTab() {
 // 가중치 저장 기능
 async function saveGradingWeights() {
   const config = {
+    wHigh: Number(document.getElementById('wHigh').value) || 0,
+    wCollege: Number(document.getElementById('wCollege').value) || 0,
     wUni: Number(document.getElementById('wUni').value) || 0,
     wGrad: Number(document.getElementById('wGrad').value) || 0,
     wCar: Number(document.getElementById('wCar').value) || 0,
@@ -2963,6 +2980,7 @@ async function saveGradingWeights() {
     wCertTeacher: Number(document.getElementById('wCertTeacher').value) || 0,
     wCertLifelong: Number(document.getElementById('wCertLifelong').value) || 0,
     wCertYouth: Number(document.getElementById('wCertYouth').value) || 0,
+    wCertNational: Number(document.getElementById('wCertNational').value) || 0,
     wCertOther: Number(document.getElementById('wCertOther').value) || 0
   };
   
