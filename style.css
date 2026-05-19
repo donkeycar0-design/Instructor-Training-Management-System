@@ -25,6 +25,9 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  overscroll-behavior-y: none;  /* 모바일에서 당겨서 새로고침 방지 */
+}
 body {
   font-family: 'Noto Sans KR', sans-serif;
   background: var(--bg);
@@ -414,16 +417,18 @@ button.invalid {
 }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .user-chip {
-  font-size: 12px; color: rgba(255,255,255,0.85);
-  background: rgba(255,255,255,0.15);
+  font-size: 12px; font-weight: 500;
+  color: #fff;
+  background: rgba(255,255,255,0.18);
   padding: 4px 10px; border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.22);
 }
 .topbar .btn.sm {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.3); color: #fff;
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.22); color: #fff;
+  font-weight: 500;
 }
-.topbar .btn.sm:hover { background: rgba(255,255,255,0.25); }
+.topbar .btn.sm:hover { background: rgba(255,255,255,0.28); }
 
 /* ── Nav ── */
 .nav {
@@ -793,9 +798,9 @@ button.invalid {
 .conn-status {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; padding: 3px 8px; border-radius: 20px;
-  font-weight: 500; background: rgba(255,255,255,0.15);
-  color: rgba(255,255,255,0.85);
-  border: 1px solid rgba(255,255,255,0.2);
+  font-weight: 500; background: rgba(255,255,255,0.18);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.22);
 }
 .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #ddd; flex-shrink: 0; transition: width 0.3s, height 0.3s; }
 .conn-status.online .conn-dot {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>티치포퓨처 강사 플랫폼 V2.1</title>
+<title>티치포퓨처 강사 플랫폼 V2.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- 1. 외부 CSS 파일 불러오기 -->
@@ -222,7 +222,7 @@
           <path d="M5 9.5 Q9.5 8 14 9.5 L14.5 20 H4.5 Z" fill="currentColor"/>
         </svg>
       </div>
-      <h1>티치포퓨처 강사 플랫폼<span class="login-version">V2.1</span></h1>
+      <h1>티치포퓨처 강사 플랫폼<span class="login-version">V2.2</span></h1>
       <p class="sub">Teach for Future — Instructor Management</p>
     </div>
 
@@ -243,6 +243,11 @@
           💡 <b>강사 로그인 안내</b><br>
           • <b>기존 강사</b>: 이름과 비밀번호 입력 후 로그인<br>
           • <b>처음이신가요?</b> <a href="javascript:void(0)" onclick="openSignupModal()" style="color:var(--blue);font-weight:700;text-decoration:none;border-bottom:1px solid var(--blue);">가입 신청하기 →</a>
+        </div>
+        <div class="info-box" style="font-size:11.5px;line-height:1.55;background:#FEFAE7;color:#7C5C1E;border-color:#E8D38C;">
+          🆕 <b>V2.2 업데이트</b><br>
+          • 🔒 <b>자동 로그인</b>: 모바일에서 화면을 당겨도 로그인이 풀리지 않습니다<br>
+          • 🍎 <b>열매지수</b>: 로그인 후 상단에서 본인 활동 열매 확인. 열매는 강사님의 활동에 따라 증가됩니다.
         </div>
         <div class="form-group"><label>이름</label><input id="iName" type="text" placeholder="홍길동" onkeypress="if(event.key==='Enter')document.getElementById('iPw').focus();"/></div>
         <div class="form-group"><label>비밀번호</label><input id="iPw" type="password" placeholder="비밀번호 입력" onkeypress="if(event.key==='Enter')loginInst();"/></div>
@@ -269,12 +274,13 @@
 <div id="instScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2.1
+      강사 플랫폼 V2.2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
       <span class="conn-status connecting" id="instConnStatus" title="연결 상태"><span class="conn-dot"></span><span class="conn-text" id="instConnText">연결 중</span></span>
       <span class="user-chip" id="instTopName"></span>
+      <span class="user-chip" id="instTopScore" style="display:none;background:rgba(255,225,130,0.22);border-color:rgba(255,225,130,0.45);color:#FFF8DC;font-weight:600;" title="열매지수"></span>
       <button class="btn sm" onclick="logout()">로그아웃</button>
     </div>
   </div>
@@ -524,7 +530,7 @@
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="title">
-      강사 플랫폼 V2.1
+      강사 플랫폼 V2.2
       <small>Teach for Future</small>
     </div>
     <div class="topbar-right">
@@ -539,9 +545,8 @@
     <button class="nav-btn" onclick="showAP('Schedule',this)">📋 강의/연수일정</button>
     <button class="nav-btn" onclick="showAP('Visits',this)">🏢 방문 신청<span id="visitBadge" class="pending-badge" style="display:none;"></span></button>
     <button class="nav-btn" onclick="showAP('Instructors',this)">👥 강사 관리<span id="pendingBadge" class="pending-badge" style="display:none;"></span></button>
-    <button class="nav-btn" onclick="showAP('Grade',this)">⭐ 강사등급</button>
-    <button class="nav-btn" onclick="showAP('Settings',this)">👤 관리자 설정</button>
-    <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템설정</button>
+    <button class="nav-btn" onclick="showAP('Grade',this)">🍎 열매지수</button>
+    <button class="nav-btn" onclick="showAP('System',this)">⚙️ 시스템 설정</button>
   </div>
   <div class="content">
 
@@ -662,7 +667,7 @@
     <div id="apGrade" class="page">
       <div class="card">
         <div class="card-header">
-          <div class="section-title">⚖️ 강사 등급 가중치 설정 / testing / </div>
+          <div class="section-title">⚖️ 열매지수 가중치 설정 / testing / </div>
           <button class="btn sm primary" onclick="saveGradingWeights()">가중치 저장</button>
         </div>
         <div class="info-box">아래 배점을 변경하고 저장하면 강사들의 점수와 순위가 즉시 재계산됩니다.</div>
@@ -689,7 +694,7 @@
 
       <div class="card">
         <div class="card-header">
-          <div class="section-title">🏆 강사 등급 및 순위</div>
+          <div class="section-title">🏆 열매지수 및 순위</div>
           <span style="font-size:12px;color:var(--text-sub);">승인된 강사 기준</span>
         </div>
         <div style="overflow-x:auto;">
@@ -708,27 +713,6 @@
               <!-- JS에서 채워짐 -->
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-
-    <div id="apSettings" class="page">
-      <div class="card">
-        <div class="card-header">
-          <div class="section-title">👤 관리자 계정 관리</div>
-          <button class="btn sm primary" onclick="openModal('addAdminModal')">+ 관리자 추가</button>
-        </div>
-        <div class="info-box">최대 4명의 관리자를 등록할 수 있습니다.<br>※ <b>'admin' 계정</b>은 시스템 기본 계정이라 <b>삭제할 수 없습니다</b>.</div>
-        <div id="adminList"></div>
-      </div>
-      <div class="card">
-        <div class="section-title" style="margin-bottom:14px;">내 비밀번호 변경</div>
-        <div class="form-group"><label>현재 비밀번호</label><input id="curPw" type="password"/></div>
-        <div class="form-group"><label>새 비밀번호</label><input id="newPw" type="password"/></div>
-        <div class="form-group"><label>새 비밀번호 확인</label><input id="newPw2" type="password"/></div>
-        <div style="display:flex;align-items:center;">
-          <button class="btn primary" onclick="changePw()">변경</button>
-          <span id="pwMsg" style="font-size:12px;margin-left:10px;display:none;"></span>
         </div>
       </div>
     </div>
@@ -758,6 +742,26 @@
           <input type="file" id="restoreFile2" accept=".json" style="display:none;" onchange="handleRestoreFileSelect(event)"/>
           <button class="btn primary" onclick="document.getElementById('restoreFile2').click()">백업 파일 선택...</button>
           <span id="restoreFileName2" style="font-size:12px;color:var(--text-sub);"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="section-title">👤 관리자 계정 관리</div>
+          <button class="btn sm primary" onclick="openModal('addAdminModal')">+ 관리자 추가</button>
+        </div>
+        <div class="info-box">최대 4명의 관리자를 등록할 수 있습니다.<br>※ <b>'admin' 계정</b>은 시스템 기본 계정이라 <b>삭제할 수 없습니다</b>.</div>
+        <div id="adminList"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-bottom:14px;">🔒 내 비밀번호 변경</div>
+        <div class="form-group"><label>현재 비밀번호</label><input id="curPw" type="password"/></div>
+        <div class="form-group"><label>새 비밀번호</label><input id="newPw" type="password"/></div>
+        <div class="form-group"><label>새 비밀번호 확인</label><input id="newPw2" type="password"/></div>
+        <div style="display:flex;align-items:center;">
+          <button class="btn primary" onclick="changePw()">변경</button>
+          <span id="pwMsg" style="font-size:12px;margin-left:10px;display:none;"></span>
         </div>
       </div>
 

@@ -57,6 +57,38 @@ let S = {
   initialized: false
 };
 
+// ═══ 자동 로그인 세션 관리 (localStorage) ═══════════════════
+// 모바일 새로고침/Pull-to-refresh 시에도 로그인 유지
+const SESSION_KEY = 'tff_session';
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;  // 7일
+
+function _saveSession(type, user) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      type: type,         // 'inst' | 'admin'
+      user: user,
+      ts: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function _clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+function _getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || !s.ts || (Date.now() - s.ts) > SESSION_MAX_AGE_MS) {
+      _clearSession();
+      return null;
+    }
+    return s;
+  } catch(e) { _clearSession(); return null; }
+}
+
 async function hashPw(plain) {
   if (!plain) return '';
   const enc = new TextEncoder().encode(plain);
@@ -200,8 +232,13 @@ async function initApp() {
     S.initialized = true;
     hideLoading();
     setConnStatus('online', 'Firebase 연결됨');
-    // 로그인 화면이 보이는 상태라면 공지 알림 표시
-    renderLoginNotices();
+
+    // 자동 로그인 시도 (세션이 있으면 로그인 화면 건너뜀)
+    const restored = await _tryAutoLogin();
+    if (!restored) {
+      // 로그인 화면이 보이는 상태라면 공지 알림 표시
+      renderLoginNotices();
+    }
   } catch(e) {
     console.error('Init failed:', e);
     hideLoading();
@@ -222,6 +259,9 @@ function onDataChanged(source) {
   }
 
   if (instActive) {
+    // 점수에 영향: instructors(신청 상태) / events(미사용 — 신청 자체가 instructors에 저장됨)
+    if (source === 'instructors') updateInstTopScore();
+
     const evPage = document.getElementById('ipEvents');
     if (evPage && evPage.classList.contains('active')) renderInstEvents();
     const ntPage = document.getElementById('ipNotices');
@@ -241,7 +281,7 @@ function onDataChanged(source) {
     if (instListPage && instListPage.classList.contains('active')) renderInstList();
     const gradePage = document.getElementById('apGrade');
     if (gradePage && gradePage.classList.contains('active')) renderGradeTab();
-    const settingsPage = document.getElementById('apSettings');
+    const settingsPage = document.getElementById('apSystem');
     if (settingsPage && settingsPage.classList.contains('active')) renderAdminList();
     const notPage = document.getElementById('apNotices');
     if (notPage && notPage.classList.contains('active')) renderAdminNotices();
@@ -361,6 +401,7 @@ async function _finalizeLoginInst(pk, hashedPw) {
   S.currentUser = pk;
   S.isAdmin = false;
   try { localStorage.setItem('tff_last_user', pk); } catch(e) {}
+  _saveSession('inst', pk);  // 자동 로그인용 세션 저장
   hideLoading();
   showScreen('instScreen');
   loadInstProfile();
@@ -537,6 +578,8 @@ async function loginAdmin() {
     closeModal('adminLoginModal');
     document.getElementById('loginErr').style.display = 'none';
     S.isAdmin = true; S.currentAdminName = name;
+    S.currentUser = name;
+    _saveSession('admin', name);  // 자동 로그인용 세션 저장
     document.getElementById('adminTopName').textContent = name + ' 관리자';
     hideLoading();
     showScreen('adminScreen');
@@ -575,6 +618,7 @@ function showAdminLoginErr(msg) {
 }
 
 function logout() {
+  _clearSession();  // 자동 로그인 세션 삭제
   if (window.DB && window.DB.signOut) {
     window.DB.signOut().catch(() => {});
   }
@@ -584,6 +628,56 @@ function logout() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+}
+
+// 자동 로그인 (initApp에서 호출) — 세션이 있고 유효하면 자동 진입
+async function _tryAutoLogin() {
+  const s = _getSession();
+  if (!s) return false;
+
+  try {
+    await window.DB.signIn();
+  } catch(e) {
+    console.warn('[autoLogin] Firebase 재인증 실패:', e && e.message);
+    return false;
+  }
+
+  if (s.type === 'inst') {
+    const u = S.instructors[s.user];
+    if (!u || (u.status && u.status !== 'approved')) {
+      _clearSession();
+      return false;
+    }
+    S.currentUser = s.user;
+    S.isAdmin = false;
+    showScreen('instScreen');
+    loadInstProfile();
+    renderInstNotices();
+    renderInstEvents();
+    return true;
+  }
+
+  if (s.type === 'admin') {
+    if (S.admins[s.user] === undefined) {
+      _clearSession();
+      return false;
+    }
+    S.isAdmin = true;
+    S.currentAdminName = s.user;
+    S.currentUser = s.user;
+    const topEl = document.getElementById('adminTopName');
+    if (topEl) topEl.textContent = s.user + ' 관리자';
+    showScreen('adminScreen');
+    renderAdminNotices();
+    renderCal();
+    initDayFilter();
+    updatePendingBadge();
+    updateVisitBadge();
+    return true;
+  }
+
+  _clearSession();
+  return false;
 }
 
 function showScreen(id) {
@@ -633,8 +727,8 @@ function showAP(id, btn) {
   if (id === 'Search') { showAP('Instructors', document.querySelector('#adminNav .nav-btn[onclick*="Instructors"]')); return; }
   if (id === 'Approval') { showAP('Instructors', document.querySelector('#adminNav .nav-btn[onclick*="Instructors"]')); S.instStatusFilter = 'pending'; renderInstList(); return; }
   if (id === 'Grade') renderGradeTab();
-  if (id === 'Settings') renderAdminList();
-  if (id === 'System') { refreshLastBackupTime(); renderManualIfShown(); }
+  if (id === 'Settings') { showAP('System', document.querySelector('#adminNav .nav-btn[onclick*="System"]')); return; }
+  if (id === 'System') { renderAdminList(); refreshLastBackupTime(); renderManualIfShown(); }
   if (id === 'Notices') renderAdminNotices();
   if (id === 'Visits') renderAdminVisits();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -696,9 +790,32 @@ function _updateCertCatLabel() {
   label.textContent = count > 0 ? `${count}개 선택됨 ${arrow}` : `선택 안함 ${arrow}`;
 }
 
+// 강사 모드 상단 — 본인의 열매지수(강사 등급 점수) 표시
+function updateInstTopScore() {
+  const scoreEl = document.getElementById('instTopScore');
+  if (!scoreEl) return;
+  if (!S.currentUser || S.isAdmin || !S.gradingConfig) {
+    scoreEl.style.display = 'none';
+    return;
+  }
+  const rawU = S.instructors[S.currentUser];
+  if (!rawU) {
+    scoreEl.style.display = 'none';
+    return;
+  }
+  const score = _calcInstructorScore(rawU, S.gradingConfig);
+  if (!score) {
+    scoreEl.style.display = 'none';
+    return;
+  }
+  scoreEl.textContent = `🍎 열매 ${score.total}`;
+  scoreEl.style.display = '';
+}
+
 function loadInstProfile() {
   const u = getProfile(S.instructors[S.currentUser]);
   document.getElementById('instTopName').textContent = (u.displayName || u.name || S.currentUser) + '님';
+  updateInstTopScore();
   document.getElementById('pName').value = u.name || S.currentUser;
   document.getElementById('pSsn1').value = u.ssn1 || '';
   document.getElementById('pSsn2').value = u.ssn2 || '';
@@ -1782,7 +1899,7 @@ function renderInstList() {
   if (_instListSort === 'name') {
     names.sort((a, b) => a.localeCompare(b, 'ko'));
   } else if (_instListSort === 'score') {
-    // 강사등급순 (점수 내림차순). 점수가 없는 강사(승인 안 됨)는 맨 뒤
+    // 열매지수순 (점수 내림차순). 점수가 없는 강사(승인 안 됨)는 맨 뒤
     names.sort((a, b) => {
       const sa = scoreCache[a] ? scoreCache[a].total : -Infinity;
       const sb = scoreCache[b] ? scoreCache[b].total : -Infinity;
@@ -1814,7 +1931,7 @@ function renderInstList() {
       <span style="font-size:12px;color:var(--text-sub);margin-right:4px;">정렬:</span>
       <button class="btn sm ${_instListSort==='recent'?'primary':''}" onclick="setInstListSort('recent')">최근 등록순</button>
       <button class="btn sm ${_instListSort==='name'?'primary':''}" onclick="setInstListSort('name')">가나다순</button>
-      <button class="btn sm ${_instListSort==='score'?'primary':''}" onclick="setInstListSort('score')">강사등급순</button>
+      <button class="btn sm ${_instListSort==='score'?'primary':''}" onclick="setInstListSort('score')">열매지수순</button>
       <span style="font-size:12px;color:${hasQuery?'var(--green)':'var(--text-hint)'};font-weight:${hasQuery?'600':'400'};margin-left:auto;">${countLabel}</span>
     </div>`;
 
@@ -1888,7 +2005,7 @@ function renderInstList() {
     if (status === 'approved') {
       nameMeta = ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span>`;
       if (score) {
-        nameMeta += ` <span style="font-size:11px;color:#B45309;background:#FEF3C7;padding:1px 6px;border-radius:9px;font-weight:600;margin-left:4px;">🏆 ${score.total}점</span>`;
+        nameMeta += ` <span style="font-size:11px;color:#B45309;background:#FEF3C7;padding:1px 6px;border-radius:9px;font-weight:600;margin-left:4px;">🍎 ${score.total}</span>`;
       }
     }
 
