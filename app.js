@@ -1830,6 +1830,18 @@ function _fmtRegDate(iso) {
   } catch(e) { return '-'; }
 }
 
+// 주민번호 마스킹: '800101' + '1234567' → '800101-1******'
+// 앞 6자리 + 성별 1자리만 노출, 나머지는 마스킹 (개인정보 보호)
+function _maskSsn(ssn1, ssn2) {
+  if (!ssn1 && !ssn2) return '';
+  const front = String(ssn1 || '').replace(/\D/g, '').slice(0, 6);
+  const back = String(ssn2 || '').replace(/\D/g, '');
+  if (!front) return '';
+  if (!back) return front;
+  const gender = back.charAt(0);
+  return `${front}-${gender}******`;
+}
+
 function setInstListSort(mode) {
   _instListSort = mode;
   renderInstList();
@@ -2000,12 +2012,16 @@ function renderInstList() {
       metaLine = `${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}`;
     }
 
-    // 승인 강사: 이름 옆에 등록일 + 총점 표시
+    // 승인 강사: 이름 옆에 주민번호 + 입회일 + 열매지수 표시
     let nameMeta = '';
     if (status === 'approved') {
-      nameMeta = ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:4px;">📅 ${regDate}</span>`;
+      const ssn = _maskSsn(u.ssn1, u.ssn2);
+      if (ssn) {
+        nameMeta += ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:6px;font-variant-numeric:tabular-nums;">🆔 ${ssn}</span>`;
+      }
+      nameMeta += ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:6px;">📅 ${regDate}</span>`;
       if (score) {
-        nameMeta += ` <span style="font-size:11px;color:#B45309;background:#FEF3C7;padding:1px 6px;border-radius:9px;font-weight:600;margin-left:4px;">🍎 ${score.total}</span>`;
+        nameMeta += ` <span style="font-size:11px;color:#B45309;background:#FEF3C7;padding:1px 6px;border-radius:9px;font-weight:600;margin-left:6px;">🍎 ${score.total}</span>`;
       }
     }
 
@@ -2100,6 +2116,7 @@ function openProfile(name) {
   document.getElementById('pmInfo').innerHTML = `
     <div class="profile-section-title">기본 정보</div>
     <div class="profile-row"><span class="lbl">상태</span><span class="val"><span class="badge ${u.status}">${u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'거절됨'}</span></span></div>
+    <div class="profile-row"><span class="lbl">주민번호</span><span class="val" style="font-variant-numeric:tabular-nums;">${_maskSsn(u.ssn1, u.ssn2) || '-'}</span></div>
     <div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email||'-'}</span></div>
     <div class="profile-row"><span class="lbl">연락처</span><span class="val">${u.phone||'-'}</span></div>
     <div class="profile-row"><span class="lbl">주소</span><span class="val">${u.addr||'-'}</span></div>
