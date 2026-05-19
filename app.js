@@ -1842,6 +1842,52 @@ function _maskSsn(ssn1, ssn2) {
   return `${front}-${gender}******`;
 }
 
+// 주민번호 뒷자리 첫 숫자로 성별 판단
+function _getGender(ssn2) {
+  const g = String(ssn2 || '').replace(/\D/g, '').charAt(0);
+  if (['1','3','5','7','9'].includes(g)) return '남';
+  if (['2','4','6','8','0'].includes(g)) return '여';
+  return null;
+}
+
+// 성별 → HTML 아이콘 (사람 이모지)
+function _getGenderIconHtml(ssn2) {
+  const g = _getGender(ssn2);
+  if (g === '남') return '<span title="남">👨</span>';
+  if (g === '여') return '<span title="여">👩</span>';
+  return '';
+}
+
+// 주민번호 → 만 나이 계산 (성별 코드로 세기 구분)
+// 1,2,5,6 → 1900년대 / 3,4,7,8 → 2000년대 / 9,0 → 1800년대
+function _calcKoreanAge(ssn1, ssn2) {
+  if (!ssn1) return null;
+  const front = String(ssn1).replace(/\D/g, '');
+  const back = String(ssn2 || '').replace(/\D/g, '');
+  if (front.length !== 6) return null;
+
+  const yy = parseInt(front.slice(0, 2), 10);
+  const mm = parseInt(front.slice(2, 4), 10);
+  const dd = parseInt(front.slice(4, 6), 10);
+  if (isNaN(yy) || isNaN(mm) || isNaN(dd)) return null;
+
+  const g = back.charAt(0);
+  let fullYear;
+  if (['1','2','5','6'].includes(g))      fullYear = 1900 + yy;
+  else if (['3','4','7','8'].includes(g)) fullYear = 2000 + yy;
+  else if (['9','0'].includes(g))         fullYear = 1800 + yy;
+  else {
+    // 성별 코드가 없으면 yy < 30이면 2000년대로, 아니면 1900년대로 추정
+    fullYear = (yy < 30) ? (2000 + yy) : (1900 + yy);
+  }
+
+  const now = new Date();
+  let age = now.getFullYear() - fullYear;
+  const thisYearBirthday = new Date(now.getFullYear(), mm - 1, dd);
+  if (now < thisYearBirthday) age--;
+  return age >= 0 && age < 150 ? age : null;
+}
+
 function setInstListSort(mode) {
   _instListSort = mode;
   renderInstList();
@@ -2012,10 +2058,16 @@ function renderInstList() {
       metaLine = `${u.subject||'과목 미입력'} &middot; ${u.phone||'연락처 미입력'}`;
     }
 
-    // 승인 강사: 이름 옆에 주민번호 + 입회일 + 열매지수 표시
+    // 승인 강사: 이름 옆에 나이 + 주민번호 + 입회일 + 열매지수 표시
     let nameMeta = '';
     if (status === 'approved') {
+      const age = _calcKoreanAge(u.ssn1, u.ssn2);
+      const genderIcon = _getGenderIconHtml(u.ssn2);
       const ssn = _maskSsn(u.ssn1, u.ssn2);
+      if (age !== null) {
+        const ageStr = genderIcon ? `${genderIcon} 만 ${age}세` : `만 ${age}세`;
+        nameMeta += ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:6px;">🎂 ${ageStr}</span>`;
+      }
       if (ssn) {
         nameMeta += ` <span style="font-size:11px;color:var(--text-hint);font-weight:400;margin-left:6px;font-variant-numeric:tabular-nums;">🆔 ${ssn}</span>`;
       }
@@ -2116,7 +2168,19 @@ function openProfile(name) {
   document.getElementById('pmInfo').innerHTML = `
     <div class="profile-section-title">기본 정보</div>
     <div class="profile-row"><span class="lbl">상태</span><span class="val"><span class="badge ${u.status}">${u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'거절됨'}</span></span></div>
-    <div class="profile-row"><span class="lbl">주민번호</span><span class="val" style="font-variant-numeric:tabular-nums;">${_maskSsn(u.ssn1, u.ssn2) || '-'}</span></div>
+    <div class="profile-row"><span class="lbl">주민번호</span><span class="val" style="font-variant-numeric:tabular-nums;">${(() => {
+      const age = _calcKoreanAge(u.ssn1, u.ssn2);
+      const genderIcon = _getGenderIconHtml(u.ssn2);
+      const ssn = _maskSsn(u.ssn1, u.ssn2);
+      if (!ssn && age === null) return '-';
+      const parts = [];
+      if (age !== null) {
+        const ageStr = genderIcon ? `${genderIcon} 만 ${age}세` : `만 ${age}세`;
+        parts.push(`<span style="color:var(--text-sub);font-weight:600;">${ageStr}</span>`);
+      }
+      if (ssn) parts.push(ssn);
+      return parts.join(' &middot; ');
+    })()}</span></div>
     <div class="profile-row"><span class="lbl">이메일</span><span class="val">${u.email||'-'}</span></div>
     <div class="profile-row"><span class="lbl">연락처</span><span class="val">${u.phone||'-'}</span></div>
     <div class="profile-row"><span class="lbl">주소</span><span class="val">${u.addr||'-'}</span></div>
